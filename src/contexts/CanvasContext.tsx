@@ -56,6 +56,7 @@ export function CanvasProvider({ children }: { children: React.ReactNode }) {
   const saveState = useCallback(() => {
     if (!canvas || isSaving.current) return;
 
+    console.log(canvas.toJSON());
     isSaving.current = true;
 
     const json = JSON.stringify(canvas.toJSON());
@@ -71,17 +72,43 @@ export function CanvasProvider({ children }: { children: React.ReactNode }) {
     if (!canvas || undoStack.current.length === 0) return;
 
     const currentState = JSON.stringify(canvas.toJSON());
+
     redoStack.current.push(currentState);
 
-    const prevState = undoStack.current.pop()!;
+    const prevState = JSON.parse(undoStack.current.pop()!);
     isSaving.current = true;
 
-    canvas.loadFromJSON(JSON.parse(prevState), () => {
-      canvas.requestRenderAll();
+    redoStack.current.push(JSON.stringify(canvas.toJSON()));
+
+    isSaving.current = true;
+
+    // 3. Check if the state we are loading is actually "empty"
+    if (!prevState.objects || prevState.objects.length === 0) {
+      // 1. Clear all objects
+      canvas.clear();
+
+      // 2. Set background using the unified 'set' method or direct assignment
+      canvas.set("backgroundColor", "#ffffff");
+
+      // 3. Re-render to show the white background
+      canvas.renderAll();
+
+      // 4. Update your state
+      finalizeUndo(undoStack.current.length > 0);
+    } else {
+      // NORMAL LOAD: For states with objects
+      canvas.loadFromJSON(prevState, () => {
+        canvas.renderAll();
+        finalizeUndo(undoStack.current.length > 0);
+      });
+    }
+
+    // 4. Helper to ensure state stays synced
+    function finalizeUndo(canUndoNext: boolean) {
       isSaving.current = false;
-      setCanUndo(undoStack.current.length > 0);
+      setCanUndo(canUndoNext);
       setCanRedo(true);
-    });
+    }
   }, [canvas]);
 
   const redo = useCallback(() => {
