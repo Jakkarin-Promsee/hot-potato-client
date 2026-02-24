@@ -33,7 +33,9 @@ export function useFabric() {
     zoom,
     setZoom,
     undo,
+    canUndo,
     redo,
+    canRedo,
   } = useCanvasContext();
 
   // Initialize canvas
@@ -118,25 +120,8 @@ export function useFabric() {
           saveState();
           active.forEach((obj) => c.remove(obj));
           c.discardActiveObject();
-          c.renderAll();
+          c.requestRenderAll();
         }
-      }
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.shiftKey &&
-        e.key.toLowerCase() === "z"
-      ) {
-        e.preventDefault();
-        redo();
-        return;
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === "z") {
-        e.preventDefault();
-        undo();
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === "y") {
-        e.preventDefault();
-        redo();
       }
     };
     document.addEventListener("keydown", handleKeyDown);
@@ -151,6 +136,43 @@ export function useFabric() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    console.log("update undo/redo");
+
+    // Keyboard shortcuts
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      )
+        return;
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.key.toLowerCase() === "z"
+      ) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "z") {
+        e.preventDefault();
+        console.log("undo");
+        undo();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "y") {
+        e.preventDefault();
+        console.log("redo");
+        redo();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [undo, redo]);
 
   // Zoom handling
   useEffect(() => {
@@ -197,11 +219,16 @@ export function useFabric() {
           break;
         }
         case "line":
-          obj = new Line([50, 50, 200, 200], {
+          const points = [50, 50, 200, 200]; // [x1, y1, x2, y2]
+          obj = new Line(points as [number, number, number, number], {
             ...baseProps,
             stroke: baseProps.fill,
-            strokeWidth: 3,
-            fill: "",
+            strokeWidth: 4,
+            strokeLineCap: "round",
+            originX: "left",
+            originY: "top",
+            hasBorders: false,
+            perPixelTargetFind: true, // Only select if clicking the actual line
           });
           break;
         case "arrow": {
@@ -241,7 +268,7 @@ export function useFabric() {
       }
       canvas.add(obj);
       canvas.setActiveObject(obj);
-      canvas.renderAll();
+      canvas.requestRenderAll();
     },
     [canvas, saveState],
   );
@@ -268,7 +295,7 @@ export function useFabric() {
       });
       canvas.add(text);
       canvas.setActiveObject(text);
-      canvas.renderAll();
+      canvas.requestRenderAll();
     },
     [canvas, saveState],
   );
@@ -291,7 +318,7 @@ export function useFabric() {
 
       canvas.add(img);
       canvas.setActiveObject(img);
-      canvas.renderAll();
+      canvas.requestRenderAll();
     },
     [canvas, saveState],
   );
@@ -346,7 +373,7 @@ export function useFabric() {
     const group = (active as any).toGroup();
 
     canvas.setActiveObject(group);
-    canvas.renderAll();
+    canvas.requestRenderAll();
   }, [canvas, saveState]);
 
   const ungroupSelected = useCallback(() => {
@@ -357,7 +384,7 @@ export function useFabric() {
 
     const activeSelection = (active as any).toActiveSelection();
     canvas.setActiveObject(activeSelection);
-    canvas.renderAll();
+    canvas.requestRenderAll();
   }, [canvas, saveState]);
 
   const bringForward = useCallback(() => {
@@ -366,7 +393,7 @@ export function useFabric() {
     if (!active) return;
     saveState();
     canvas.bringObjectForward(active);
-    canvas.renderAll();
+    canvas.requestRenderAll();
   }, [canvas, saveState]);
 
   const sendBackward = useCallback(() => {
@@ -375,7 +402,7 @@ export function useFabric() {
     if (!active) return;
     saveState();
     canvas.sendObjectBackwards(active);
-    canvas.renderAll();
+    canvas.requestRenderAll();
   }, [canvas, saveState]);
 
   return {

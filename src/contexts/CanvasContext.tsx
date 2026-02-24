@@ -56,7 +56,6 @@ export function CanvasProvider({ children }: { children: React.ReactNode }) {
   const saveState = useCallback(() => {
     if (!canvas || isSaving.current) return;
 
-    console.log(canvas.toJSON());
     isSaving.current = true;
 
     const json = JSON.stringify(canvas.toJSON());
@@ -71,39 +70,32 @@ export function CanvasProvider({ children }: { children: React.ReactNode }) {
   const undo = useCallback(() => {
     if (!canvas || undoStack.current.length === 0) return;
 
+    // 1. Capture current state to push to REDO before we overwrite it
     const currentState = JSON.stringify(canvas.toJSON());
-
     redoStack.current.push(currentState);
 
+    // 2. Get the previous state
     const prevState = JSON.parse(undoStack.current.pop()!);
     isSaving.current = true;
 
-    redoStack.current.push(JSON.stringify(canvas.toJSON()));
-
-    isSaving.current = true;
-
-    // 3. Check if the state we are loading is actually "empty"
     if (!prevState.objects || prevState.objects.length === 0) {
-      // 1. Clear all objects
       canvas.clear();
-
-      // 2. Set background using the unified 'set' method or direct assignment
       canvas.set("backgroundColor", "#ffffff");
-
-      // 3. Re-render to show the white background
+      // Ensure the canvas renders the clearing
       canvas.renderAll();
-
-      // 4. Update your state
       finalizeUndo(undoStack.current.length > 0);
     } else {
-      // NORMAL LOAD: For states with objects
+      // 3. Load the state
       canvas.loadFromJSON(prevState, () => {
-        canvas.renderAll();
+        // FORCE RE-RENDER: This solves the "blank until click" issue
+        canvas.requestRenderAll();
+        // Optional: If you use groups or heavy caching, use this:
+        // canvas.renderAll();
+
         finalizeUndo(undoStack.current.length > 0);
       });
     }
 
-    // 4. Helper to ensure state stays synced
     function finalizeUndo(canUndoNext: boolean) {
       isSaving.current = false;
       setCanUndo(canUndoNext);
@@ -116,10 +108,14 @@ export function CanvasProvider({ children }: { children: React.ReactNode }) {
 
     const currentState = JSON.stringify(canvas.toJSON());
     undoStack.current.push(currentState);
-    const nextState = redoStack.current.pop()!;
+
+    const nextState = JSON.parse(redoStack.current.pop()!);
+
     isSaving.current = true;
-    canvas.loadFromJSON(JSON.parse(nextState), () => {
+    canvas.loadFromJSON(nextState, () => {
+      // Ensure all objects are parsed and the canvas is fully refreshed
       canvas.requestRenderAll();
+
       isSaving.current = false;
       setCanUndo(true);
       setCanRedo(redoStack.current.length > 0);
