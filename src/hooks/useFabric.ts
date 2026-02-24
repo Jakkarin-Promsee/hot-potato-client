@@ -1,205 +1,115 @@
 import { useEffect, useRef, useCallback } from "react";
-import {
-  Canvas,
-  Line,
-  FabricObject,
-  Rect,
-  Circle,
-  Triangle,
-  Polygon,
-  Group,
-  Textbox,
-  FabricImage,
-  PencilBrush,
-  ActiveSelection,
-  Point,
-} from "fabric";
+import { fabric } from "fabric";
 import { useCanvasContext } from "@/contexts/CanvasContext";
-
-FabricObject.ownDefaults.originX = "left";
-FabricObject.ownDefaults.originY = "top";
-
-const ARTBOARD_WIDTH = 800;
-const ARTBOARD_HEIGHT = 600;
 
 export function useFabric() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const {
     canvas,
     setCanvas,
     setSelectedObjects,
     saveState,
     zoom,
-    setZoom,
     undo,
-    canUndo,
     redo,
-    canRedo,
+    pages,
+    activePageIndex,
+    setPages,
+    showGuides,
   } = useCanvasContext();
 
-  // Initialize canvas
+  const prevPageRef = useRef<number>(-1);
+
+  // Initialize canvas once
   useEffect(() => {
     if (!canvasRef.current || canvas) return;
-
-    const c = new Canvas(canvasRef.current, {
-      width: ARTBOARD_WIDTH,
-      height: ARTBOARD_HEIGHT,
+    const page = pages[0];
+    const c = new fabric.Canvas(canvasRef.current, {
+      width: page?.width ?? 800,
+      height: page?.height ?? 600,
       backgroundColor: "#ffffff",
       selection: true,
       preserveObjectStacking: true,
     });
 
-    // Snap-to-guide helpers
-    const SNAP_THRESHOLD = 8;
-    const guidelines: Line[] = [];
+    setupCanvasEvents(
+      c,
+      saveState,
+      setSelectedObjects,
+      showGuides,
+      page?.width ?? 800,
+      page?.height ?? 600,
+    );
+    setupKeyboardShortcuts(c, saveState, undo, redo);
 
-    const clearGuidelines = () => {
-      guidelines.forEach((line) => c.remove(line));
-      guidelines.length = 0;
-    };
-
-    const addGuideline = (points: number[]) => {
-      const line = new Line(points as [number, number, number, number], {
-        stroke: "#1F1F1F",
-        strokeWidth: 1,
-        selectable: false,
-        evented: false,
-        strokeDashArray: [4, 4],
-      });
-      (line as any).__isGuideline = true;
-      c.add(line);
-      guidelines.push(line);
-    };
-
-    c.on("object:moving", (e) => {
-      clearGuidelines();
-      const obj = e.target;
-      if (!obj) return;
-
-      const centerX = ARTBOARD_WIDTH / 2;
-      const centerY = ARTBOARD_HEIGHT / 2;
-      const objCenterX = obj.left! + (obj.width! * (obj.scaleX || 1)) / 2;
-      const objCenterY = obj.top! + (obj.height! * (obj.scaleY || 1)) / 2;
-
-      if (Math.abs(objCenterX - centerX) < SNAP_THRESHOLD) {
-        obj.set("left", centerX - (obj.width! * (obj.scaleX || 1)) / 2);
-        addGuideline([centerX, 0, centerX, ARTBOARD_HEIGHT]);
-      }
-      if (Math.abs(objCenterY - centerY) < SNAP_THRESHOLD) {
-        obj.set("top", centerY - (obj.height! * (obj.scaleY || 1)) / 2);
-        addGuideline([0, centerY, ARTBOARD_WIDTH, centerY]);
-      }
-    });
-
-    c.on("object:modified", () => {
-      clearGuidelines();
-      saveState();
-    });
-
-    c.on("selection:created", (e) => {
-      setSelectedObjects(e.selected || []);
-    });
-    c.on("selection:updated", (e) => {
-      setSelectedObjects(e.selected || []);
-    });
-    c.on("selection:cleared", () => {
-      setSelectedObjects([]);
-    });
-
-    // Keyboard shortcuts
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      )
-        return;
-      if (e.key === "Delete" || e.key === "Backspace") {
-        const active = c.getActiveObjects();
-        if (active.length) {
-          saveState();
-          active.forEach((obj) => c.remove(obj));
-          c.discardActiveObject();
-          c.requestRenderAll();
-        }
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-
-    // Save initial state
     setCanvas(c);
+    prevPageRef.current = 0;
 
     return () => {
-      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", (c as any).__keyHandler);
       c.dispose();
       setCanvas(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Switch pages
   useEffect(() => {
-    console.log("update undo/redo");
+    if (!canvas || prevPageRef.current === activePageIndex) return;
+    const page = pages[activePageIndex];
+    if (!page) return;
 
-    // Keyboard shortcuts
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      )
-        return;
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.shiftKey &&
-        e.key.toLowerCase() === "z"
-      ) {
-        e.preventDefault();
-        redo();
-        return;
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === "z") {
-        e.preventDefault();
-        console.log("undo");
-        undo();
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === "y") {
-        e.preventDefault();
-        console.log("redo");
-        redo();
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [undo, redo]);
+    canvas.loadFromJSON(JSON.parse(page.json), () => {
+      canvas.setWidth(page?.width ?? 800);
+      canvas.setHeight(page?.height ?? 800);
+      const scale = zoom / 100;
+      canvas.setZoom(scale);
+      canvas.setWidth(page?.width ?? 800 * scale);
+      canvas.setHeight(page?.height ?? 800 * scale);
+      canvas.renderAll();
+      prevPageRef.current = activePageIndex;
+    });
+  }, [activePageIndex, canvas, pages, zoom]);
 
   // Zoom handling
   useEffect(() => {
     if (!canvas) return;
-
+    const page = pages[activePageIndex];
+    if (!page) return;
     const scale = zoom / 100;
+    canvas.setZoom(scale);
+    canvas.setWidth(page?.width ?? 800 * scale);
+    canvas.setHeight(page?.height ?? 800 * scale);
+    canvas.renderAll();
+  }, [zoom, canvas, pages, activePageIndex]);
 
-    const centerPoint = new Point(ARTBOARD_WIDTH / 2, ARTBOARD_HEIGHT / 2);
-    canvas.zoomToPoint(centerPoint, zoom / 100);
-    canvas.setDimensions({
-      width: ARTBOARD_WIDTH * scale,
-      height: ARTBOARD_HEIGHT * scale,
-    });
-
-    canvas.setViewportTransform([scale, 0, 0, scale, 0, 0]);
-    canvas.requestRenderAll();
-  }, [zoom, canvas]);
+  // Update canvas when page dimensions change
+  useEffect(() => {
+    if (!canvas) return;
+    const page = pages[activePageIndex];
+    if (!page) return;
+    const scale = zoom / 100;
+    if (
+      Math.round(canvas.getWidth()) !==
+        Math.round(page?.width ?? 800 * scale) ||
+      Math.round(canvas.getHeight()) !== Math.round(page?.height ?? 800 * scale)
+    ) {
+      canvas.setZoom(scale);
+      canvas.setWidth(page?.width ?? 800 * scale);
+      canvas.setHeight(page?.height ?? 800 * scale);
+      canvas.renderAll();
+    }
+  }, [pages, activePageIndex, canvas, zoom]);
 
   const addShape = useCallback(
     (type: string) => {
       if (!canvas) return;
       saveState();
-      let obj: FabricObject;
-      const baseProps = { left: 100, top: 100, fill: "#1F1F1F" };
+      let obj: fabric.Object;
+      const baseProps = { left: 100, top: 100, fill: "hsl(250, 80%, 60%)" };
       switch (type) {
         case "rect":
-          obj = new Rect({
+          obj = new fabric.Rect({
             ...baseProps,
             width: 120,
             height: 80,
@@ -208,38 +118,33 @@ export function useFabric() {
           });
           break;
         case "circle":
-          obj = new Circle({ ...baseProps, radius: 50 });
+          obj = new fabric.Circle({ ...baseProps, radius: 50 });
           break;
         case "triangle":
-          obj = new Triangle({ ...baseProps, width: 100, height: 100 });
+          obj = new fabric.Triangle({ ...baseProps, width: 100, height: 100 });
           break;
         case "star": {
           const points = createStarPoints(5, 50, 25);
-          obj = new Polygon(points, { ...baseProps });
+          obj = new fabric.Polygon(points, { ...baseProps });
           break;
         }
         case "line":
-          const points = [50, 50, 200, 200]; // [x1, y1, x2, y2]
-          obj = new Line(points as [number, number, number, number], {
+          obj = new fabric.Line([50, 50, 200, 200], {
             ...baseProps,
             stroke: baseProps.fill,
-            strokeWidth: 4,
-            strokeLineCap: "round",
-            originX: "left",
-            originY: "top",
-            hasBorders: false,
-            perPixelTargetFind: true, // Only select if clicking the actual line
+            strokeWidth: 3,
+            fill: "",
           });
           break;
         case "arrow": {
-          const arrow = new Group(
+          const arrow = new fabric.Group(
             [
-              new Line([0, 25, 150, 25], {
+              new fabric.Line([0, 25, 150, 25], {
                 stroke: baseProps.fill,
                 strokeWidth: 3,
                 fill: "",
               }),
-              new Triangle({
+              new fabric.Triangle({
                 left: 135,
                 top: 12,
                 width: 20,
@@ -260,15 +165,15 @@ export function useFabric() {
             { x: 50, y: 100 },
             { x: 0, y: 50 },
           ];
-          obj = new Polygon(dPts, { ...baseProps });
+          obj = new fabric.Polygon(dPts, { ...baseProps });
           break;
         }
         default:
-          obj = new Rect({ ...baseProps, width: 100, height: 100 });
+          obj = new fabric.Rect({ ...baseProps, width: 100, height: 100 });
       }
       canvas.add(obj);
       canvas.setActiveObject(obj);
-      canvas.requestRenderAll();
+      canvas.renderAll();
     },
     [canvas, saveState],
   );
@@ -284,7 +189,7 @@ export function useFabric() {
         subheading: "Add a subheading",
         body: "Add body text",
       };
-      const text = new Textbox(labels[preset], {
+      const text = new fabric.Textbox(labels[preset], {
         left: 100,
         top: 100,
         width: 300,
@@ -295,30 +200,27 @@ export function useFabric() {
       });
       canvas.add(text);
       canvas.setActiveObject(text);
-      canvas.requestRenderAll();
+      canvas.renderAll();
     },
     [canvas, saveState],
   );
 
   const addImage = useCallback(
-    async (url: string) => {
+    (url: string) => {
       if (!canvas) return;
       saveState();
-
-      const img = await FabricImage.fromURL(url, { crossOrigin: "anonymous" });
-
-      const maxW = 300;
-      const scale = maxW / (img.width || 300);
-      img.set({
-        left: 100,
-        top: 100,
-        scaleX: scale,
-        scaleY: scale,
-      });
-
-      canvas.add(img);
-      canvas.setActiveObject(img);
-      canvas.requestRenderAll();
+      fabric.Image.fromURL(
+        url,
+        (img) => {
+          const maxW = 300;
+          const scale = maxW / (img.width || 300);
+          img.set({ left: 100, top: 100, scaleX: scale, scaleY: scale });
+          canvas.add(img);
+          canvas.setActiveObject(img);
+          canvas.renderAll();
+        },
+        { crossOrigin: "anonymous" },
+      );
     },
     [canvas, saveState],
   );
@@ -328,7 +230,7 @@ export function useFabric() {
       if (!canvas) return;
       canvas.isDrawingMode = enable;
       if (enable) {
-        canvas.freeDrawingBrush = new PencilBrush(canvas);
+        canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
         canvas.freeDrawingBrush.width = brushSize;
         canvas.freeDrawingBrush.color = "#1a1a2e";
       }
@@ -366,62 +268,20 @@ export function useFabric() {
 
   const groupSelected = useCallback(() => {
     if (!canvas) return;
-
-    const activeSelection = canvas.getActiveObject();
-
-    // 1. Verify it's actually an ActiveSelection instance
-    if (!activeSelection || !(activeSelection instanceof ActiveSelection)) {
-      console.warn("Please select multiple objects.");
-      return;
-    }
-
+    const active = canvas.getActiveObject();
+    if (!active || active.type !== "activeSelection") return;
     saveState();
-
-    // 2. Create the Group manually from the selection's objects
-    const objects = activeSelection.getObjects();
-    const group = new Group(objects, {
-      canvas: canvas,
-    });
-
-    // 3. Clear the selection and add the group
-    canvas.discardActiveObject();
-
-    // Remove individual objects and add the group
-    objects.forEach((obj) => canvas.remove(obj));
-    canvas.add(group);
-
-    canvas.setActiveObject(group);
-    canvas.requestRenderAll();
+    (active as fabric.ActiveSelection).toGroup();
+    canvas.renderAll();
   }, [canvas, saveState]);
 
   const ungroupSelected = useCallback(() => {
     if (!canvas) return;
-
-    const group = canvas.getActiveObject();
-
-    // 1. Verify it's a Group instance
-    if (!group || !(group instanceof Group)) {
-      console.warn("Select a group to ungroup.");
-      return;
-    }
-
+    const active = canvas.getActiveObject();
+    if (!active || active.type !== "group") return;
     saveState();
-
-    // 2. Extract objects and destroy the group container
-    const objects = group.getObjects();
-    group.removeAll(); // Modern Fabric 7 way to release children
-    canvas.remove(group);
-
-    // 3. Add objects back to canvas individually
-    canvas.add(...objects);
-
-    // 4. Create a new ActiveSelection so they stay "highlighted"
-    const activeSelection = new ActiveSelection(objects, {
-      canvas: canvas,
-    });
-
-    canvas.setActiveObject(activeSelection);
-    canvas.requestRenderAll();
+    (active as fabric.Group).toActiveSelection();
+    canvas.renderAll();
   }, [canvas, saveState]);
 
   const bringForward = useCallback(() => {
@@ -429,8 +289,8 @@ export function useFabric() {
     const active = canvas.getActiveObject();
     if (!active) return;
     saveState();
-    canvas.bringObjectForward(active);
-    canvas.requestRenderAll();
+    canvas.bringForward(active);
+    canvas.renderAll();
   }, [canvas, saveState]);
 
   const sendBackward = useCallback(() => {
@@ -438,13 +298,12 @@ export function useFabric() {
     const active = canvas.getActiveObject();
     if (!active) return;
     saveState();
-    canvas.sendObjectBackwards(active);
-    canvas.requestRenderAll();
+    canvas.sendBackwards(active);
+    canvas.renderAll();
   }, [canvas, saveState]);
 
   return {
     canvasRef,
-    containerRef,
     addShape,
     addText,
     addImage,
@@ -457,6 +316,106 @@ export function useFabric() {
     bringForward,
     sendBackward,
   };
+}
+
+function setupCanvasEvents(
+  c: fabric.Canvas,
+  saveState: () => void,
+  setSelectedObjects: (objs: fabric.Object[]) => void,
+  showGuides: boolean,
+  artboardW: number,
+  artboardH: number,
+) {
+  const SNAP_THRESHOLD = 8;
+  const guidelines: fabric.Line[] = [];
+
+  const clearGuidelines = () => {
+    guidelines.forEach((line) => c.remove(line));
+    guidelines.length = 0;
+  };
+
+  const addGuideline = (points: number[]) => {
+    const line = new fabric.Line(points, {
+      stroke: "hsl(250, 80%, 60%)",
+      strokeWidth: 1,
+      selectable: false,
+      evented: false,
+      strokeDashArray: [4, 4],
+    });
+    (line as any).__isGuideline = true;
+    c.add(line);
+    guidelines.push(line);
+  };
+
+  c.on("object:moving", (e) => {
+    clearGuidelines();
+    if (!showGuides) return;
+    const obj = e.target;
+    if (!obj) return;
+    const centerX = artboardW / 2;
+    const centerY = artboardH / 2;
+    const objCenterX = obj.left! + (obj.width! * (obj.scaleX || 1)) / 2;
+    const objCenterY = obj.top! + (obj.height! * (obj.scaleY || 1)) / 2;
+    if (Math.abs(objCenterX - centerX) < SNAP_THRESHOLD) {
+      obj.set("left", centerX - (obj.width! * (obj.scaleX || 1)) / 2);
+      addGuideline([centerX, 0, centerX, artboardH]);
+    }
+    if (Math.abs(objCenterY - centerY) < SNAP_THRESHOLD) {
+      obj.set("top", centerY - (obj.height! * (obj.scaleY || 1)) / 2);
+      addGuideline([0, centerY, artboardW, centerY]);
+    }
+  });
+
+  // Auto-save on all modification events
+  c.on("object:modified", () => {
+    clearGuidelines();
+    saveState();
+  });
+  c.on("object:scaling", () => saveState());
+  c.on("object:rotating", () => saveState());
+
+  c.on("selection:created", (e) => setSelectedObjects(e.selected || []));
+  c.on("selection:updated", (e) => setSelectedObjects(e.selected || []));
+  c.on("selection:cleared", () => setSelectedObjects([]));
+}
+
+function setupKeyboardShortcuts(
+  c: fabric.Canvas,
+  saveState: () => void,
+  undo: () => void,
+  redo: () => void,
+) {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (
+      e.target instanceof HTMLInputElement ||
+      e.target instanceof HTMLTextAreaElement
+    )
+      return;
+    if (e.key === "Delete" || e.key === "Backspace") {
+      const active = c.getActiveObjects();
+      if (active.length) {
+        saveState();
+        active.forEach((obj) => c.remove(obj));
+        c.discardActiveObject();
+        c.renderAll();
+      }
+    }
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "z") {
+      e.preventDefault();
+      redo();
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === "z") {
+      e.preventDefault();
+      undo();
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === "y") {
+      e.preventDefault();
+      redo();
+    }
+  };
+  document.addEventListener("keydown", handleKeyDown);
+  (c as any).__keyHandler = handleKeyDown;
 }
 
 function createStarPoints(spikes: number, outerR: number, innerR: number) {

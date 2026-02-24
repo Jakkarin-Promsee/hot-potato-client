@@ -1,15 +1,13 @@
-import React, { useEffect } from "react";
 import { CanvasProvider, useCanvasContext } from "@/contexts/CanvasContext";
 import { useFabric } from "@/hooks/useFabric";
-
 import TopNavbar from "@/components/design/TopNavbar";
 import LeftSidebar from "@/components/design/LeftSidebar";
 import AssetDrawer from "@/components/design/AssetDrawer";
 import PropertiesPanel from "@/components/design/PropertiesPanel";
+import PageManager from "@/components/design/PageManager";
 
-const DesignSuite = () => {
-  const { canvas, zoom } = useCanvasContext();
-
+function DesignSuite() {
+  const { zoom, pages, activePageIndex } = useCanvasContext();
   const {
     canvasRef,
     addShape,
@@ -24,6 +22,8 @@ const DesignSuite = () => {
     bringForward,
     sendBackward,
   } = useFabric();
+
+  const activePage = pages[activePageIndex];
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-surface-darker">
@@ -48,7 +48,10 @@ const DesignSuite = () => {
         <main className="flex-1 bg-canvas-bg overflow-auto flex items-center justify-center p-8">
           <div
             className="shadow-2xl"
-            style={{ width: 800 * (zoom / 100), height: 600 * (zoom / 100) }}
+            style={{
+              width: (activePage?.width || 800) * (zoom / 100),
+              height: (activePage?.height || 600) * (zoom / 100),
+            }}
           >
             <canvas ref={canvasRef} />
           </div>
@@ -59,16 +62,16 @@ const DesignSuite = () => {
           onSendBackward={sendBackward}
         />
       </div>
+
+      <PageManager />
     </div>
   );
-};
+}
 
-const Index = () => {
-  return (
-    <CanvasProvider>
-      <DesignSuite></DesignSuite>
-    </CanvasProvider>
-  );
-};
+const Index = () => (
+  <CanvasProvider>
+    <DesignSuite />
+  </CanvasProvider>
+);
 
 export default Index;

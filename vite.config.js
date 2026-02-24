@@ -10,6 +10,10 @@ export default defineConfig({
     tailwindcss()
   ],
 
+  optimizeDeps: {
+    include: ['fabric'],
+  },
+
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
