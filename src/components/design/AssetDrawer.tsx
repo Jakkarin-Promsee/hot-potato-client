@@ -261,17 +261,30 @@ export default function AssetDrawer({
     canvas.clear();
     canvas.backgroundColor = "#ffffff";
     template.objects.forEach((objData: any) => {
+      // 1. Destructure to separate 'type' from the rest of the properties
+      const { type, ...options } = objData;
       let obj: FabricObject;
-      if (objData.type === "rect") {
-        obj = new Rect(objData);
-      } else if (objData.type === "circle") {
-        obj = new FabricCircle(objData);
-      } else if (objData.type === "itext") {
-        const { type, text, ...rest } = objData;
-        obj = new Textbox(text, { ...rest, width: 500 });
-      } else return;
+
+      if (type === "rect") {
+        // Pass only the options (without the 'type' key)
+        obj = new Rect(options);
+      } else if (type === "circle") {
+        // Note: In Fabric 7, the class is usually just 'Circle'
+        obj = new FabricCircle(options);
+      } else if (type === "itext" || type === "textbox") {
+        // Textbox constructor: new Textbox(text, options)
+        const { text, ...textOptions } = options;
+        obj = new Textbox(text || "", {
+          ...textOptions,
+          width: textOptions.width || 500,
+        });
+      } else {
+        return;
+      }
+
       canvas.add(obj);
     });
+
     canvas.renderAll();
   };
 

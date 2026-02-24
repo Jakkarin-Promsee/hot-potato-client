@@ -61,7 +61,7 @@ export function useFabric() {
 
     const addGuideline = (points: number[]) => {
       const line = new Line(points as [number, number, number, number], {
-        stroke: "hsl(250, 80%, 60%)",
+        stroke: "#1F1F1F",
         strokeWidth: 1,
         selectable: false,
         evented: false,
@@ -196,7 +196,7 @@ export function useFabric() {
       if (!canvas) return;
       saveState();
       let obj: FabricObject;
-      const baseProps = { left: 100, top: 100, fill: "hsl(250, 80%, 60%)" };
+      const baseProps = { left: 100, top: 100, fill: "#1F1F1F" };
       switch (type) {
         case "rect":
           obj = new Rect({
@@ -366,11 +366,29 @@ export function useFabric() {
 
   const groupSelected = useCallback(() => {
     if (!canvas) return;
-    const active = canvas.getActiveObject();
-    if (!active || active.type !== "activeSelection") return;
+
+    const activeSelection = canvas.getActiveObject();
+
+    // 1. Verify it's actually an ActiveSelection instance
+    if (!activeSelection || !(activeSelection instanceof ActiveSelection)) {
+      console.warn("Please select multiple objects.");
+      return;
+    }
+
     saveState();
 
-    const group = (active as any).toGroup();
+    // 2. Create the Group manually from the selection's objects
+    const objects = activeSelection.getObjects();
+    const group = new Group(objects, {
+      canvas: canvas,
+    });
+
+    // 3. Clear the selection and add the group
+    canvas.discardActiveObject();
+
+    // Remove individual objects and add the group
+    objects.forEach((obj) => canvas.remove(obj));
+    canvas.add(group);
 
     canvas.setActiveObject(group);
     canvas.requestRenderAll();
@@ -378,11 +396,30 @@ export function useFabric() {
 
   const ungroupSelected = useCallback(() => {
     if (!canvas) return;
-    const active = canvas.getActiveObject();
-    if (!active || active.type !== "group") return;
+
+    const group = canvas.getActiveObject();
+
+    // 1. Verify it's a Group instance
+    if (!group || !(group instanceof Group)) {
+      console.warn("Select a group to ungroup.");
+      return;
+    }
+
     saveState();
 
-    const activeSelection = (active as any).toActiveSelection();
+    // 2. Extract objects and destroy the group container
+    const objects = group.getObjects();
+    group.removeAll(); // Modern Fabric 7 way to release children
+    canvas.remove(group);
+
+    // 3. Add objects back to canvas individually
+    canvas.add(...objects);
+
+    // 4. Create a new ActiveSelection so they stay "highlighted"
+    const activeSelection = new ActiveSelection(objects, {
+      canvas: canvas,
+    });
+
     canvas.setActiveObject(activeSelection);
     canvas.requestRenderAll();
   }, [canvas, saveState]);
