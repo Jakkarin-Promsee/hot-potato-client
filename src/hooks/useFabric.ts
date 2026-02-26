@@ -22,7 +22,17 @@ FabricObject.ownDefaults.originY = "top";
 const ARTBOARD_WIDTH = 800;
 const ARTBOARD_HEIGHT = 600;
 
-export function useFabric() {
+type UseFabricOptions = {
+  onCanvasReady?: (c: Canvas) => void;
+  onFocus?: () => void;
+  isActive?: boolean;
+};
+
+export function useFabric({
+  onCanvasReady,
+  onFocus,
+  isActive,
+}: UseFabricOptions = {}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const {
@@ -37,6 +47,21 @@ export function useFabric() {
     redo,
     canRedo,
   } = useCanvasContext();
+
+  const onFocusRef = useRef(onFocus);
+  useEffect(() => {
+    onFocusRef.current = onFocus;
+  }, [onFocus]);
+
+  const onCanvasReadyRef = useRef(onCanvasReady);
+  useEffect(() => {
+    onCanvasReadyRef.current = onCanvasReady;
+  }, [onCanvasReady]);
+
+  const saveStateRef = useRef(saveState);
+  useEffect(() => {
+    saveStateRef.current = saveState;
+  }, [saveState]);
 
   // Initialize canvas
   useEffect(() => {
@@ -53,6 +78,10 @@ export function useFabric() {
     // Snap-to-guide helpers
     const SNAP_THRESHOLD = 8;
     const guidelines: Line[] = [];
+
+    c.on("mouse:down", () => {
+      onFocusRef.current?.(); // ✅ tell parent this canvas is now active
+    });
 
     const clearGuidelines = () => {
       guidelines.forEach((line) => c.remove(line));
@@ -84,17 +113,29 @@ export function useFabric() {
 
       if (Math.abs(objCenterX - centerX) < SNAP_THRESHOLD) {
         obj.set("left", centerX - (obj.width! * (obj.scaleX || 1)) / 2);
+        obj.setCoords();
         addGuideline([centerX, 0, centerX, ARTBOARD_HEIGHT]);
       }
+
       if (Math.abs(objCenterY - centerY) < SNAP_THRESHOLD) {
         obj.set("top", centerY - (obj.height! * (obj.scaleY || 1)) / 2);
+        obj.setCoords();
         addGuideline([0, centerY, ARTBOARD_WIDTH, centerY]);
+      }
+    });
+
+    let pendingSave = false;
+
+    c.on("mouse:down", (e) => {
+      if (e.target && !(e.target as any).__isGuideline) {
+        pendingSave = true;
+        saveStateRef.current(); // save BEFORE change
       }
     });
 
     c.on("object:modified", () => {
       clearGuidelines();
-      saveState();
+      pendingSave = false;
     });
 
     c.on("selection:created", (e) => {
@@ -117,7 +158,7 @@ export function useFabric() {
       if (e.key === "Delete" || e.key === "Backspace") {
         const active = c.getActiveObjects();
         if (active.length) {
-          saveState();
+          saveStateRef.current();
           active.forEach((obj) => c.remove(obj));
           c.discardActiveObject();
           c.requestRenderAll();
@@ -129,6 +170,8 @@ export function useFabric() {
     // Save initial state
     setCanvas(c);
 
+    onCanvasReadyRef.current?.(c);
+
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       c.dispose();
@@ -137,11 +180,15 @@ export function useFabric() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    console.log("update undo/redo");
+  console.log("f" + isActive);
 
+  useEffect(() => {
     // Keyboard shortcuts
     const handleKeyDown = (e: KeyboardEvent) => {
+      console.log("z");
+      if (!isActive) return;
+      console.log("zz");
+
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement
@@ -172,7 +219,7 @@ export function useFabric() {
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [undo, redo]);
+  }, [isActive, undo, redo]);
 
   // Zoom handling
   useEffect(() => {
@@ -194,7 +241,7 @@ export function useFabric() {
   const addShape = useCallback(
     (type: string) => {
       if (!canvas) return;
-      saveState();
+      saveStateRef.current();
       let obj: FabricObject;
       const baseProps = { left: 100, top: 100, fill: "#1F1F1F" };
       switch (type) {
@@ -270,13 +317,13 @@ export function useFabric() {
       canvas.setActiveObject(obj);
       canvas.requestRenderAll();
     },
-    [canvas, saveState],
+    [canvas],
   );
 
   const addText = useCallback(
     (preset: "heading" | "subheading" | "body") => {
       if (!canvas) return;
-      saveState();
+      saveStateRef.current();
       const sizes = { heading: 36, subheading: 24, body: 16 };
       const weights = { heading: "bold", subheading: "600", body: "normal" };
       const labels = {
@@ -297,13 +344,13 @@ export function useFabric() {
       canvas.setActiveObject(text);
       canvas.requestRenderAll();
     },
-    [canvas, saveState],
+    [canvas, saveStateRef.current],
   );
 
   const addImage = useCallback(
     async (url: string) => {
       if (!canvas) return;
-      saveState();
+      saveStateRef.current();
 
       const img = await FabricImage.fromURL(url, { crossOrigin: "anonymous" });
 
@@ -320,7 +367,7 @@ export function useFabric() {
       canvas.setActiveObject(img);
       canvas.requestRenderAll();
     },
-    [canvas, saveState],
+    [canvas],
   );
 
   const toggleDrawing = useCallback(
@@ -375,7 +422,7 @@ export function useFabric() {
       return;
     }
 
-    saveState();
+    saveStateRef.current();
 
     // 2. Create the Group manually from the selection's objects
     const objects = activeSelection.getObjects();
@@ -392,7 +439,7 @@ export function useFabric() {
 
     canvas.setActiveObject(group);
     canvas.requestRenderAll();
-  }, [canvas, saveState]);
+  }, [canvas]);
 
   const ungroupSelected = useCallback(() => {
     if (!canvas) return;
@@ -405,7 +452,7 @@ export function useFabric() {
       return;
     }
 
-    saveState();
+    saveStateRef.current();
 
     // 2. Extract objects and destroy the group container
     const objects = group.getObjects();
@@ -422,25 +469,25 @@ export function useFabric() {
 
     canvas.setActiveObject(activeSelection);
     canvas.requestRenderAll();
-  }, [canvas, saveState]);
+  }, [canvas, saveStateRef.current]);
 
   const bringForward = useCallback(() => {
     if (!canvas) return;
     const active = canvas.getActiveObject();
     if (!active) return;
-    saveState();
+    saveStateRef.current();
     canvas.bringObjectForward(active);
     canvas.requestRenderAll();
-  }, [canvas, saveState]);
+  }, [canvas, saveStateRef.current]);
 
   const sendBackward = useCallback(() => {
     if (!canvas) return;
     const active = canvas.getActiveObject();
     if (!active) return;
-    saveState();
+    saveStateRef.current();
     canvas.sendObjectBackwards(active);
     canvas.requestRenderAll();
-  }, [canvas, saveState]);
+  }, [canvas]);
 
   return {
     canvasRef,

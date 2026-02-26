@@ -65,6 +65,9 @@ export function CanvasProvider({ children }: { children: React.ReactNode }) {
     setCanUndo(true);
     setCanRedo(false);
     isSaving.current = false;
+
+    console.log("saveState:");
+    console.log(canvas.toJSON().objects[0]?.top ?? "undefine");
   }, [canvas]);
 
   const undo = useCallback(() => {
@@ -78,12 +81,17 @@ export function CanvasProvider({ children }: { children: React.ReactNode }) {
     const prevState = JSON.parse(undoStack.current.pop()!);
     isSaving.current = true;
 
+    console.log("undo: ");
+    console.log(prevState.objects[0]?.top ?? "undefine");
+
     if (!prevState.objects || prevState.objects.length === 0) {
       canvas.clear();
       canvas.set("backgroundColor", "#ffffff");
       // Ensure the canvas renders the clearing
       canvas.renderAll();
       finalizeUndo(undoStack.current.length > 0);
+
+      console.log("here");
     } else {
       // 3. Load the state
       canvas.loadFromJSON(prevState, () => {
