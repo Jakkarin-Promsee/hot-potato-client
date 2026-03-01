@@ -1,73 +1,306 @@
+@import url("https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", "DM Sans", ui-sans-serif, system-ui;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: "Lora", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", monospace;
 
-  --color-background: hsl(220 14% 96%);
-  --color-foreground: hsl(224 28% 12%);
-  --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(224 28% 12%);
+  /* Light mode colors */
+  --color-background: hsl(40 20% 98%);
+  --color-foreground: hsl(220 15% 13%);
+  --color-card: hsl(40 15% 97%);
+  --color-card-foreground: hsl(220 15% 13%);
   --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(224 28% 12%);
-  --color-primary: hsl(250 80% 60%);
-  --color-primary-foreground: hsl(0 0% 100%);
-  --color-secondary: hsl(220 14% 92%);
-  --color-secondary-foreground: hsl(224 28% 12%);
-  --color-muted: hsl(220 14% 92%);
-  --color-muted-foreground: hsl(220 10% 46%);
-  --color-accent: hsl(168 72% 48%);
-  --color-accent-foreground: hsl(0 0% 100%);
-  --color-destructive: hsl(0 72% 56%);
+  --color-popover-foreground: hsl(220 15% 13%);
+  --color-primary: hsl(220 15% 13%);
+  --color-primary-foreground: hsl(40 20% 98%);
+  --color-secondary: hsl(40 10% 93%);
+  --color-secondary-foreground: hsl(220 15% 20%);
+  --color-muted: hsl(40 10% 94%);
+  --color-muted-foreground: hsl(220 8% 50%);
+  --color-accent: hsl(40 10% 93%);
+  --color-accent-foreground: hsl(220 15% 13%);
+  --color-destructive: hsl(0 72% 51%);
   --color-destructive-foreground: hsl(0 0% 100%);
-  --color-border: hsl(220 14% 88%);
-  --color-input: hsl(220 14% 88%);
-  --color-ring: hsl(250 80% 60%);
-  --radius-lg: 0.5rem;
+  --color-border: hsl(40 10% 90%);
+  --color-input: hsl(40 10% 90%);
+  --color-ring: hsl(220 15% 13%);
+  --radius: 0.375rem;
 
-  --color-surface-dark: hsl(228 18% 14%);
-  --color-surface-dark-foreground: hsl(220 14% 80%);
-  --color-surface-darker: hsl(228 20% 10%);
-  --color-surface-darker-foreground: hsl(220 14% 70%);
-  --color-surface-hover: hsl(228 16% 20%);
-  --color-canvas-bg: hsl(220 14% 90%);
-  --color-artboard: hsl(0 0% 100%);
-  --color-toolbar-border: hsl(228 16% 22%);
-  --color-accent-warm: hsl(32 90% 56%);
-  --color-accent-warm-foreground: hsl(0 0% 100%);
-  --color-accent-cool: hsl(200 80% 52%);
-  --color-accent-cool-foreground: hsl(0 0% 100%);
+  --color-sidebar-background: hsl(0 0% 98%);
+  --color-sidebar-foreground: hsl(240 5.3% 26.1%);
+  --color-sidebar-primary: hsl(240 5.9% 10%);
+  --color-sidebar-primary-foreground: hsl(0 0% 98%);
+  --color-sidebar-accent: hsl(240 4.8% 95.9%);
+  --color-sidebar-accent-foreground: hsl(240 5.9% 10%);
+  --color-sidebar-border: hsl(220 13% 91%);
+  --color-sidebar-ring: hsl(217.2 91.2% 59.8%);
 
-  --color-sidebar-background: hsl(228 18% 14%);
-  --color-sidebar-foreground: hsl(220 14% 80%);
-  --color-sidebar-primary: hsl(250 80% 60%);
-  --color-sidebar-primary-foreground: hsl(0 0% 100%);
-  --color-sidebar-accent: hsl(228 16% 20%);
-  --color-sidebar-accent-foreground: hsl(220 14% 90%);
-  --color-sidebar-border: hsl(228 16% 22%);
-  --color-sidebar-ring: hsl(250 80% 60%);
+  /* Editor tokens */
+  --editor-body-size: 21px;
+  --editor-body-height: 1.58;
+  --editor-max-width: 720px;
+  --editor-toolbar-bg: hsl(220 15% 13%);
+  --editor-toolbar-fg: hsl(40 20% 98%);
+  --editor-highlight: hsl(142 50% 45%);
+  --editor-code-bg: hsl(220 14% 96%);
+  --editor-code-fg: hsl(220 15% 20%);
+  --editor-selection: hsl(210 80% 92%);
+  --editor-placeholder: hsl(220 8% 72%);
+  --editor-surface: hsl(0 0% 100%);
+  --editor-canvas: hsl(220 14% 92%);
 }
 
 @layer base {
-  * {
-    @apply border-border;
+  *,
+  *::before,
+  *::after {
+    border-color: var(--color-border);
   }
+
   body {
-    @apply bg-background text-foreground font-sans;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-@utility scrollbar-thin {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-surface-hover) transparent;
+/* Dark mode — override theme tokens */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: hsl(220 15% 8%);
+    --color-foreground: hsl(40 15% 90%);
+    --color-card: hsl(220 15% 10%);
+    --color-card-foreground: hsl(40 15% 90%);
+    --color-popover: hsl(220 15% 10%);
+    --color-popover-foreground: hsl(40 15% 90%);
+    --color-primary: hsl(40 15% 90%);
+    --color-primary-foreground: hsl(220 15% 8%);
+    --color-secondary: hsl(220 12% 15%);
+    --color-secondary-foreground: hsl(40 15% 90%);
+    --color-muted: hsl(220 12% 15%);
+    --color-muted-foreground: hsl(220 8% 55%);
+    --color-accent: hsl(220 12% 15%);
+    --color-accent-foreground: hsl(40 15% 90%);
+    --color-destructive: hsl(0 62.8% 30.6%);
+    --color-destructive-foreground: hsl(210 40% 98%);
+    --color-border: hsl(220 12% 18%);
+    --color-input: hsl(220 12% 18%);
+    --color-ring: hsl(40 15% 90%);
 
-  &::-webkit-scrollbar {
-    width: 4px;
+    --editor-toolbar-bg: hsl(40 15% 92%);
+    --editor-toolbar-fg: hsl(220 15% 10%);
+    --editor-code-bg: hsl(220 14% 12%);
+    --editor-code-fg: hsl(40 15% 85%);
+    --editor-selection: hsl(210 40% 20%);
+    --editor-placeholder: hsl(220 8% 40%);
+    --editor-surface: hsl(220 15% 12%);
+    --editor-canvas: hsl(220 15% 6%);
   }
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: var(--color-surface-hover);
-    border-radius: 2px;
-  }
+}
+
+/* If you're using a class-based dark mode toggle instead, use this instead of the @media block above:
+.dark {
+  --color-background: hsl(220 15% 8%);
+  ... etc
+}
+*/
+
+/* TipTap Editor Styles */
+.tiptap-editor .ProseMirror {
+  font-family: var(--font-serif);
+  font-size: var(--editor-body-size);
+  line-height: var(--editor-body-height);
+  color: var(--color-foreground);
+  outline: none;
+  max-width: var(--editor-max-width);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  min-height: 60vh;
+}
+
+.tiptap-editor .ProseMirror p {
+  margin-bottom: 1.2em;
+  letter-spacing: -0.003em;
+  word-break: break-word;
+}
+
+.tiptap-editor .ProseMirror h1 {
+  font-family: var(--font-serif);
+  font-size: 2.5em;
+  font-weight: 700;
+  line-height: 1.15;
+  margin-top: 1.6em;
+  margin-bottom: 0.4em;
+  letter-spacing: -0.02em;
+}
+
+.tiptap-editor .ProseMirror h2 {
+  font-family: var(--font-serif);
+  font-size: 1.6em;
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: 1.4em;
+  margin-bottom: 0.4em;
+  letter-spacing: -0.015em;
+}
+
+.tiptap-editor .ProseMirror h3 {
+  font-family: var(--font-serif);
+  font-size: 1.25em;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 1.2em;
+  margin-bottom: 0.3em;
+}
+
+.tiptap-editor .ProseMirror blockquote {
+  border-left: 3px solid
+    color-mix(in oklab, var(--color-foreground) 15%, transparent);
+  padding-left: 1.2em;
+  margin-left: 0;
+  margin-right: 0;
+  font-style: italic;
+  color: var(--color-muted-foreground);
+}
+
+.tiptap-editor .ProseMirror a {
+  color: var(--color-foreground);
+  text-decoration: underline;
+  text-decoration-color: color-mix(
+    in oklab,
+    var(--color-foreground) 30%,
+    transparent
+  );
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.2s ease;
+}
+
+.tiptap-editor .ProseMirror a:hover {
+  text-decoration-color: var(--color-foreground);
+}
+
+.tiptap-editor .ProseMirror ::selection {
+  background: var(--editor-selection);
+}
+
+.tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--editor-placeholder);
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+}
+
+.tiptap-editor .ProseMirror .is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--editor-placeholder);
+  pointer-events: none;
+  height: 0;
+}
+
+.tiptap-editor .ProseMirror pre {
+  background: var(--editor-code-bg);
+  border-radius: 6px;
+  padding: 1em 1.2em;
+  margin: 1.5em 0;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  line-height: 1.6;
+}
+
+.tiptap-editor .ProseMirror pre code {
+  color: var(--editor-code-fg);
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+.tiptap-editor .ProseMirror code {
+  background: var(--editor-code-bg);
+  color: var(--editor-code-fg);
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+}
+
+/* Syntax highlighting */
+.tiptap-editor .ProseMirror pre .hljs-comment,
+.tiptap-editor .ProseMirror pre .hljs-quote {
+  color: hsl(220 8% 50%);
+  font-style: italic;
+}
+.tiptap-editor .ProseMirror pre .hljs-keyword,
+.tiptap-editor .ProseMirror pre .hljs-selector-tag {
+  color: hsl(280 60% 55%);
+}
+.tiptap-editor .ProseMirror pre .hljs-string,
+.tiptap-editor .ProseMirror pre .hljs-attr {
+  color: hsl(142 50% 40%);
+}
+.tiptap-editor .ProseMirror pre .hljs-number,
+.tiptap-editor .ProseMirror pre .hljs-literal {
+  color: hsl(25 80% 50%);
+}
+.tiptap-editor .ProseMirror pre .hljs-built_in,
+.tiptap-editor .ProseMirror pre .hljs-type {
+  color: hsl(200 70% 45%);
+}
+.tiptap-editor .ProseMirror pre .hljs-title,
+.tiptap-editor .ProseMirror pre .hljs-function {
+  color: hsl(210 60% 50%);
+}
+
+.tiptap-editor .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 1.5em 0;
+}
+
+.tiptap-editor .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.tiptap-editor .ProseMirror div[data-youtube-video] {
+  margin: 1.5em 0;
+}
+
+.tiptap-editor .ProseMirror div[data-youtube-video] iframe {
+  border-radius: 6px;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+}
+
+.tiptap-editor .ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 2em 0;
+}
+
+.tiptap-editor .ProseMirror ul,
+.tiptap-editor .ProseMirror ol {
+  padding-left: 1.5em;
+  margin-bottom: 1.2em;
+}
+
+.tiptap-editor .ProseMirror li {
+  margin-bottom: 0.3em;
+}
+
+.tiptap-editor .ProseMirror [data-fabric-canvas] {
+  margin: 1.5em 0;
+}
+
+.tiptap-editor .ProseMirror [data-question-answer] {
+  margin: 1em 0;
 }
