@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
 import {
-  Canvas,
   Line,
   FabricObject,
   Rect,

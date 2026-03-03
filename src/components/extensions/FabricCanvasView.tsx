@@ -1,7 +1,6 @@
 import { useRef, useEffect, useCallback, useState, RefObject } from "react";
 import { NodeViewWrapper } from "@tiptap/react";
 import { Canvas } from "fabric";
-import { useFabric } from "@/hooks/useFabric";
 import useFabricSetup from "@/hooks/useFabricSetup";
 import { useCanvasContext } from "@/contexts/CanvasContext";
 import { v4 as uuidv4 } from "uuid";
@@ -12,6 +11,16 @@ const FabricCanvasView = ({ node, updateAttributes, selected }: any) => {
   const backgroundColor = "#fafafa";
 
   const canvasDataPrevRef = useRef("");
+
+  useEffect(() => {
+    if (selected) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.discardActiveObject();
+    canvas.requestRenderAll();
+  }, [selected]);
 
   const onSaveState = useCallback(() => {
     const canvas = canvasRef.current;

@@ -1,6 +1,6 @@
 import { useCanvasContext } from "@/contexts/CanvasContext";
 import { Canvas, Line } from "fabric";
-import React, { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 type useFabricSetupOptions = {
   onFocus?: () => void;

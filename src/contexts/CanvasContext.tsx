@@ -4,7 +4,6 @@ import React, {
   useState,
   useCallback,
   useRef,
-  useEffect,
 } from "react";
 
 import { Canvas, FabricObject } from "fabric";
