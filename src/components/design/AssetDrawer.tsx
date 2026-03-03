@@ -23,15 +23,7 @@ import {
   Shadow,
   Textbox,
 } from "fabric";
-
-interface AssetDrawerProps {
-  onAddShape: (type: string) => void;
-  onAddText: (preset: "heading" | "subheading" | "body") => void;
-  onAddImage: (url: string) => void;
-  onToggleDrawing: (enable: boolean, brushSize?: number) => void;
-  onSetBrushSize: (size: number) => void;
-  onSetBrushColor: (color: string) => void;
-}
+import { useFabric } from "@/hooks/useFabric";
 
 const shapes = [
   { type: "rect", icon: Square, label: "Rectangle" },
@@ -239,20 +231,22 @@ const brushColors = [
   "#e91e63",
 ];
 
-export default function AssetDrawer({
-  onAddShape,
-  onAddText,
-  onAddImage,
-  onToggleDrawing,
-  onSetBrushSize,
-  onSetBrushColor,
-}: AssetDrawerProps) {
+export default function AssetDrawer() {
   const { selectedCategory, canvas } = useCanvasContext();
   const [search, setSearch] = useState("");
   const [isDrawing, setIsDrawing] = useState(false);
   const [brushSize, setBrushSizeLocal] = useState(4);
   const [brushColor, setBrushColorLocal] = useState("#1a1a2e");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    addShape,
+    addImage,
+    addText,
+    toggleDrawing,
+    setBrushSize,
+    setBrushColor,
+  } = useFabric();
 
   if (!selectedCategory) return null;
 
@@ -293,7 +287,7 @@ export default function AssetDrawer({
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      if (ev.target?.result) onAddImage(ev.target.result as string);
+      if (ev.target?.result) addImage(ev.target.result as string);
     };
     reader.readAsDataURL(file);
   };
@@ -301,17 +295,17 @@ export default function AssetDrawer({
   const toggleDraw = () => {
     const next = !isDrawing;
     setIsDrawing(next);
-    onToggleDrawing(next, brushSize);
+    toggleDrawing(next, brushSize);
   };
 
   const handleBrushSize = (size: number) => {
     setBrushSizeLocal(size);
-    onSetBrushSize(size);
+    setBrushSize(size);
   };
 
   const handleBrushColor = (color: string) => {
     setBrushColorLocal(color);
-    onSetBrushColor(color);
+    setBrushColor(color);
   };
 
   const filteredShapes = shapes.filter((s) =>
@@ -369,7 +363,7 @@ export default function AssetDrawer({
               {filteredShapes.map(({ type, icon: Icon, label }) => (
                 <button
                   key={type}
-                  onClick={() => onAddShape(type)}
+                  onClick={() => addShape(type)}
                   className="bg-surface-hover rounded-lg p-3 flex flex-col items-center gap-1 hover:bg-primary/20 transition-colors group"
                 >
                   <Icon
@@ -412,7 +406,7 @@ export default function AssetDrawer({
             ].map(({ preset, icon: Icon, label, desc }) => (
               <button
                 key={preset}
-                onClick={() => onAddText(preset)}
+                onClick={() => addText(preset)}
                 className="w-full flex items-center gap-3 bg-surface-hover rounded-lg px-3 py-3 hover:bg-primary/20 transition-colors group text-left"
               >
                 <Icon
@@ -494,7 +488,11 @@ export default function AssetDrawer({
                   <button
                     key={c}
                     onClick={() => handleBrushColor(c)}
-                    className={`w-7 h-7 rounded-full border-2 transition-transform ${brushColor === c ? "border-primary scale-110" : "border-transparent"}`}
+                    className={`w-7 h-7 rounded-full border-2 transition-transform ${
+                      brushColor === c
+                        ? "border-primary scale-110"
+                        : "border-transparent"
+                    }`}
                     style={{ backgroundColor: c }}
                   />
                 ))}

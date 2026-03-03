@@ -1,15 +1,37 @@
-// useCanvasDrag.ts
-import { useEffect, useRef, RefObject } from "react";
+import { useEffect, useRef } from "react";
 import { Canvas, FabricObject } from "fabric";
 
-export function useCanvasDrag(canvasRefs: RefObject<(Canvas | null)[]>) {
+export function useCanvasDrag(
+  canvases: Map<string, Canvas>,
+  canvasesSaveState: Map<string, () => void>,
+) {
+  const canvasesRef = useRef(canvases);
+  const saveStateRef = useRef(canvasesSaveState);
+
+  // Keep refs in sync with latest props
+  useEffect(() => {
+    canvasesRef.current = canvases;
+  }, [canvases]);
+
+  useEffect(() => {
+    saveStateRef.current = canvasesSaveState;
+  }, [canvasesSaveState]);
+
   const dragState = useRef<{
     object: FabricObject | null;
     source: Canvas | null;
   }>({ object: null, source: null });
 
   useEffect(() => {
-    const getCanvases = () => canvasRefs.current.filter(Boolean) as Canvas[];
+    const getCanvases = () =>
+      [...canvasesRef.current.values()].filter(Boolean) as Canvas[];
+
+    const findIdByCanvas = (canvasInstance: Canvas) => {
+      const entry = Array.from(canvasesRef.current.entries()).find(
+        ([, c]) => c === canvasInstance,
+      );
+      return entry?.[0];
+    };
 
     const handlePointerMove = (e: PointerEvent) => {
       if (!dragState.current.object) return;
@@ -29,6 +51,12 @@ export function useCanvasDrag(canvasRefs: RefObject<(Canvas | null)[]>) {
       const { object, source } = dragState.current;
       if (!object || !source) return;
 
+      // Reset drag state immediately
+      dragState.current = { object: null, source: null };
+      getCanvases().forEach((c) => {
+        c.getElement().style.outline = "";
+      });
+
       const target = getCanvases().find((c) => {
         if (c === source) return false;
         const rect = c.getElement().getBoundingClientRect();
@@ -40,27 +68,37 @@ export function useCanvasDrag(canvasRefs: RefObject<(Canvas | null)[]>) {
         );
       });
 
-      if (target) {
-        const rect = target.getElement().getBoundingClientRect();
-        const clone = await object.clone();
-        clone.set({
-          left:
-            e.clientX - rect.left - (object.width! * (object.scaleX || 1)) / 2,
-          top:
-            e.clientY - rect.top - (object.height! * (object.scaleY || 1)) / 2,
-        });
-        source.remove(object);
-        source.discardActiveObject();
-        source.requestRenderAll();
-        target.add(clone);
-        target.setActiveObject(clone);
-        target.requestRenderAll();
+      if (!target) return;
+
+      // ✅ Defer so we're fully outside Fabric's event call stack
+      // This prevents Tiptap's updateAttributes from remounting the canvas mid-operation
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const rect = target.getElement().getBoundingClientRect();
+      const clone = await object.clone();
+      clone.set({
+        left:
+          e.clientX - rect.left - (object.width! * (object.scaleX || 1)) / 2,
+        top: e.clientY - rect.top - (object.height! * (object.scaleY || 1)) / 2,
+      });
+
+      source.discardActiveObject();
+      source.remove(object);
+      source.requestRenderAll();
+
+      const sourceId = findIdByCanvas(source);
+      if (sourceId) {
+        saveStateRef.current.get(sourceId)?.();
       }
 
-      dragState.current = { object: null, source: null };
-      getCanvases().forEach((c) => {
-        c.getElement().style.outline = "";
-      });
+      target.add(clone);
+      target.setActiveObject(clone);
+      target.requestRenderAll();
+
+      const targetId = findIdByCanvas(target);
+      if (targetId) {
+        saveStateRef.current.get(targetId)?.();
+      }
     };
 
     const interval = setInterval(() => {

@@ -10,11 +10,7 @@ import {
   AlignRight,
 } from "lucide-react";
 import { FabricImage, filters, IText, Rect } from "fabric";
-
-interface PropertiesPanelProps {
-  onBringForward: () => void;
-  onSendBackward: () => void;
-}
+import { useFabric } from "@/hooks/useFabric";
 
 const fonts = [
   "Inter",
@@ -37,13 +33,12 @@ const presetColors = [
   "#2d3436",
 ];
 
-export default function PropertiesPanel({
-  onBringForward,
-  onSendBackward,
-}: PropertiesPanelProps) {
-  const { canvas, selectedObjects, saveState } = useCanvasContext();
+export default function PropertiesPanel() {
+  const { canvas, selectedObjects, saveStateRef } = useCanvasContext();
   const [, forceUpdate] = useState(0);
   const obj = selectedObjects.length === 1 ? selectedObjects[0] : null;
+
+  const { bringForward, sendBackward } = useFabric();
 
   useEffect(() => {
     if (!canvas) return;
@@ -75,7 +70,7 @@ export default function PropertiesPanel({
   const isShape = !isText && !isImage;
 
   const update = (props: Record<string, any>) => {
-    saveState();
+    saveStateRef.current?.();
     obj.set(props);
     canvas?.renderAll();
     forceUpdate((n) => n + 1);
@@ -108,12 +103,12 @@ export default function PropertiesPanel({
           <div className="flex gap-1">
             <SmallButton
               icon={ArrowUp}
-              onClick={onBringForward}
+              onClick={bringForward}
               title="Bring Forward"
             />
             <SmallButton
               icon={ArrowDown}
-              onClick={onSendBackward}
+              onClick={sendBackward}
               title="Send Backward"
             />
           </div>
@@ -270,7 +265,7 @@ export default function PropertiesPanel({
               <button
                 onClick={() => {
                   if (!canvas) return;
-                  saveState();
+                  saveStateRef.current?.();
                   const img = obj as FabricImage;
                   const el = img.getElement() as HTMLImageElement;
                   const origW = el.naturalWidth;
@@ -296,7 +291,7 @@ export default function PropertiesPanel({
               <button
                 onClick={() => {
                   if (!canvas) return;
-                  saveState();
+                  saveStateRef.current?.();
                   const img = obj as FabricImage;
                   const el = img.getElement() as HTMLImageElement;
                   img.set({
@@ -317,7 +312,7 @@ export default function PropertiesPanel({
               <div className="flex flex-col gap-1">
                 <button
                   onClick={() => {
-                    saveState();
+                    saveStateRef.current?.();
                     const img = obj as FabricImage;
                     img.filters = [new filters.Grayscale()];
                     img.applyFilters();
@@ -329,7 +324,7 @@ export default function PropertiesPanel({
                 </button>
                 <button
                   onClick={() => {
-                    saveState();
+                    saveStateRef.current?.();
                     const img = obj as FabricImage;
                     img.filters = [new filters.Sepia()];
                     img.applyFilters();
@@ -341,7 +336,7 @@ export default function PropertiesPanel({
                 </button>
                 <button
                   onClick={() => {
-                    saveState();
+                    saveStateRef.current?.();
                     const img = obj as FabricImage;
                     img.filters = [];
                     img.applyFilters();
@@ -425,7 +420,9 @@ function ColorPicker({
           <button
             key={c}
             onClick={() => onChange(c)}
-            className={`w-5 h-5 rounded-full border transition-transform ${value === c ? "border-primary scale-125" : "border-toolbar-border"}`}
+            className={`w-5 h-5 rounded-full border transition-transform ${
+              value === c ? "border-primary scale-125" : "border-toolbar-border"
+            }`}
             style={{ backgroundColor: c }}
           />
         ))}

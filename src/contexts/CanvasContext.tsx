@@ -4,9 +4,11 @@ import React, {
   useState,
   useCallback,
   useRef,
+  useEffect,
 } from "react";
 
 import { Canvas, FabricObject } from "fabric";
+import { useCanvasDrag } from "@/hooks/useCanvasDrag";
 
 export type SelectedCategory =
   | "templates"
@@ -17,141 +19,100 @@ export type SelectedCategory =
   | null;
 
 interface CanvasContextType {
+  canvases: Map<string, Canvas>;
+  registerCanvas: (id: string, c: Canvas, s: () => void) => void;
+  unregisterCanvas: (id: string) => void;
   canvas: Canvas | null;
-  setCanvas: (c: Canvas | null) => void;
+  canvasRef: React.RefObject<Canvas | null>;
+  setCanvasSync: (c: Canvas | null) => void;
   selectedObjects: FabricObject[];
   setSelectedObjects: (objs: FabricObject[]) => void;
   selectedCategory: SelectedCategory;
   setSelectedCategory: (cat: SelectedCategory) => void;
-  zoom: number;
-  setZoom: (z: number) => void;
-  fileName: string;
-  setFileName: (name: string) => void;
-  undoStack: React.RefObject<string[]>;
-  redoStack: React.RefObject<string[]>;
-  saveState: () => void;
-  undo: () => void;
-  redo: () => void;
-  canUndo: boolean;
-  canRedo: boolean;
-  setCanUndo: (v: boolean) => void;
-  setCanRedo: (v: boolean) => void;
+  saveStateRef: React.RefObject<(() => void) | null>;
+  setSaveState: (f: () => void) => void;
 }
 
 const CanvasContext = createContext<CanvasContextType | null>(null);
 
 export function CanvasProvider({ children }: { children: React.ReactNode }) {
+  const [canvases, setCanvases] = useState<Map<string, Canvas>>(new Map());
+  const [canvasesSaveState, setCanvasesSaveState] = useState<
+    Map<string, () => void>
+  >(new Map());
+
+  const registerCanvas = useCallback(
+    (id: string, newCanvas: Canvas, onSaveState: () => void) => {
+      setCanvases((prev) => {
+        const next = new Map(prev); // Copy the old map
+        next.set(id, newCanvas); // Modify the copy
+        return next; // Return the new reference
+      });
+
+      setCanvasesSaveState((prev) => {
+        const next = new Map(prev); // Copy the old map
+        next.set(id, onSaveState); // Modify the copy
+        return next; // Return the new reference
+      });
+    },
+    [],
+  );
+
+  const unregisterCanvas = useCallback((id: string) => {
+    setCanvases((prev) => {
+      const next = new Map(prev);
+      next.delete(id);
+      return next;
+    });
+
+    setCanvasesSaveState((prev) => {
+      const next = new Map(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+
+  useCanvasDrag(canvases, canvasesSaveState);
+
+  // The canvas that link to UI, Rerender every change
   const [canvas, setCanvas] = useState<Canvas | null>(null);
+  // The canvas that link to fabric function, Built once
+  const canvasRef = useRef<Canvas | null>(null);
+
+  // The canvas selected object, use to control properties UI
   const [selectedObjects, setSelectedObjects] = useState<FabricObject[]>([]);
   const [selectedCategory, setSelectedCategory] =
     useState<SelectedCategory>(null);
-  const [zoom, setZoom] = useState(100);
-  const [fileName, setFileName] = useState("Untitled Design");
-  const [canUndo, setCanUndo] = useState(false);
-  const [canRedo, setCanRedo] = useState(false);
-  const undoStack = useRef<string[]>([]);
-  const redoStack = useRef<string[]>([]);
-  const isSaving = useRef(false);
 
-  const saveState = useCallback(() => {
-    if (!canvas || isSaving.current) return;
+  // The saveUniversalStateFunction, use with tiptap
+  const saveStateRef = useRef<() => void>(null);
 
-    isSaving.current = true;
+  // canvasRef sync update follow canvas, both update at the same time
+  const setCanvasSync = useCallback((c: Canvas | null) => {
+    canvasRef.current = c;
+    setCanvas(c);
+  }, []);
 
-    const json = JSON.stringify(canvas.toJSON());
-    undoStack.current.push(json);
-
-    redoStack.current = [];
-    setCanUndo(true);
-    setCanRedo(false);
-    isSaving.current = false;
-
-    console.log("saveState:");
-    console.log(canvas.toJSON().objects[0]?.top ?? "undefine");
-  }, [canvas]);
-
-  const undo = useCallback(() => {
-    if (!canvas || undoStack.current.length === 0) return;
-
-    // 1. Capture current state to push to REDO before we overwrite it
-    const currentState = JSON.stringify(canvas.toJSON());
-    redoStack.current.push(currentState);
-
-    // 2. Get the previous state
-    const prevState = JSON.parse(undoStack.current.pop()!);
-    isSaving.current = true;
-
-    console.log("undo: ");
-    console.log(prevState.objects[0]?.top ?? "undefine");
-
-    if (!prevState.objects || prevState.objects.length === 0) {
-      canvas.clear();
-      canvas.set("backgroundColor", "#ffffff");
-      // Ensure the canvas renders the clearing
-      canvas.renderAll();
-      finalizeUndo(undoStack.current.length > 0);
-
-      console.log("here");
-    } else {
-      // 3. Load the state
-      canvas.loadFromJSON(prevState, () => {
-        // FORCE RE-RENDER: This solves the "blank until click" issue
-        canvas.requestRenderAll();
-        // Optional: If you use groups or heavy caching, use this:
-        // canvas.renderAll();
-
-        finalizeUndo(undoStack.current.length > 0);
-      });
-    }
-
-    function finalizeUndo(canUndoNext: boolean) {
-      isSaving.current = false;
-      setCanUndo(canUndoNext);
-      setCanRedo(true);
-    }
-  }, [canvas]);
-
-  const redo = useCallback(() => {
-    if (!canvas || redoStack.current.length === 0) return;
-
-    const currentState = JSON.stringify(canvas.toJSON());
-    undoStack.current.push(currentState);
-
-    const nextState = JSON.parse(redoStack.current.pop()!);
-
-    isSaving.current = true;
-    canvas.loadFromJSON(nextState, () => {
-      // Ensure all objects are parsed and the canvas is fully refreshed
-      canvas.requestRenderAll();
-
-      isSaving.current = false;
-      setCanUndo(true);
-      setCanRedo(redoStack.current.length > 0);
-    });
-  }, [canvas]);
+  // SaveState update by force setting
+  const setSaveState = useCallback((saveFunction: () => void) => {
+    saveStateRef.current = saveFunction;
+  }, []);
 
   return (
     <CanvasContext.Provider
       value={{
+        canvases,
+        registerCanvas,
+        unregisterCanvas,
         canvas,
-        setCanvas,
+        canvasRef,
+        setCanvasSync,
         selectedObjects,
         setSelectedObjects,
         selectedCategory,
         setSelectedCategory,
-        zoom,
-        setZoom,
-        fileName,
-        setFileName,
-        undoStack,
-        redoStack,
-        saveState,
-        undo,
-        redo,
-        canUndo,
-        canRedo,
-        setCanUndo,
-        setCanRedo,
+        saveStateRef,
+        setSaveState,
       }}
     >
       {children}

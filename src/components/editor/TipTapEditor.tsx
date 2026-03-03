@@ -14,6 +14,9 @@ import { FabricCanvasNode } from "../extensions/FabricCanvasNode";
 import { QuestionAnswerNode } from "../extensions/QuestionAnswerNode";
 import { useCallback } from "react";
 import { CanvasProvider } from "@/contexts/CanvasContext";
+import PropertiesPanel from "../design/PropertiesPanel";
+import LeftSidebar from "../design/LeftSidebar";
+import AssetDrawer from "../design/AssetDrawer";
 
 const lowlight = createLowlight(common);
 
@@ -88,6 +91,9 @@ const TipTapEditor = () => {
       <div className="min-h-screen bg-editor-canvas">
         <EditorHeader editor={editor} />
         {editor && <EditorSidebar editor={editor} />}
+        <LeftSidebar />
+        <PropertiesPanel />
+        <AssetDrawer />
         <div
           className="tiptap-editor mx-auto cursor-text bg-editor-surface pb-40 pt-16 shadow-sm"
           style={{ maxWidth: "900px", minHeight: "calc(100vh - 3.5rem)" }}
