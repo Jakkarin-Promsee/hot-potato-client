@@ -26,13 +26,13 @@ const TipTapEditor = () => {
       StarterKit.configure({
         codeBlock: false,
         heading: { levels: [1, 2, 3] },
+        link: {
+          openOnClick: false,
+          HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
+        },
       }),
       Placeholder.configure({
         placeholder: "Tell your story...",
-      }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
       }),
       Image.configure({
         allowBase64: true,
