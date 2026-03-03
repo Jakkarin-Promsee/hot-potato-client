@@ -4,6 +4,7 @@ import { Canvas } from "fabric";
 import useFabricSetup from "@/hooks/useFabricSetup";
 import { useCanvasContext } from "@/contexts/CanvasContext";
 import { v4 as uuidv4 } from "uuid";
+import { ChevronDown } from "lucide-react";
 
 const FabricCanvasView = ({
   node,
@@ -76,7 +77,7 @@ const FabricCanvasView = ({
     if (typeof getPos === "function") {
       editor.commands.setNodeSelection(getPos());
     }
-  }, [editor, getPos, onSaveState]); // Add dependencies
+  }, [editor, getPos, onSaveState]);
 
   // Create fabric
   const { canvasRef, canvasElRef } = useFabricSetup({
@@ -98,14 +99,79 @@ const FabricCanvasView = ({
     };
   }, []);
 
+  const isResizing = useRef(false);
+  const lastY = useRef(0); // Track last mouse Y to compute delta per frame
+
+  const startResizing = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      isResizing.current = true;
+      lastY.current = e.clientY;
+
+      // Use a ref to track live height so closure doesn't go stale
+      const currentHeightRef = { value: height };
+
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        if (!isResizing.current) return;
+
+        const deltaY = moveEvent.clientY - lastY.current;
+        lastY.current = moveEvent.clientY;
+
+        const newHeight = Math.max(100, currentHeightRef.value + deltaY);
+        currentHeightRef.value = newHeight;
+
+        updateAttributes({ height: newHeight });
+      };
+
+      const onMouseUp = () => {
+        isResizing.current = false;
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+
+        // Sync fabric dimensions after resize finishes
+        if (canvasRef.current) {
+          canvasRef.current.setDimensions({
+            width,
+            height: currentHeightRef.value,
+          });
+          onSaveState();
+        }
+      };
+
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+    },
+    [height, updateAttributes, width, onSaveState],
+  );
+
+  // Handle syncing height to Fabric when Tiptap attributes change
+  useEffect(() => {
+    if (canvasRef.current) {
+      canvasRef.current.setDimensions({ width, height });
+      canvasRef.current.requestRenderAll();
+    }
+  }, [height, width]);
+
   return (
     <NodeViewWrapper className="my-6">
       <div
-        className={`rounded-lg border overflow-hidden transition-shadow duration-200 ${
+        className={`relative group rounded-lg border overflow-visible transition-shadow duration-200 ${
           selected ? "border-primary shadow-md" : "border-border shadow-sm"
         }`}
       >
         <canvas ref={canvasElRef} />
+
+        {/* Resize Handle */}
+        <div
+          onMouseDown={startResizing}
+          className="absolute -bottom-4 left-0 right-0 h-4 flex items-center justify-center cursor-ns-resize"
+          title="Drag to resize height"
+        >
+          {/* Visual button with chevron */}
+          <div className="flex items-center justify-center w-10 h-4 rounded-full bg-white border border-border shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted select-none">
+            <ChevronDown className="w-3 h-3 text-muted-foreground" />
+          </div>
+        </div>
       </div>
     </NodeViewWrapper>
   );
