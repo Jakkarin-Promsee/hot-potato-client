@@ -134,6 +134,7 @@ const FabricCanvasView = ({
             width,
             height: currentHeightRef.value,
           });
+
           onSaveState();
         }
       };
