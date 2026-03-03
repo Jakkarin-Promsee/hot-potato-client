@@ -312,6 +312,8 @@ export default function AssetDrawer() {
     s.label.toLowerCase().includes(search.toLowerCase()),
   );
 
+  if (!canvas) return <div></div>;
+
   return (
     <aside className="w-64 bg-surface-dark border-r border-toolbar-border flex flex-col shrink-0 overflow-hidden">
       {/* Search bar */}

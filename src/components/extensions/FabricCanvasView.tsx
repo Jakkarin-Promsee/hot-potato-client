@@ -5,23 +5,39 @@ import useFabricSetup from "@/hooks/useFabricSetup";
 import { useCanvasContext } from "@/contexts/CanvasContext";
 import { v4 as uuidv4 } from "uuid";
 
-const FabricCanvasView = ({ node, updateAttributes, selected }: any) => {
+const FabricCanvasView = ({
+  node,
+  updateAttributes,
+  selected,
+  editor,
+  getPos,
+}: any) => {
   // Setup data
   const { width, height, canvasData } = node.attrs;
   const backgroundColor = "#fafafa";
 
-  const canvasDataPrevRef = useRef("");
+  const { setCanvasSync, setSaveState, registerCanvas, unregisterCanvas } =
+    useCanvasContext();
 
+  const canvasSelectPrevref = useRef(false);
   useEffect(() => {
-    if (selected) return;
+    if (selected) {
+      canvasSelectPrevref.current = true;
+      return;
+    }
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    // Compile once after unselect
+    if (canvasSelectPrevref) {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    canvas.discardActiveObject();
-    canvas.requestRenderAll();
+      canvas.discardActiveObject();
+      canvas.requestRenderAll();
+      setCanvasSync(null);
+    }
   }, [selected]);
 
+  const canvasDataPrevRef = useRef("");
   const onSaveState = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -55,11 +71,12 @@ const FabricCanvasView = ({ node, updateAttributes, selected }: any) => {
     });
   }, []);
 
-  const { setSaveState, registerCanvas, unregisterCanvas } = useCanvasContext();
-
   const onFocus = useCallback(() => {
     setSaveState(onSaveState);
-  }, []);
+    if (typeof getPos === "function") {
+      editor.commands.setNodeSelection(getPos());
+    }
+  }, [editor, getPos, onSaveState]); // Add dependencies
 
   // Create fabric
   const { canvasRef, canvasElRef } = useFabricSetup({

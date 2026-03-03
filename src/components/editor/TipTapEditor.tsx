@@ -13,7 +13,7 @@ import EditorSidebar from "./EditorSidebar";
 import { FabricCanvasNode } from "../extensions/FabricCanvasNode";
 import { QuestionAnswerNode } from "../extensions/QuestionAnswerNode";
 import { useCallback } from "react";
-import { CanvasProvider } from "@/contexts/CanvasContext";
+import { CanvasProvider, useCanvasContext } from "@/contexts/CanvasContext";
 import PropertiesPanel from "../design/PropertiesPanel";
 import LeftSidebar from "../design/LeftSidebar";
 import AssetDrawer from "../design/AssetDrawer";

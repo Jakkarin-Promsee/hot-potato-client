@@ -1,4 +1,4 @@
-import { Editor } from '@tiptap/react';
+import { Editor } from "@tiptap/react";
 
 interface EditorHeaderProps {
   editor: Editor | null;
@@ -13,7 +13,7 @@ const EditorHeader = ({ editor }: EditorHeaderProps) => {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-14 max-w-screen-lg items-center justify-between px-6">
+      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-6">
         <div className="flex items-center gap-3">
           <span className="text-lg font-semibold tracking-tight text-foreground font-sans">
             Draft

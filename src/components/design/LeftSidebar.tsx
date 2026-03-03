@@ -10,7 +10,9 @@ const categories: { id: SelectedCategory; icon: any; label: string }[] = [
 ];
 
 export default function LeftSidebar() {
-  const { selectedCategory, setSelectedCategory } = useCanvasContext();
+  const { canvas, selectedCategory, setSelectedCategory } = useCanvasContext();
+
+  if (!canvas) return <div></div>;
 
   return (
     <aside className="w-16 bg-surface-darker flex flex-col items-center py-4 gap-1 shrink-0">
