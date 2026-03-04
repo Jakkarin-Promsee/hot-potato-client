@@ -17,7 +17,7 @@ function useFabricSetup({
   width,
   height,
   canvasData,
-  backgroundColor = "FFFFFF",
+  backgroundColor = "FaFaFa",
 }: useFabricSetupOptions) {
   const canvasRef = useRef<Canvas>(null);
   const canvasElRef = useRef<HTMLCanvasElement>(null);
@@ -55,7 +55,9 @@ function useFabricSetup({
 
     c.on("mouse:down", () => {
       if (canvasContextRef.current !== canvasRef.current) {
-        setCanvasSync(canvasRef.current);
+        setTimeout(() => {
+          setCanvasSync(canvasRef.current);
+        }, 10);
       }
 
       onFocusRef?.current?.();

@@ -53,8 +53,6 @@ export default function PropertiesPanel() {
     };
   }, [canvas]);
 
-  if (!canvas) return <div></div>;
-
   if (!obj) {
     return (
       <aside className="w-64 bg-surface-dark border-l border-toolbar-border p-4 shrink-0 overflow-y-auto scrollbar-thin">

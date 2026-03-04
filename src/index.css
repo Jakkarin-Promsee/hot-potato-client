@@ -70,7 +70,7 @@
 }
 
 /* Dark mode — override theme tokens */
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   :root {
     --color-background: hsl(220 15% 8%);
     --color-foreground: hsl(40 15% 90%);
@@ -101,7 +101,7 @@
     --editor-surface: hsl(220 15% 12%);
     --editor-canvas: hsl(220 15% 6%);
   }
-}
+} */
 
 /* If you're using a class-based dark mode toggle instead, use this instead of the @media block above:
 .dark {

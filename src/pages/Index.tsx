@@ -1,8 +1,12 @@
 import TipTapEditor from "@/components/editor/TipTapEditor";
-import { useCanvasContext } from "@/contexts/CanvasContext";
+import { CanvasProvider } from "@/contexts/CanvasContext";
 
 const Index = () => {
-  return <TipTapEditor />;
+  return (
+    <CanvasProvider>
+      <TipTapEditor />
+    </CanvasProvider>
+  );
 };
 
 export default Index;

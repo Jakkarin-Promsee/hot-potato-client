@@ -73,6 +73,7 @@ const FabricCanvasView = ({
   }, []);
 
   const onFocus = useCallback(() => {
+    console.log("set");
     setSaveState(onSaveState);
     if (typeof getPos === "function") {
       editor.commands.setNodeSelection(getPos());
@@ -156,11 +157,11 @@ const FabricCanvasView = ({
   return (
     <NodeViewWrapper className="my-6">
       <div
-        className={`relative group rounded-lg border overflow-visible transition-shadow duration-200 ${
-          selected ? "border-primary shadow-md" : "border-border shadow-sm"
+        className={`mx-auto relative group w-fit rounded-lg border overflow-visible transition-shadow duration-200 ${
+          selected ? "border-accent-foreground shadow-md" : ""
         }`}
       >
-        <canvas ref={canvasElRef} />
+        <canvas ref={canvasElRef} className="block w-full" />
 
         {/* Resize Handle */}
         <div

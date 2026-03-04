@@ -13,10 +13,9 @@ import EditorSidebar from "./EditorSidebar";
 import { FabricCanvasNode } from "../extensions/FabricCanvasNode";
 import { QuestionAnswerNode } from "../extensions/QuestionAnswerNode";
 import { useCallback } from "react";
-import { CanvasProvider, useCanvasContext } from "@/contexts/CanvasContext";
+import { useCanvasContext } from "@/contexts/CanvasContext";
 import PropertiesPanel from "../design/PropertiesPanel";
-import LeftSidebar from "../design/LeftSidebar";
-import AssetDrawer from "../design/AssetDrawer";
+import CanvasSidebar from "../design/CanvasSidebar";
 
 const lowlight = createLowlight(common);
 
@@ -86,29 +85,45 @@ const TipTapEditor = () => {
     }
   }, [editor]);
 
+  const { canvas } = useCanvasContext();
+
   return (
-    <CanvasProvider>
-      <div className="min-h-screen bg-editor-canvas">
-        <EditorHeader editor={editor} />
-        {editor && <EditorSidebar editor={editor} />}
-        <LeftSidebar />
-        <PropertiesPanel />
-        <AssetDrawer />
-        <div
-          className="tiptap-editor mx-auto cursor-text bg-editor-surface pb-40 pt-16 shadow-sm"
-          style={{ maxWidth: "900px", minHeight: "calc(100vh - 3.5rem)" }}
+    <div className="h-screen flex-col overflow-hidden bg-editor-canvas">
+      {/* Top side bar */}
+      <EditorHeader editor={editor} />
+
+      <div className="flex flex-1">
+        {/* Left side bar */}
+        <aside className="shrink-0 w-60 overflow-y-auto border-r border-gray-200">
+          {!canvas && editor && <EditorSidebar editor={editor} />}
+          {canvas && <CanvasSidebar />}
+        </aside>
+
+        {/* Center side bar */}
+        <main
+          className="flex-1 overflow-y-auto cursor-text bg-editor-canvas"
           onClick={handleEditorClick}
         >
-          {editor && (
-            <>
-              <EditorBubbleMenu editor={editor} />
-              <EditorFloatingMenu editor={editor} />
-            </>
-          )}
-          <EditorContent editor={editor} />
-        </div>
+          <div
+            className="tiptap-editor mx-auto bg-editor-surface shadow-sm pt-16 pb-40"
+            style={{ maxWidth: "900px", minHeight: "100%" }}
+          >
+            {editor && (
+              <>
+                <EditorBubbleMenu editor={editor} />
+                <EditorFloatingMenu editor={editor} />
+              </>
+            )}
+            <EditorContent editor={editor} />
+          </div>
+        </main>
+
+        {/* Right side bar */}
+        <aside className="shrink-0 w-72 overflow-y-auto border-l border-gray-200">
+          <PropertiesPanel />
+        </aside>
       </div>
-    </CanvasProvider>
+    </div>
   );
 };
 
