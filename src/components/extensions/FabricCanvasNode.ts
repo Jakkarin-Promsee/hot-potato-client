@@ -13,7 +13,7 @@ export const FabricCanvasNode = Node.create({
         default: "{}",
       },
       width: {
-        default: 680,
+        default: 600,
       },
       height: {
         default: 400,

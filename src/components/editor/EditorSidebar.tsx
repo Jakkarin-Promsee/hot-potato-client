@@ -156,21 +156,19 @@ const EditorSidebar = ({ editor }: EditorSidebarProps) => {
   return (
     <>
       {/* Toggle button - always visible */}
-      <button
+      {/* <button
         onClick={() => setIsOpen(!isOpen)}
         className="fixed left-4 top-20 z-30 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-editor-surface text-muted-foreground shadow-sm transition-all duration-200 hover:text-foreground hover:shadow-md"
         title={isOpen ? "Close sidebar" : "Open sidebar"}
       >
         {isOpen ? <PanelLeftClose size={18} /> : <PanelLeft size={18} />}
-      </button>
+      </button> */}
 
       {/* Sidebar panel */}
       <div
-        className={`fixed left-0 top-14 z-20 h-[calc(100vh-3.5rem)] w-56 border-r border-border bg-editor-surface transition-transform duration-300 ease-out ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`left-0 h-[calc(100vh-3.5rem)] w-56 border-r border-border bg-editor-surface transition-transform duration-300 ease-out `}
       >
-        <div className="flex flex-col gap-1 overflow-y-auto p-4 pt-14">
+        <div className="flex flex-col gap-1 overflow-y-auto p-4">
           {groups.map((group) => (
             <div key={group.label} className="mb-3">
               <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">

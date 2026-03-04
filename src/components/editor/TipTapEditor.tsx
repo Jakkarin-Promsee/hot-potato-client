@@ -93,33 +93,35 @@ const TipTapEditor = () => {
       <EditorHeader editor={editor} />
 
       <div className="flex flex-1">
-        {/* Left side bar */}
-        <aside className="shrink-0 w-60 overflow-y-auto border-r border-gray-200">
+        {/* Left side bar (floating)*/}
+        <aside className="fixed top-12 left-0 bottom-0 w-60 overflow-y-auto border-r border-gray-200">
           {!canvas && editor && <EditorSidebar editor={editor} />}
           {canvas && <CanvasSidebar />}
         </aside>
 
         {/* Center side bar */}
         <main
-          className="flex-1 overflow-y-auto cursor-text bg-editor-canvas"
+          className="flex-1 h-screen overflow-y-auto cursor-text bg-editor-canvas"
           onClick={handleEditorClick}
         >
-          <div
-            className="tiptap-editor mx-auto bg-editor-surface shadow-sm pt-16 pb-40"
-            style={{ maxWidth: "900px", minHeight: "100%" }}
-          >
-            {editor && (
-              <>
-                <EditorBubbleMenu editor={editor} />
-                <EditorFloatingMenu editor={editor} />
-              </>
-            )}
-            <EditorContent editor={editor} />
+          <div className="w-fit mx-auto px-10 bg-editor-surface shadow-sm">
+            <div
+              className="tiptap-editor w1 mx-auto bg-editor-surface pt-16 pb-40"
+              style={{ width: "600px" }}
+            >
+              {editor && (
+                <>
+                  <EditorBubbleMenu editor={editor} />
+                  <EditorFloatingMenu editor={editor} />
+                </>
+              )}
+              <EditorContent editor={editor} />
+            </div>
           </div>
         </main>
 
         {/* Right side bar */}
-        <aside className="shrink-0 w-72 overflow-y-auto border-l border-gray-200">
+        <aside className="fixed top-12 right-0 bottom-0 w-72 overflow-y-auto border-l border-gray-200">
           <PropertiesPanel />
         </aside>
       </div>
