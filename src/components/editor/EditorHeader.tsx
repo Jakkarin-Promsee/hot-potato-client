@@ -1,12 +1,18 @@
 import { useState, useRef, useEffect } from "react";
 import { Editor } from "@tiptap/react";
-import { Undo2, Redo2, Save, Loader2 } from "lucide-react";
+import { Undo2, Redo2, Save, Loader2, Link2 } from "lucide-react";
 
 interface EditorHeaderProps {
   editor: Editor | null;
+  linkClickMode: "ctrl" | "direct";
+  onLinkClickModeChange: (mode: "ctrl" | "direct") => void;
 }
 
-const EditorHeader = ({ editor }: EditorHeaderProps) => {
+const EditorHeader = ({
+  editor,
+  linkClickMode,
+  onLinkClickModeChange,
+}: EditorHeaderProps) => {
   const [title, setTitle] = useState("Untitle");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">(
     "idle",
@@ -19,6 +25,25 @@ const EditorHeader = ({ editor }: EditorHeaderProps) => {
     setTitle(e.target.value);
     triggerSave();
   };
+
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const update = () => {
+      setCanUndo(editor.can().undo());
+      setCanRedo(editor.can().redo());
+    };
+
+    update(); // run once on mount
+    editor.on("transaction", update);
+
+    return () => {
+      editor.off("transaction", update);
+    };
+  }, [editor]);
 
   const triggerSave = () => {
     setSaveState("saving");
@@ -36,9 +61,6 @@ const EditorHeader = ({ editor }: EditorHeaderProps) => {
     [],
   );
 
-  const canUndo = editor?.can().undo() ?? false;
-  const canRedo = editor?.can().redo() ?? false;
-
   const IconBtn = ({
     onClick,
     disabled = false,
@@ -54,7 +76,7 @@ const EditorHeader = ({ editor }: EditorHeaderProps) => {
       onClick={onClick}
       disabled={disabled}
       title={tip}
-      className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+      className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
     >
       {children}
     </button>
@@ -110,21 +132,51 @@ const EditorHeader = ({ editor }: EditorHeaderProps) => {
           onClick={() => editor?.chain().focus().undo().run()}
           disabled={!canUndo}
         >
-          <Undo2 size={15} strokeWidth={1.8} />
+          <div className="flex">
+            <p>Undo</p>
+            <Undo2 size={15} strokeWidth={1.8} />
+          </div>
         </IconBtn>
         <IconBtn
           title="Redo"
           onClick={() => editor?.chain().focus().redo().run()}
           disabled={!canRedo}
         >
-          <Redo2 size={15} strokeWidth={1.8} />
+          <div className="flex">
+            <Redo2 size={15} strokeWidth={1.8} />
+            <p>Redo</p>
+          </div>
         </IconBtn>
       </div>
 
-      {/* ── RIGHT: Publish ── */}
-      <button className=" rounded-full bg-editor-highlight px-4 py-1.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90">
-        Publish
-      </button>
+      <div className="flex items-center gap-1.5">
+        {/* Link click mode toggle */}
+        <button
+          onClick={() =>
+            onLinkClickModeChange(linkClickMode === "ctrl" ? "direct" : "ctrl")
+          }
+          title={
+            linkClickMode === "ctrl"
+              ? "Links open on Ctrl+Click"
+              : "Links open on Click"
+          }
+          className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors ${
+            linkClickMode === "direct"
+              ? "bg-accent text-foreground font-medium"
+              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+          }`}
+        >
+          <Link2 size={12} strokeWidth={1.8} />
+          <p>Link:</p>
+          {linkClickMode === "direct" ? "Open on Click" : "Open on Ctrl+Click"}
+        </button>
+        <div className="mx-1.5 h-4 w-px bg-border" />
+
+        {/* ── RIGHT: Publish ── */}
+        <button className=" rounded-full bg-editor-highlight px-4 py-1.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90">
+          Publish
+        </button>
+      </div>
     </div>
   );
 };

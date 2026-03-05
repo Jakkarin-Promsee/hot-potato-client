@@ -17,12 +17,13 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { Markdown } from "tiptap-markdown";
 import Link from "@tiptap/extension-link";
+import { SearchHighlightExtension } from "../extensions/searchHighlight";
 
 import { common, createLowlight } from "lowlight";
 import EditorHeader from "./EditorHeader";
 import { FabricCanvasNode } from "../extensions/FabricCanvasNode";
 import { QuestionAnswerNode } from "../extensions/QuestionAnswerNode";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useCanvasContext } from "@/contexts/CanvasContext";
 import PropertiesPanel from "../design/PropertiesPanel";
 import CanvasSidebar from "../design/CanvasSidebar";
@@ -32,6 +33,7 @@ import EditorRightSidebar from "./EditorRightSidebar";
 const lowlight = createLowlight(common);
 
 const TipTapEditor = () => {
+  const [linkClickMode, setLinkClickMode] = useState<"ctrl" | "direct">("ctrl");
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -40,7 +42,9 @@ const TipTapEditor = () => {
       }),
       Link.configure({
         openOnClick: false,
-        HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
+        HTMLAttributes: {
+          class: "cursor-text", // show text cursor instead of pointer by default
+        },
       }),
       Markdown.configure({
         html: true,
@@ -70,6 +74,7 @@ const TipTapEditor = () => {
       TableCell,
       TaskList,
       TaskItem.configure({ nested: true }),
+      SearchHighlightExtension,
       FabricCanvasNode,
       QuestionAnswerNode,
     ],
@@ -102,6 +107,21 @@ const TipTapEditor = () => {
         }
         return false;
       },
+      handleClick(view, pos, event) {
+        const target = event.target as HTMLElement;
+        const anchor = target.closest("a");
+        if (!anchor) return false;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (linkClickMode === "direct" || event.ctrlKey || event.metaKey) {
+          const href = anchor.getAttribute("href");
+          if (href) window.open(href, "_blank");
+        }
+
+        return true;
+      },
     },
     content: "",
   });
@@ -118,7 +138,11 @@ const TipTapEditor = () => {
     <div className="editor-layout">
       {/* ── TOP HEADER ── */}
       <header className="editor-header">
-        <EditorHeader editor={editor} />
+        <EditorHeader
+          editor={editor}
+          linkClickMode={linkClickMode}
+          onLinkClickModeChange={setLinkClickMode}
+        />
       </header>
 
       {/* ── LEFT SIDEBAR ── */}

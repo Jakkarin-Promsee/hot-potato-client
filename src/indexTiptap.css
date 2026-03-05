@@ -847,3 +847,12 @@ button.bg-editor-highlight {
 .focus\:ring-primary\/40:focus {
   --tw-ring-color: color-mix(in oklab, var(--color-primary) 40%, transparent);
 }
+
+/* Serach Highlight */
+.search-highlight {
+  background: #fef08a;
+  border-radius: 2px;
+}
+.search-highlight.active {
+  background: #fb923c;
+} /* current match */

@@ -12,9 +12,40 @@ import {
   BookOpen,
   ChevronDown,
   ChevronRight,
+  Type,
+  Heading1,
+  Heading2,
+  Heading3,
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  Quote,
+  Edit,
+  Text,
+  Link2,
+  Link,
 } from "lucide-react";
 
+import {
+  searchHighlightKey,
+  findMatches,
+  type SearchMatch,
+} from "../extensions/searchHighlight";
+
 // ─── Constants outside component ─────────────────────────────────────────────
+
+// --- Constants outside component (never recreated) ---------------------------
+const COLORS = [
+  "#ef4444",
+  "#f97316",
+  "#eab308",
+  "#22c55e",
+  "#3b82f6",
+  "#a855f7",
+  "#000000",
+];
+const HIGHLIGHTS = ["#fef08a", "#bbf7d0", "#bfdbfe", "#fecaca", "#e9d5ff"];
 
 const ALIGN_OPTIONS = [
   { Icon: AlignLeft, align: "left" },
@@ -63,7 +94,7 @@ const MODE_LABELS = {
 type PanelMode = keyof typeof MODE_LABELS;
 
 // Toggle tools
-type SectionKey = "document" | "outline" | "search";
+type SectionKey = "document" | "outline" | "search" | "text";
 
 // --- Sub-components memoized so they only re-render when their props change --
 const SectionHeader = memo(
@@ -89,6 +120,41 @@ const SectionHeader = memo(
         {label}
       </span>
       {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+    </button>
+  ),
+);
+
+const ToolBtn = memo(
+  ({
+    icon: Icon,
+    label,
+    onClick,
+    active = false,
+    colorDot,
+  }: {
+    icon: React.ElementType;
+    label: string;
+    onClick: () => void;
+    active?: boolean;
+    colorDot?: string;
+  }) => (
+    <button
+      onClick={onClick}
+      title={label}
+      className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors ${
+        active
+          ? "bg-accent text-foreground font-medium"
+          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+      }`}
+    >
+      <Icon size={14} strokeWidth={1.8} />
+      <span className="flex-1 text-left">{label}</span>
+      {colorDot && (
+        <span
+          className="h-3 w-3 rounded-full border border-border"
+          style={{ background: colorDot }}
+        />
+      )}
     </button>
   ),
 );
@@ -171,6 +237,7 @@ const DocumentTogglePanel = memo(({ editor }: { editor: Editor }) => {
       document: true,
       outline: true,
       search: true,
+      text: false,
     },
   );
 
@@ -217,23 +284,187 @@ const DocumentTogglePanel = memo(({ editor }: { editor: Editor }) => {
   );
 });
 
-const TextPanel = memo(({ editor }: { editor: Editor }) => (
-  <Section title="Text Style">
-    <Row label="Align">
-      <div className="flex gap-0.5">
-        {ALIGN_OPTIONS.map(({ Icon, align }) => (
-          <IconBtn
+const TextPanel = memo(({ editor }: { editor: Editor }) => {
+  const setColor = useCallback(
+    (color: string) => editor.chain().focus().setColor(color).run(),
+    [editor],
+  );
+  const setHighlight = useCallback(
+    (color: string) => editor.chain().focus().toggleHighlight({ color }).run(),
+    [editor],
+  );
+
+  return (
+    <div className="mb-2 flex flex-col gap-0.5 pl-1">
+      <span className="px-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+        Structure
+      </span>
+      <ToolBtn
+        icon={Type}
+        label="Normal Text"
+        onClick={() => editor.chain().focus().setParagraph().run()}
+        active={editor.isActive("paragraph") && !editor.isActive("heading")}
+      />
+      <ToolBtn
+        icon={Heading1}
+        label="Heading 1"
+        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+        active={editor.isActive("heading", { level: 1 })}
+      />
+      <ToolBtn
+        icon={Heading2}
+        label="Heading 2"
+        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+        active={editor.isActive("heading", { level: 2 })}
+      />
+      <ToolBtn
+        icon={Heading3}
+        label="Heading 3"
+        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+        active={editor.isActive("heading", { level: 3 })}
+      />
+
+      <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+        Format
+      </span>
+      <ToolBtn
+        icon={Bold}
+        label="Bold"
+        onClick={() => editor.chain().focus().toggleBold().run()}
+        active={editor.isActive("bold")}
+      />
+      <ToolBtn
+        icon={Italic}
+        label="Italic"
+        onClick={() => editor.chain().focus().toggleItalic().run()}
+        active={editor.isActive("italic")}
+      />
+      <ToolBtn
+        icon={Underline}
+        label="Underline"
+        onClick={() => editor.chain().focus().toggleUnderline().run()}
+        active={editor.isActive("underline")}
+      />
+      <ToolBtn
+        icon={Strikethrough}
+        label="Strikethrough"
+        onClick={() => editor.chain().focus().toggleStrike().run()}
+        active={editor.isActive("strike")}
+      />
+      <ToolBtn
+        icon={Quote}
+        label="Blockquote"
+        onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        active={editor.isActive("blockquote")}
+      />
+      <ToolBtn
+        icon={Link}
+        label="Link"
+        onClick={() => {
+          if (editor.isActive("link")) {
+            editor.chain().focus().unsetLink().run();
+            return;
+          }
+          const url = window.prompt("Enter URL");
+          if (url) editor.chain().focus().setLink({ href: url }).run();
+        }}
+        active={editor.isActive("link")}
+      />
+
+      <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+        Alignment
+      </span>
+      <div className="flex gap-1 px-2 py-1">
+        {ALIGN_OPTIONS.map(({ Icon: Icon, align }) => (
+          <button
             key={align}
-            icon={Icon}
-            title={`Align ${align}`}
-            active={editor.isActive({ textAlign: align })}
             onClick={() => editor.chain().focus().setTextAlign(align).run()}
+            title={`Align ${align}`}
+            className={`flex-1 flex items-center justify-center rounded py-1.5 transition-colors ${
+              editor.isActive({ textAlign: align })
+                ? "bg-accent text-foreground"
+                : "text-muted-foreground hover:bg-accent/50"
+            }`}
+          >
+            <Icon size={13} strokeWidth={1.8} />
+          </button>
+        ))}
+      </div>
+
+      <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+        Text Color
+      </span>
+      <div className="flex flex-wrap gap-1.5 px-2 py-1">
+        {COLORS.map((c) => (
+          <button
+            key={c}
+            onClick={() => setColor(c)}
+            title={c}
+            className="h-5 w-5 rounded-full border-2 border-transparent hover:border-foreground/30 transition-all"
+            style={{ background: c }}
           />
         ))}
       </div>
-    </Row>
-  </Section>
-));
+
+      <span className="px-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+        Highlight
+      </span>
+      <div className="flex flex-wrap gap-1.5 px-2 py-1">
+        {HIGHLIGHTS.map((c) => (
+          <button
+            key={c}
+            onClick={() => setHighlight(c)}
+            title={c}
+            className="h-5 w-5 rounded-full border-2 border-transparent hover:border-foreground/30 transition-all"
+            style={{ background: c }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+});
+
+const TextTogglePanel = memo(({ editor }: { editor: Editor }) => {
+  const [openSections, setOpenSections] = useState({
+    document: false,
+    outline: false,
+    search: false,
+    text: true,
+  });
+
+  // Stable toggle — never recreated
+  const toggle = useCallback(
+    (key: SectionKey) =>
+      setOpenSections((prev) => ({ ...prev, [key]: !prev[key] })),
+    [],
+  );
+
+  return (
+    <>
+      <SectionHeader
+        sectionKey="search"
+        icon={Search}
+        label="Search & Replace"
+        isOpen={openSections.search}
+        onToggle={toggle}
+      />
+      {openSections.search && (
+        <div className="px-2">
+          <SearchPanel editor={editor} />
+        </div>
+      )}
+
+      <SectionHeader
+        sectionKey="text"
+        icon={Text}
+        label="text"
+        isOpen={openSections.text}
+        onToggle={toggle}
+      />
+      {openSections.text && <TextPanel editor={editor} />}
+    </>
+  );
+});
 
 const HeadingPanel = memo(({ editor }: { editor: Editor }) => {
   const attrs = editor.getAttributes("heading");
@@ -484,36 +715,220 @@ const OutlinePanel = memo(({ editor }: { editor: Editor }) => {
 const SearchPanel = memo(({ editor }: { editor: Editor }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [replaceQuery, setReplaceQuery] = useState("");
+  const [matches, setMatches] = useState<SearchMatch[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [replaceOnceStage, setReplaceOnceStage] = useState<"idle" | "preview">(
+    "idle",
+  );
+  const [replaceAllStage, setReplaceAllStage] = useState<"idle" | "preview">(
+    "idle",
+  );
 
-  const handleReplace = useCallback(() => {
+  const isSearchActive = matches.length > 0 || searchQuery !== "";
+
+  // Push new state into the plugin
+  const pushPluginState = useCallback(
+    (term: string, index: number, newMatches: SearchMatch[]) => {
+      const { state, dispatch } = editor.view;
+      const tr = state.tr.setMeta(searchHighlightKey, {
+        searchTerm: term,
+        currentIndex: index,
+        matches: newMatches,
+      });
+      dispatch(tr);
+    },
+    [editor],
+  );
+
+  const scrollToMatch = useCallback(
+    (index: number, newMatches: SearchMatch[]) => {
+      const match = newMatches[index];
+      if (!match) return;
+      editor
+        .chain()
+        .focus()
+        .setTextSelection({ from: match.from, to: match.to })
+        .run();
+    },
+    [editor],
+  );
+
+  const handleSearch = useCallback(() => {
     if (!searchQuery) return;
-    const { state, dispatch } = editor.view;
-    const { tr, doc } = state;
-    let replaced = false;
-    doc.descendants((node, pos) => {
-      if (!node.isText || !node.text || replaced) return;
-      const idx = node.text.indexOf(searchQuery);
-      if (idx !== -1) {
-        tr.replaceWith(
-          pos + idx,
-          pos + idx + searchQuery.length,
-          state.schema.text(replaceQuery),
-        );
-        replaced = true;
-      }
+
+    // If already active, clear
+    if (matches.length > 0) {
+      setMatches([]);
+      setCurrentIndex(0);
+      setReplaceOnceStage("idle");
+      setReplaceAllStage("idle");
+      pushPluginState("", 0, []);
+      return;
+    }
+
+    const found = findMatches(editor.state.doc, searchQuery);
+    if (!found.length) {
+      setMatches([]);
+      pushPluginState(searchQuery, 0, []);
+      return;
+    }
+
+    // Find closest match to cursor
+    const cursorPos = editor.state.selection.from;
+    const closest = found.reduce(
+      (best, r, i) =>
+        Math.abs(r.from - cursorPos) < Math.abs(found[best]!.from - cursorPos)
+          ? i
+          : best,
+      0,
+    );
+
+    setMatches(found);
+    setCurrentIndex(closest);
+    pushPluginState(searchQuery, closest, found);
+    scrollToMatch(closest, found);
+  }, [searchQuery, matches, editor, pushPluginState, scrollToMatch]);
+
+  const navigate = useCallback(
+    (dir: 1 | -1) => {
+      if (!matches.length) return;
+      const next = (currentIndex + dir + matches.length) % matches.length;
+      setCurrentIndex(next);
+      pushPluginState(searchQuery, next, matches);
+      scrollToMatch(next, matches);
+    },
+    [matches, currentIndex, searchQuery, pushPluginState, scrollToMatch],
+  );
+
+  const handleReplaceOnce = useCallback(() => {
+    if (!matches.length) return;
+
+    if (replaceOnceStage === "idle") {
+      scrollToMatch(currentIndex, matches);
+      setReplaceOnceStage("preview");
+      setReplaceAllStage("idle");
+      return;
+    }
+
+    // Confirm: do the replacement
+    const match = matches[currentIndex];
+    editor
+      .chain()
+      .focus()
+      .deleteRange({ from: match!.from, to: match!.to })
+      .insertContentAt(match!.from, replaceQuery)
+      .run();
+    setReplaceOnceStage("idle");
+
+    // Recompute matches after replacement
+    setTimeout(() => {
+      const newMatches = findMatches(editor.state.doc, searchQuery);
+      const next = newMatches.length ? currentIndex % newMatches.length : 0;
+      setMatches(newMatches);
+      setCurrentIndex(next);
+      pushPluginState(searchQuery, next, newMatches);
+      if (newMatches.length) scrollToMatch(next, newMatches);
+    }, 0);
+  }, [
+    matches,
+    currentIndex,
+    replaceOnceStage,
+    replaceQuery,
+    searchQuery,
+    editor,
+    pushPluginState,
+    scrollToMatch,
+  ]);
+
+  const handleReplaceAll = useCallback(() => {
+    if (!matches.length) return;
+
+    if (replaceAllStage === "idle") {
+      setReplaceAllStage("preview");
+      setReplaceOnceStage("idle");
+      return;
+    }
+
+    // Confirm: replace all (iterate in reverse to preserve positions)
+    const chain = editor.chain().focus();
+    [...matches].reverse().forEach((match) => {
+      chain
+        .deleteRange({ from: match.from, to: match.to })
+        .insertContentAt(match.from, replaceQuery);
     });
-    if (replaced) dispatch(tr);
-  }, [editor, searchQuery, replaceQuery]);
+    chain.run();
+
+    setMatches([]);
+    setCurrentIndex(0);
+    setReplaceAllStage("idle");
+    pushPluginState("", 0, []);
+  }, [matches, replaceAllStage, replaceQuery, editor, pushPluginState]);
+
+  const handleClear = useCallback(() => {
+    setSearchQuery("");
+    setReplaceQuery("");
+    setMatches([]);
+    setCurrentIndex(0);
+    setReplaceOnceStage("idle");
+    setReplaceAllStage("idle");
+    pushPluginState("", 0, []);
+  }, [pushPluginState]);
 
   return (
     <div className="mb-2 flex flex-col gap-1.5 px-1">
-      <input
-        type="text"
-        placeholder="Find…"
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/40"
-      />
+      {/* Search row */}
+      <div className="flex gap-1">
+        <input
+          type="text"
+          placeholder="Find…"
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            if (!e.target.value) handleClear();
+          }}
+          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          className="flex-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/40"
+        />
+        <button
+          onClick={handleSearch}
+          className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+            matches.length > 0
+              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+              : "bg-accent text-foreground hover:bg-accent/70"
+          }`}
+        >
+          {matches.length > 0 ? "✕" : "Search"}
+        </button>
+      </div>
+
+      {/* Match count + navigation */}
+      {isSearchActive && (
+        <div className="flex items-center justify-between px-0.5">
+          <span className="text-[11px] text-muted-foreground">
+            {matches.length === 0
+              ? "No matches"
+              : `${currentIndex + 1} / ${matches.length}`}
+          </span>
+          {matches.length > 1 && (
+            <div className="flex gap-0.5">
+              <button
+                onClick={() => navigate(-1)}
+                className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent/50 text-base"
+              >
+                ‹
+              </button>
+              <button
+                onClick={() => navigate(1)}
+                className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent/50 text-base"
+              >
+                ›
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Replace input */}
       <input
         type="text"
         placeholder="Replace with…"
@@ -521,12 +936,34 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
         onChange={(e) => setReplaceQuery(e.target.value)}
         className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/40"
       />
-      <button
-        onClick={handleReplace}
-        className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent/70 transition-colors"
-      >
-        Replace First Match
-      </button>
+
+      {/* Replace buttons */}
+      <div className="flex gap-1">
+        <button
+          onClick={handleReplaceOnce}
+          disabled={!matches.length}
+          className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 ${
+            replaceOnceStage === "preview"
+              ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
+              : "bg-accent text-foreground hover:bg-accent/70"
+          }`}
+        >
+          {replaceOnceStage === "preview" ? "Confirm Replace" : "Replace Once"}
+        </button>
+        <button
+          onClick={handleReplaceAll}
+          disabled={!matches.length}
+          className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 ${
+            replaceAllStage === "preview"
+              ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
+              : "bg-accent text-foreground hover:bg-accent/70"
+          }`}
+        >
+          {replaceAllStage === "preview"
+            ? `Confirm All (${matches.length})`
+            : "Replace All"}
+        </button>
+      </div>
     </div>
   );
 });
@@ -566,8 +1003,12 @@ const EditorRightSidebar = ({ editor }: { editor: Editor }) => {
         return;
       }
 
-      const { from, to } = editor.state.selection;
-      setMode(from !== to ? "text" : "document");
+      const { from, to, $from } = editor.state.selection;
+
+      // Activate text mode if cursor is inside a text-containing block (e.g. paragraph)
+      const isInTextBlock = $from.parent.isTextblock;
+
+      setMode(isInTextBlock ? "text" : "document");
     };
 
     editor.on("selectionUpdate", update);
@@ -598,16 +1039,9 @@ const EditorRightSidebar = ({ editor }: { editor: Editor }) => {
             <DocumentTogglePanel editor={editor} />
           </>
         )}
-        {mode === "text" && (
+        {(mode === "text" || mode === "heading") && (
           <>
-            <TextPanel editor={editor} />
-            <DocumentPanel editor={editor} />
-          </>
-        )}
-        {mode === "heading" && (
-          <>
-            <HeadingPanel editor={editor} />
-            <TextPanel editor={editor} />
+            <TextTogglePanel editor={editor} />
           </>
         )}
         {mode === "link" && (
