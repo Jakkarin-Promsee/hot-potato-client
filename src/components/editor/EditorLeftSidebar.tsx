@@ -116,6 +116,45 @@ const ToolBtn = memo(
 
 // ─── Section panels — only mount/compute when open ───────────────────────────
 
+const OutlinePanel = memo(({ editor }: { editor: Editor }) => {
+  // Compute headings only when this panel is actually rendered
+  const headings = useMemo(() => {
+    const items: { level: number; text: string; pos: number }[] = [];
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === "heading") {
+        items.push({ level: node.attrs.level, text: node.textContent, pos });
+      }
+    });
+    return items;
+  }, [editor.state.doc]); // re-runs only when doc changes, not on every keystroke
+
+  const jumpTo = useCallback(
+    (pos: number) => editor.chain().focus().setTextSelection(pos).run(),
+    [editor],
+  );
+
+  return (
+    <div className="mb-2 flex flex-col gap-0.5 pl-1">
+      {headings.length === 0 ? (
+        <p className="px-2 py-1 text-xs text-muted-foreground/50">
+          No headings yet
+        </p>
+      ) : (
+        headings.map((h, i) => (
+          <button
+            key={i}
+            onClick={() => jumpTo(h.pos)}
+            className="truncate rounded px-2 py-1 text-left text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            style={{ paddingLeft: `${(h.level - 1) * 10 + 8}px` }}
+          >
+            {h.text || `Heading ${h.level}`}
+          </button>
+        ))
+      )}
+    </div>
+  );
+});
+
 const TextPanel = memo(({ editor }: { editor: Editor }) => {
   const setColor = useCallback(
     (color: string) => editor.chain().focus().setColor(color).run(),
@@ -281,7 +320,7 @@ const EditorLeftSidebar = ({ editor }: EditorSidebarProps) => {
   );
 
   return (
-    <div className="flex h-full w-60 flex-col gap-0.5 overflow-y-auto border-r border-border bg-editor-surface p-3">
+    <div className="editor-sidebar-left flex h-full w-60 flex-col gap-0.5 overflow-y-auto border-r border-border bg-editor-surface p-3">
       {/* TEXT */}
       <SectionHeader
         sectionKey="text"

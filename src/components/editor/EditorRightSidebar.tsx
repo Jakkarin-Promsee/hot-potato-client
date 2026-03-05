@@ -231,59 +231,6 @@ const DocumentPanel = memo(({ editor }: { editor: Editor }) => {
   );
 });
 
-const DocumentTogglePanel = memo(({ editor }: { editor: Editor }) => {
-  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(
-    {
-      document: true,
-      outline: true,
-      search: true,
-      text: false,
-    },
-  );
-
-  // Stable toggle — never recreated
-  const toggle = useCallback(
-    (key: SectionKey) =>
-      setOpenSections((prev) => ({ ...prev, [key]: !prev[key] })),
-    [],
-  );
-
-  return (
-    <>
-      <SectionHeader
-        sectionKey="document"
-        icon={BookOpen}
-        label="Document"
-        isOpen={openSections.document}
-        onToggle={toggle}
-      />
-      {openSections.document && (
-        <div className="px-2">
-          <DocumentPanel editor={editor} />
-        </div>
-      )}
-
-      <SectionHeader
-        sectionKey="outline"
-        icon={BookOpen}
-        label="Outline"
-        isOpen={openSections.outline}
-        onToggle={toggle}
-      />
-      {openSections.outline && <OutlinePanel editor={editor} />}
-
-      <SectionHeader
-        sectionKey="search"
-        icon={Search}
-        label="Search & Replace"
-        isOpen={openSections.search}
-        onToggle={toggle}
-      />
-      {openSections.search && <SearchPanel editor={editor} />}
-    </>
-  );
-});
-
 const TextPanel = memo(({ editor }: { editor: Editor }) => {
   const setColor = useCallback(
     (color: string) => editor.chain().focus().setColor(color).run(),
@@ -466,50 +413,6 @@ const TextTogglePanel = memo(({ editor }: { editor: Editor }) => {
   );
 });
 
-const HeadingPanel = memo(({ editor }: { editor: Editor }) => {
-  const attrs = editor.getAttributes("heading");
-  const level = attrs.level as 1 | 2 | 3;
-  const anchorId = attrs.id ?? "";
-
-  return (
-    <Section title="Heading">
-      <Row label="Level">
-        <div className="flex gap-0.5">
-          {([1, 2, 3] as const).map((l) => (
-            <button
-              key={l}
-              onClick={() =>
-                editor.chain().focus().toggleHeading({ level: l }).run()
-              }
-              className={`flex h-7 w-7 items-center justify-center rounded text-xs font-bold transition-colors ${
-                level === l
-                  ? "bg-accent text-foreground"
-                  : "text-muted-foreground hover:bg-accent/50"
-              }`}
-            >
-              H{l}
-            </button>
-          ))}
-        </div>
-      </Row>
-      <Row label="Anchor ID">
-        <input
-          defaultValue={anchorId}
-          placeholder="e.g. intro"
-          className="w-28 rounded border border-border bg-background px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-primary/40"
-          onChange={(e) =>
-            editor
-              .chain()
-              .focus()
-              .updateAttributes("heading", { id: e.target.value })
-              .run()
-          }
-        />
-      </Row>
-    </Section>
-  );
-});
-
 const LinkPanel = memo(
   ({
     editor,
@@ -670,45 +573,6 @@ const CodePanel = memo(({ editor }: { editor: Editor }) => {
         ))}
       </select>
     </Section>
-  );
-});
-
-const OutlinePanel = memo(({ editor }: { editor: Editor }) => {
-  // Compute headings only when this panel is actually rendered
-  const headings = useMemo(() => {
-    const items: { level: number; text: string; pos: number }[] = [];
-    editor.state.doc.descendants((node, pos) => {
-      if (node.type.name === "heading") {
-        items.push({ level: node.attrs.level, text: node.textContent, pos });
-      }
-    });
-    return items;
-  }, [editor.state.doc]); // re-runs only when doc changes, not on every keystroke
-
-  const jumpTo = useCallback(
-    (pos: number) => editor.chain().focus().setTextSelection(pos).run(),
-    [editor],
-  );
-
-  return (
-    <div className="mb-2 flex flex-col gap-0.5 pl-1">
-      {headings.length === 0 ? (
-        <p className="px-2 py-1 text-xs text-muted-foreground/50">
-          No headings yet
-        </p>
-      ) : (
-        headings.map((h, i) => (
-          <button
-            key={i}
-            onClick={() => jumpTo(h.pos)}
-            className="truncate rounded px-2 py-1 text-left text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-            style={{ paddingLeft: `${(h.level - 1) * 10 + 8}px` }}
-          >
-            {h.text || `Heading ${h.level}`}
-          </button>
-        ))
-      )}
-    </div>
   );
 });
 
@@ -1022,7 +886,7 @@ const EditorRightSidebar = ({ editor }: { editor: Editor }) => {
   if (!editor) return null;
 
   return (
-    <div className="flex h-full w-72 flex-col overflow-y-auto border-l border-border bg-editor-surface">
+    <div className="editor-sidebar-left flex h-full w-72 flex-col overflow-y-auto border-l border-border bg-editor-surface">
       {/* Header */}
       <div className="sticky top-0 z-10 border-b border-border/50 bg-editor-surface px-4 py-3">
         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
@@ -1033,25 +897,23 @@ const EditorRightSidebar = ({ editor }: { editor: Editor }) => {
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
-        {mode === "document" && (
-          <>
-            <DocumentTogglePanel editor={editor} />
-          </>
-        )}
+      <div className="editor-sidebar-left flex-1 overflow-y-auto p-4">
         {(mode === "text" || mode === "heading") && (
           <>
             <TextTogglePanel editor={editor} />
           </>
         )}
         {mode === "link" && (
-          <LinkPanel
-            editor={editor}
-            linkUrl={linkUrl}
-            linkNewTab={linkNewTab}
-            setLinkUrl={setLinkUrl}
-            setLinkNewTab={setLinkNewTab}
-          />
+          <>
+            <LinkPanel
+              editor={editor}
+              linkUrl={linkUrl}
+              linkNewTab={linkNewTab}
+              setLinkUrl={setLinkUrl}
+              setLinkNewTab={setLinkNewTab}
+            />
+            <TextTogglePanel editor={editor} />
+          </>
         )}
         {mode === "image" && <ImagePanel editor={editor} />}
         {mode === "table" && <TablePanel editor={editor} />}
