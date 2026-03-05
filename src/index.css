@@ -69,43 +69,13 @@
   }
 }
 
-/* Dark mode — override theme tokens */
-/* @media (prefers-color-scheme: dark) {
-  :root {
-    --color-background: hsl(220 15% 8%);
-    --color-foreground: hsl(40 15% 90%);
-    --color-card: hsl(220 15% 10%);
-    --color-card-foreground: hsl(40 15% 90%);
-    --color-popover: hsl(220 15% 10%);
-    --color-popover-foreground: hsl(40 15% 90%);
-    --color-primary: hsl(40 15% 90%);
-    --color-primary-foreground: hsl(220 15% 8%);
-    --color-secondary: hsl(220 12% 15%);
-    --color-secondary-foreground: hsl(40 15% 90%);
-    --color-muted: hsl(220 12% 15%);
-    --color-muted-foreground: hsl(220 8% 55%);
-    --color-accent: hsl(220 12% 15%);
-    --color-accent-foreground: hsl(40 15% 90%);
-    --color-destructive: hsl(0 62.8% 30.6%);
-    --color-destructive-foreground: hsl(210 40% 98%);
-    --color-border: hsl(220 12% 18%);
-    --color-input: hsl(220 12% 18%);
-    --color-ring: hsl(40 15% 90%);
-
-    --editor-toolbar-bg: hsl(40 15% 92%);
-    --editor-toolbar-fg: hsl(220 15% 10%);
-    --editor-code-bg: hsl(220 14% 12%);
-    --editor-code-fg: hsl(40 15% 85%);
-    --editor-selection: hsl(210 40% 20%);
-    --editor-placeholder: hsl(220 8% 40%);
-    --editor-surface: hsl(220 15% 12%);
-    --editor-canvas: hsl(220 15% 6%);
-  }
-} */
-
-/* If you're using a class-based dark mode toggle instead, use this instead of the @media block above:
-.dark {
-  --color-background: hsl(220 15% 8%);
-  ... etc
+/* ── HEADER ── */
+.editor-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  padding: 0 1rem;
+  background: var(--color-header-bg);
+  border-bottom: 1px solid var(--color-header-border);
 }
-*/

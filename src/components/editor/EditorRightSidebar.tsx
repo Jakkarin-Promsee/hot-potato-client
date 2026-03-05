@@ -115,25 +115,6 @@ const DocumentPanel = memo(({ editor }: { editor: Editor }) => {
     return { wordCount: words, readTime: Math.max(1, Math.ceil(words / 265)) };
   }, [editor.state.doc]); // recomputes only when doc content changes
 
-  const exportHtml = useCallback(() => {
-    const html = editor.getHTML();
-    const a = Object.assign(document.createElement("a"), {
-      href: URL.createObjectURL(new Blob([html], { type: "text/html" })),
-      download: "document.html",
-    });
-    a.click();
-  }, [editor]);
-
-  const exportMarkdown = useCallback(() => {
-    const md =
-      (editor.storage as any).markdown?.getMarkdown()?.() ?? editor.getText();
-    const a = Object.assign(document.createElement("a"), {
-      href: URL.createObjectURL(new Blob([md], { type: "text/markdown" })),
-      download: "document.md",
-    });
-    a.click();
-  }, [editor]);
-
   return (
     <>
       <Section title="Document">
@@ -143,20 +124,6 @@ const DocumentPanel = memo(({ editor }: { editor: Editor }) => {
         <Row label="Read time">
           <span className="text-xs font-medium">{readTime} min</span>
         </Row>
-      </Section>
-      <Section title="Export">
-        <button
-          className="mb-1.5 flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent/50 transition-colors"
-          onClick={exportHtml}
-        >
-          <FileText size={13} /> Export HTML
-        </button>
-        <button
-          className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent/50 transition-colors"
-          onClick={exportMarkdown}
-        >
-          <Download size={13} /> Export Markdown
-        </button>
       </Section>
     </>
   );
