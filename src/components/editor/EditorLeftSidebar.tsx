@@ -49,14 +49,7 @@ const ALIGN_OPTIONS = [
   { icon: AlignJustify, align: "justify" },
 ] as const;
 
-type SectionKey =
-  | "outline"
-  | "search"
-  | "text"
-  | "image"
-  | "video"
-  | "other"
-  | "special";
+type SectionKey = "text" | "image" | "video" | "other" | "special";
 
 // --- Sub-components memoized so they only re-render when their props change --
 const SectionHeader = memo(
@@ -122,95 +115,6 @@ const ToolBtn = memo(
 );
 
 // ─── Section panels — only mount/compute when open ───────────────────────────
-
-const OutlinePanel = memo(({ editor }: { editor: Editor }) => {
-  // Compute headings only when this panel is actually rendered
-  const headings = useMemo(() => {
-    const items: { level: number; text: string; pos: number }[] = [];
-    editor.state.doc.descendants((node, pos) => {
-      if (node.type.name === "heading") {
-        items.push({ level: node.attrs.level, text: node.textContent, pos });
-      }
-    });
-    return items;
-  }, [editor.state.doc]); // re-runs only when doc changes, not on every keystroke
-
-  const jumpTo = useCallback(
-    (pos: number) => editor.chain().focus().setTextSelection(pos).run(),
-    [editor],
-  );
-
-  return (
-    <div className="mb-2 flex flex-col gap-0.5 pl-1">
-      {headings.length === 0 ? (
-        <p className="px-2 py-1 text-xs text-muted-foreground/50">
-          No headings yet
-        </p>
-      ) : (
-        headings.map((h, i) => (
-          <button
-            key={i}
-            onClick={() => jumpTo(h.pos)}
-            className="truncate rounded px-2 py-1 text-left text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-            style={{ paddingLeft: `${(h.level - 1) * 10 + 8}px` }}
-          >
-            {h.text || `Heading ${h.level}`}
-          </button>
-        ))
-      )}
-    </div>
-  );
-});
-
-const SearchPanel = memo(({ editor }: { editor: Editor }) => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [replaceQuery, setReplaceQuery] = useState("");
-
-  const handleReplace = useCallback(() => {
-    if (!searchQuery) return;
-    const { state, dispatch } = editor.view;
-    const { tr, doc } = state;
-    let replaced = false;
-    doc.descendants((node, pos) => {
-      if (!node.isText || !node.text || replaced) return;
-      const idx = node.text.indexOf(searchQuery);
-      if (idx !== -1) {
-        tr.replaceWith(
-          pos + idx,
-          pos + idx + searchQuery.length,
-          state.schema.text(replaceQuery),
-        );
-        replaced = true;
-      }
-    });
-    if (replaced) dispatch(tr);
-  }, [editor, searchQuery, replaceQuery]);
-
-  return (
-    <div className="mb-2 flex flex-col gap-1.5 px-1">
-      <input
-        type="text"
-        placeholder="Find…"
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/40"
-      />
-      <input
-        type="text"
-        placeholder="Replace with…"
-        value={replaceQuery}
-        onChange={(e) => setReplaceQuery(e.target.value)}
-        className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/40"
-      />
-      <button
-        onClick={handleReplace}
-        className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent/70 transition-colors"
-      >
-        Replace First Match
-      </button>
-    </div>
-  );
-});
 
 const TextPanel = memo(({ editor }: { editor: Editor }) => {
   const setColor = useCallback(
@@ -361,8 +265,6 @@ interface EditorSidebarProps {
 const EditorLeftSidebar = ({ editor }: EditorSidebarProps) => {
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(
     {
-      outline: false,
-      search: false,
       text: true,
       image: false,
       video: false,
@@ -380,28 +282,6 @@ const EditorLeftSidebar = ({ editor }: EditorSidebarProps) => {
 
   return (
     <div className="flex h-full w-60 flex-col gap-0.5 overflow-y-auto border-r border-border bg-editor-surface p-3">
-      {/* OUTLINE */}
-      <SectionHeader
-        sectionKey="outline"
-        icon={BookOpen}
-        label="Outline"
-        isOpen={openSections.outline}
-        onToggle={toggle}
-      />
-      {openSections.outline && <OutlinePanel editor={editor} />}
-
-      {/* SEARCH & REPLACE */}
-      <SectionHeader
-        sectionKey="search"
-        icon={Search}
-        label="Search & Replace"
-        isOpen={openSections.search}
-        onToggle={toggle}
-      />
-      {openSections.search && <SearchPanel editor={editor} />}
-
-      <div className="my-1 border-t border-border/50" />
-
       {/* TEXT */}
       <SectionHeader
         sectionKey="text"

@@ -8,9 +8,14 @@ import {
   Trash2,
   FileText,
   Download,
+  Search,
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 
 // ─── Constants outside component ─────────────────────────────────────────────
+
 const ALIGN_OPTIONS = [
   { Icon: AlignLeft, align: "left" },
   { Icon: AlignCenter, align: "center" },
@@ -56,6 +61,37 @@ const MODE_LABELS = {
 } as const;
 
 type PanelMode = keyof typeof MODE_LABELS;
+
+// Toggle tools
+type SectionKey = "document" | "outline" | "search";
+
+// --- Sub-components memoized so they only re-render when their props change --
+const SectionHeader = memo(
+  ({
+    sectionKey,
+    icon: Icon,
+    label,
+    isOpen,
+    onToggle,
+  }: {
+    sectionKey: SectionKey;
+    icon: React.ElementType;
+    label: string;
+    isOpen: boolean;
+    onToggle: (key: SectionKey) => void;
+  }) => (
+    <button
+      onClick={() => onToggle(sectionKey)}
+      className="flex w-full items-center justify-between rounded-md px-0 py-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground/70 hover:bg-accent/40 hover:text-foreground transition-colors"
+    >
+      <span className="flex items-center gap-2">
+        <Icon size={13} strokeWidth={2} />
+        {label}
+      </span>
+      {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+    </button>
+  ),
+);
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
@@ -125,6 +161,58 @@ const DocumentPanel = memo(({ editor }: { editor: Editor }) => {
           <span className="text-xs font-medium">{readTime} min</span>
         </Row>
       </Section>
+    </>
+  );
+});
+
+const DocumentTogglePanel = memo(({ editor }: { editor: Editor }) => {
+  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(
+    {
+      document: true,
+      outline: true,
+      search: true,
+    },
+  );
+
+  // Stable toggle — never recreated
+  const toggle = useCallback(
+    (key: SectionKey) =>
+      setOpenSections((prev) => ({ ...prev, [key]: !prev[key] })),
+    [],
+  );
+
+  return (
+    <>
+      <SectionHeader
+        sectionKey="document"
+        icon={BookOpen}
+        label="Document"
+        isOpen={openSections.document}
+        onToggle={toggle}
+      />
+      {openSections.document && (
+        <div className="px-2">
+          <DocumentPanel editor={editor} />
+        </div>
+      )}
+
+      <SectionHeader
+        sectionKey="outline"
+        icon={BookOpen}
+        label="Outline"
+        isOpen={openSections.outline}
+        onToggle={toggle}
+      />
+      {openSections.outline && <OutlinePanel editor={editor} />}
+
+      <SectionHeader
+        sectionKey="search"
+        icon={Search}
+        label="Search & Replace"
+        isOpen={openSections.search}
+        onToggle={toggle}
+      />
+      {openSections.search && <SearchPanel editor={editor} />}
     </>
   );
 });
@@ -354,13 +442,98 @@ const CodePanel = memo(({ editor }: { editor: Editor }) => {
   );
 });
 
+const OutlinePanel = memo(({ editor }: { editor: Editor }) => {
+  // Compute headings only when this panel is actually rendered
+  const headings = useMemo(() => {
+    const items: { level: number; text: string; pos: number }[] = [];
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === "heading") {
+        items.push({ level: node.attrs.level, text: node.textContent, pos });
+      }
+    });
+    return items;
+  }, [editor.state.doc]); // re-runs only when doc changes, not on every keystroke
+
+  const jumpTo = useCallback(
+    (pos: number) => editor.chain().focus().setTextSelection(pos).run(),
+    [editor],
+  );
+
+  return (
+    <div className="mb-2 flex flex-col gap-0.5 pl-1">
+      {headings.length === 0 ? (
+        <p className="px-2 py-1 text-xs text-muted-foreground/50">
+          No headings yet
+        </p>
+      ) : (
+        headings.map((h, i) => (
+          <button
+            key={i}
+            onClick={() => jumpTo(h.pos)}
+            className="truncate rounded px-2 py-1 text-left text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            style={{ paddingLeft: `${(h.level - 1) * 10 + 8}px` }}
+          >
+            {h.text || `Heading ${h.level}`}
+          </button>
+        ))
+      )}
+    </div>
+  );
+});
+
+const SearchPanel = memo(({ editor }: { editor: Editor }) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [replaceQuery, setReplaceQuery] = useState("");
+
+  const handleReplace = useCallback(() => {
+    if (!searchQuery) return;
+    const { state, dispatch } = editor.view;
+    const { tr, doc } = state;
+    let replaced = false;
+    doc.descendants((node, pos) => {
+      if (!node.isText || !node.text || replaced) return;
+      const idx = node.text.indexOf(searchQuery);
+      if (idx !== -1) {
+        tr.replaceWith(
+          pos + idx,
+          pos + idx + searchQuery.length,
+          state.schema.text(replaceQuery),
+        );
+        replaced = true;
+      }
+    });
+    if (replaced) dispatch(tr);
+  }, [editor, searchQuery, replaceQuery]);
+
+  return (
+    <div className="mb-2 flex flex-col gap-1.5 px-1">
+      <input
+        type="text"
+        placeholder="Find…"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/40"
+      />
+      <input
+        type="text"
+        placeholder="Replace with…"
+        value={replaceQuery}
+        onChange={(e) => setReplaceQuery(e.target.value)}
+        className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/40"
+      />
+      <button
+        onClick={handleReplace}
+        className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent/70 transition-colors"
+      >
+        Replace First Match
+      </button>
+    </div>
+  );
+});
+
 // ─── Main panel ───────────────────────────────────────────────────────────────
 
-interface PropertiesPanelProps {
-  editor: Editor | null;
-}
-
-const EditorRightSidebar = ({ editor }: PropertiesPanelProps) => {
+const EditorRightSidebar = ({ editor }: { editor: Editor }) => {
   const [mode, setMode] = useState<PanelMode>("document");
   const [linkUrl, setLinkUrl] = useState("");
   const [linkNewTab, setLinkNewTab] = useState(false);
@@ -420,7 +593,11 @@ const EditorRightSidebar = ({ editor }: PropertiesPanelProps) => {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        {mode === "document" && <DocumentPanel editor={editor} />}
+        {mode === "document" && (
+          <>
+            <DocumentTogglePanel editor={editor} />
+          </>
+        )}
         {mode === "text" && (
           <>
             <TextPanel editor={editor} />
