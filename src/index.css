@@ -7,52 +7,73 @@
   --font-serif: "Lora", Georgia, "Times New Roman", serif;
   --font-mono: "JetBrains Mono", monospace;
 
-  /* Light mode colors */
-  --color-background: hsl(40 20% 98%);
-  --color-foreground: hsl(220 15% 13%);
-  --color-card: hsl(40 15% 97%);
-  --color-card-foreground: hsl(220 15% 13%);
-  --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(220 15% 13%);
-  --color-primary: hsl(220 15% 13%);
-  --color-primary-foreground: hsl(40 20% 98%);
-  --color-secondary: hsl(40 10% 93%);
-  --color-secondary-foreground: hsl(220 15% 20%);
-  --color-muted: hsl(40 10% 94%);
-  --color-muted-foreground: hsl(220 8% 50%);
-  --color-accent: hsl(40 10% 93%);
-  --color-accent-foreground: hsl(220 15% 13%);
+  /* ── Base palette ─────────────────────────────────── */
+  --color-background: hsl(230 25% 9%);
+  --color-foreground: hsl(220 20% 92%);
+  --color-card: hsl(230 22% 12%);
+  --color-card-foreground: hsl(220 20% 92%);
+  --color-popover: hsl(230 22% 12%);
+  --color-popover-foreground: hsl(220 20% 92%);
+
+  /* Primary — a warm indigo-purple accent */
+  --color-primary: hsl(252 80% 68%);
+  --color-primary-foreground: hsl(0 0% 100%);
+
+  --color-secondary: hsl(230 20% 16%);
+  --color-secondary-foreground: hsl(220 15% 75%);
+
+  --color-muted: hsl(230 18% 14%);
+  --color-muted-foreground: hsl(220 12% 55%);
+
+  --color-accent: hsl(230 20% 18%);
+  --color-accent-foreground: hsl(220 20% 90%);
+
   --color-destructive: hsl(0 72% 51%);
   --color-destructive-foreground: hsl(0 0% 100%);
-  --color-border: hsl(40 10% 90%);
-  --color-input: hsl(40 10% 90%);
-  --color-ring: hsl(220 15% 13%);
+
+  --color-border: hsl(230 18% 20%);
+  --color-input: hsl(230 18% 20%);
+  --color-ring: hsl(252 80% 68%);
   --radius: 0.375rem;
 
-  --color-sidebar-background: hsl(0 0% 98%);
-  --color-sidebar-foreground: hsl(240 5.3% 26.1%);
-  --color-sidebar-primary: hsl(240 5.9% 10%);
-  --color-sidebar-primary-foreground: hsl(0 0% 98%);
-  --color-sidebar-accent: hsl(240 4.8% 95.9%);
-  --color-sidebar-accent-foreground: hsl(240 5.9% 10%);
-  --color-sidebar-border: hsl(220 13% 91%);
-  --color-sidebar-ring: hsl(217.2 91.2% 59.8%);
+  /* Sidebar tokens (consumed by shadcn sidebar if used) */
+  --color-sidebar-background: hsl(230 25% 9%);
+  --color-sidebar-foreground: hsl(220 14% 65%);
+  --color-sidebar-primary: hsl(252 80% 68%);
+  --color-sidebar-primary-foreground: hsl(0 0% 100%);
+  --color-sidebar-accent: hsl(230 20% 18%);
+  --color-sidebar-accent-foreground: hsl(220 20% 90%);
+  --color-sidebar-border: hsl(230 18% 20%);
+  --color-sidebar-ring: hsl(252 80% 68%);
 
-  /* Editor tokens */
+  /* ── Editor-specific tokens ───────────────────────── */
   --editor-body-size: 21px;
   --editor-body-height: 1.58;
   --editor-max-width: 720px;
-  --editor-toolbar-bg: hsl(220 15% 13%);
-  --editor-toolbar-fg: hsl(40 20% 98%);
-  --editor-highlight: hsl(142 50% 45%);
-  --editor-code-bg: hsl(220 14% 96%);
-  --editor-code-fg: hsl(220 15% 20%);
-  --editor-selection: hsl(210 80% 92%);
-  --editor-placeholder: hsl(220 8% 72%);
+
+  /* The writing surface — stays light for readability */
   --editor-surface: hsl(0 0% 100%);
   --editor-canvas: hsl(220 14% 92%);
+
+  /* Sidebar shell — mid-level dark, lighter than header, darker than canvas */
+  --editor-sidebar-bg: hsl(230 22% 13%);
+
+  /* Text inside the editor canvas uses dark ink */
+  --editor-ink: hsl(220 20% 12%);
+  --editor-ink-muted: hsl(220 10% 45%);
+
+  --editor-highlight: hsl(252 80% 68%); /* publish / CTA button */
+  --editor-code-bg: hsl(220 16% 94%);
+  --editor-code-fg: hsl(220 18% 22%);
+  --editor-selection: hsl(252 80% 92%);
+  --editor-placeholder: hsl(220 8% 65%);
+
+  /* Header */
+  --color-header-bg: hsl(230 25% 9%);
+  --color-header-border: hsl(230 18% 20%);
 }
 
+/* ─── Base reset ──────────────────────────────────────────────────────────── */
 @layer base {
   *,
   *::before,
@@ -67,15 +88,4 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-}
-
-/* ── HEADER ── */
-.editor-header-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 56px;
-  padding: 0 1rem;
-  background: var(--color-header-bg);
-  border-bottom: 1px solid var(--color-header-border);
 }

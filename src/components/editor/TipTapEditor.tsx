@@ -19,8 +19,6 @@ import { Markdown } from "tiptap-markdown";
 import Link from "@tiptap/extension-link";
 
 import { common, createLowlight } from "lowlight";
-import EditorBubbleMenu from "./EditorBubbleMenu";
-import EditorFloatingMenu from "./EditorFloatingMenu";
 import EditorHeader from "./EditorHeader";
 import { FabricCanvasNode } from "../extensions/FabricCanvasNode";
 import { QuestionAnswerNode } from "../extensions/QuestionAnswerNode";
@@ -131,17 +129,19 @@ const TipTapEditor = () => {
 
       {/* ── CENTER EDITOR ── */}
       <main className="editor-main" onClick={handleEditorClick}>
-        <div className="w-fit mx-auto px-10 bg-editor-surface shadow-sm">
+        <div className="w-fit mx-auto px-10 editor-card shadow-sm">
+          {/* bg-editor-surface → editor-card */}
           <div
             className="tiptap-editor mx-auto pt-16 pb-40"
             style={{ width: "600px" }}
           >
-            {editor && (
+            {/* {editor && (
               <>
                 <EditorBubbleMenu editor={editor} />
                 <EditorFloatingMenu editor={editor} />
               </>
-            )}
+            )} */}
+
             <EditorContent editor={editor} />
           </div>
         </div>

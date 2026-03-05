@@ -11,7 +11,7 @@
   grid-template-rows: 56px 1fr;
   height: 100vh;
   overflow: hidden;
-  background: var(--color-editor-canvas);
+  background: var(--editor-canvas);
 }
 
 .editor-header {
@@ -24,9 +24,8 @@
   grid-column: 1;
   grid-row: 2;
   overflow-y: auto;
-  border-right: 1px solid
-    color-mix(in oklab, var(--color-border) 60%, transparent);
-  background: var(--color-editor-surface);
+  border-right: 1px solid var(--color-border);
+  background: var(--editor-sidebar-bg);
 }
 
 .editor-main {
@@ -34,15 +33,15 @@
   grid-row: 2;
   overflow-y: auto;
   cursor: text;
+  background: var(--editor-canvas);
 }
 
 .editor-sidebar-right {
   grid-column: 3;
   grid-row: 2;
   overflow-y: auto;
-  border-left: 1px solid
-    color-mix(in oklab, var(--color-border) 60%, transparent);
-  background: var(--color-editor-surface);
+  border-left: 1px solid var(--color-border);
+  background: var(--editor-sidebar-bg);
 }
 
 /* Scrollbar — thin & subtle */
@@ -72,16 +71,20 @@
   align-items: center;
   justify-content: space-between;
   height: 56px;
-  padding: 0 1.5rem;
-  border-bottom: 1px solid
-    color-mix(in oklab, var(--color-border) 50%, transparent);
-  background: color-mix(in oklab, var(--color-background) 85%, transparent);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  padding: 0 1.25rem;
+  background: var(--color-header-bg);
+  border-bottom: 1px solid var(--color-header-border);
+}
+
+/* ── Publish / CTA button ── */
+.editor-header-inner .bg-editor-highlight,
+button.bg-editor-highlight {
+  background: var(--editor-highlight);
+  color: hsl(0 0% 100%);
 }
 
 /* ─────────────────────────────────────────
-   SIDEBAR SHARED
+   SIDEBAR SHARED COMPONENTS
 ───────────────────────────────────────── */
 
 .sidebar-section-header {
@@ -95,13 +98,13 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: color-mix(in oklab, var(--color-muted-foreground) 60%, transparent);
+  color: color-mix(in oklab, var(--color-muted-foreground) 70%, transparent);
   transition: background 0.15s, color 0.15s;
   cursor: pointer;
 }
 
 .sidebar-section-header:hover {
-  background: color-mix(in oklab, var(--color-accent) 40%, transparent);
+  background: color-mix(in oklab, var(--color-accent) 60%, transparent);
   color: var(--color-foreground);
 }
 
@@ -119,13 +122,13 @@
 }
 
 .sidebar-tool-btn:hover {
-  background: color-mix(in oklab, var(--color-accent) 50%, transparent);
+  background: color-mix(in oklab, var(--color-accent) 70%, transparent);
   color: var(--color-foreground);
 }
 
 .sidebar-tool-btn.active {
-  background: var(--color-accent);
-  color: var(--color-foreground);
+  background: color-mix(in oklab, var(--color-primary) 20%, transparent);
+  color: var(--color-primary);
   font-weight: 500;
 }
 
@@ -143,7 +146,7 @@
   margin: 0.375rem 0;
   border: none;
   border-top: 1px solid
-    color-mix(in oklab, var(--color-border) 50%, transparent);
+    color-mix(in oklab, var(--color-border) 60%, transparent);
 }
 
 /* Color swatch buttons */
@@ -182,13 +185,13 @@
 }
 
 .align-btn:hover {
-  background: color-mix(in oklab, var(--color-accent) 50%, transparent);
+  background: color-mix(in oklab, var(--color-accent) 70%, transparent);
   color: var(--color-foreground);
 }
 
 .align-btn.active {
-  background: var(--color-accent);
-  color: var(--color-foreground);
+  background: color-mix(in oklab, var(--color-primary) 20%, transparent);
+  color: var(--color-primary);
 }
 
 /* Outline TOC items */
@@ -208,7 +211,7 @@
 }
 
 .outline-item:hover {
-  background: color-mix(in oklab, var(--color-accent) 50%, transparent);
+  background: color-mix(in oklab, var(--color-accent) 70%, transparent);
   color: var(--color-foreground);
 }
 
@@ -229,7 +232,8 @@
   width: 100%;
   border-radius: 6px;
   border: 1px solid var(--color-border);
-  background: var(--color-background);
+  background: var(--color-card);
+  color: var(--color-foreground);
   padding: 0.375rem 0.625rem;
   font-size: 0.75rem;
   outline: none;
@@ -237,9 +241,9 @@
 }
 
 .search-input:focus {
-  border-color: color-mix(in oklab, var(--color-primary) 50%, transparent);
+  border-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
   box-shadow: 0 0 0 3px
-    color-mix(in oklab, var(--color-primary) 12%, transparent);
+    color-mix(in oklab, var(--color-primary) 15%, transparent);
 }
 
 /* ─────────────────────────────────────────
@@ -252,8 +256,8 @@
   z-index: 10;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid
-    color-mix(in oklab, var(--color-border) 50%, transparent);
-  background: var(--color-editor-surface);
+    color-mix(in oklab, var(--color-border) 60%, transparent);
+  background: var(--editor-sidebar-bg);
 }
 
 .props-mode-badge {
@@ -265,8 +269,8 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  background: color-mix(in oklab, var(--color-accent) 70%, transparent);
-  color: var(--color-foreground);
+  background: color-mix(in oklab, var(--color-primary) 20%, transparent);
+  color: var(--color-primary);
   margin-top: 0.25rem;
 }
 
@@ -284,7 +288,8 @@
   width: 100%;
   border-radius: 6px;
   border: 1px solid var(--color-border);
-  background: var(--color-background);
+  background: var(--color-card);
+  color: var(--color-foreground);
   padding: 0.375rem 0.625rem;
   font-size: 0.75rem;
   outline: none;
@@ -292,9 +297,9 @@
 }
 
 .props-input:focus {
-  border-color: color-mix(in oklab, var(--color-primary) 50%, transparent);
+  border-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
   box-shadow: 0 0 0 3px
-    color-mix(in oklab, var(--color-primary) 12%, transparent);
+    color-mix(in oklab, var(--color-primary) 15%, transparent);
 }
 
 .props-row {
@@ -323,13 +328,14 @@
   padding: 0.375rem 0.5rem;
   font-size: 0.6875rem;
   color: var(--color-muted-foreground);
+  background: transparent;
   text-align: center;
   cursor: pointer;
   transition: background 0.12s, color 0.12s;
 }
 
 .props-grid-btn:hover {
-  background: color-mix(in oklab, var(--color-accent) 50%, transparent);
+  background: color-mix(in oklab, var(--color-accent) 70%, transparent);
   color: var(--color-foreground);
 }
 
@@ -351,16 +357,16 @@
   height: 16px;
   border-radius: 50%;
   background: white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* Stat card */
 .stat-card {
   border-radius: 8px;
-  border: 1px solid color-mix(in oklab, var(--color-border) 60%, transparent);
+  border: 1px solid color-mix(in oklab, var(--color-border) 80%, transparent);
   padding: 0.625rem 0.75rem;
-  background: color-mix(in oklab, var(--color-background) 60%, transparent);
+  background: color-mix(in oklab, var(--color-card) 80%, transparent);
 }
 
 .stat-value {
@@ -387,7 +393,8 @@
   width: 100%;
   padding: 0.5rem 0.625rem;
   border-radius: 7px;
-  border: 1px solid color-mix(in oklab, var(--color-border) 70%, transparent);
+  border: 1px solid color-mix(in oklab, var(--color-border) 80%, transparent);
+  background: transparent;
   font-size: 0.75rem;
   color: var(--color-muted-foreground);
   cursor: pointer;
@@ -396,7 +403,7 @@
 }
 
 .export-btn:hover {
-  background: color-mix(in oklab, var(--color-accent) 50%, transparent);
+  background: color-mix(in oklab, var(--color-accent) 70%, transparent);
   color: var(--color-foreground);
   border-color: var(--color-border);
 }
@@ -409,6 +416,7 @@
   width: 100%;
   padding: 0.375rem 0.625rem;
   border-radius: 6px;
+  background: transparent;
   font-size: 0.75rem;
   color: #ef4444;
   cursor: pointer;
@@ -417,18 +425,24 @@
 }
 
 .danger-btn:hover {
-  background: color-mix(in oklab, #ef4444 8%, transparent);
+  background: color-mix(in oklab, #ef4444 10%, transparent);
 }
 
 /* ─────────────────────────────────────────
    PROSEMIRROR / EDITOR CANVAS
+   The writing area is deliberately light/white.
 ───────────────────────────────────────── */
+
+/* The card that wraps the editor */
+.editor-main > div {
+  background: var(--editor-surface);
+}
 
 .tiptap-editor .ProseMirror {
   font-family: var(--font-serif);
   font-size: var(--editor-body-size);
   line-height: var(--editor-body-height);
-  color: var(--color-foreground);
+  color: var(--editor-ink);
   outline: none;
   max-width: var(--editor-max-width);
   margin: 0 auto;
@@ -450,6 +464,7 @@
   margin-top: 1.6em;
   margin-bottom: 0.4em;
   letter-spacing: -0.02em;
+  color: var(--editor-ink);
 }
 
 .tiptap-editor .ProseMirror h2 {
@@ -460,6 +475,7 @@
   margin-top: 1.4em;
   margin-bottom: 0.4em;
   letter-spacing: -0.015em;
+  color: var(--editor-ink);
 }
 
 .tiptap-editor .ProseMirror h3 {
@@ -469,32 +485,28 @@
   line-height: 1.3;
   margin-top: 1.2em;
   margin-bottom: 0.3em;
+  color: var(--editor-ink);
 }
 
 .tiptap-editor .ProseMirror blockquote {
-  border-left: 3px solid
-    color-mix(in oklab, var(--color-foreground) 15%, transparent);
+  border-left: 3px solid color-mix(in oklab, var(--editor-ink) 20%, transparent);
   padding-left: 1.2em;
   margin-left: 0;
   margin-right: 0;
   font-style: italic;
-  color: var(--color-muted-foreground);
+  color: var(--editor-ink-muted);
 }
 
 .tiptap-editor .ProseMirror a {
-  color: var(--color-foreground);
+  color: hsl(252 70% 50%);
   text-decoration: underline;
-  text-decoration-color: color-mix(
-    in oklab,
-    var(--color-foreground) 30%,
-    transparent
-  );
+  text-decoration-color: color-mix(in oklab, hsl(252 70% 50%) 40%, transparent);
   text-underline-offset: 3px;
   transition: text-decoration-color 0.2s ease;
 }
 
 .tiptap-editor .ProseMirror a:hover {
-  text-decoration-color: var(--color-foreground);
+  text-decoration-color: hsl(252 70% 50%);
 }
 
 .tiptap-editor .ProseMirror ::selection {
@@ -557,7 +569,7 @@
 }
 .tiptap-editor .ProseMirror pre .hljs-string,
 .tiptap-editor .ProseMirror pre .hljs-attr {
-  color: hsl(142 50% 40%);
+  color: hsl(142 50% 38%);
 }
 .tiptap-editor .ProseMirror pre .hljs-number,
 .tiptap-editor .ProseMirror pre .hljs-literal {
@@ -565,11 +577,11 @@
 }
 .tiptap-editor .ProseMirror pre .hljs-built_in,
 .tiptap-editor .ProseMirror pre .hljs-type {
-  color: hsl(200 70% 45%);
+  color: hsl(200 70% 42%);
 }
 .tiptap-editor .ProseMirror pre .hljs-title,
 .tiptap-editor .ProseMirror pre .hljs-function {
-  color: hsl(210 60% 50%);
+  color: hsl(210 60% 48%);
 }
 
 /* Images */
@@ -610,7 +622,7 @@
 /* HR */
 .tiptap-editor .ProseMirror hr {
   border: none;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid hsl(220 12% 85%);
   margin: 2em 0;
 }
 
@@ -668,27 +680,29 @@
   font-size: 0.9em;
   overflow: hidden;
   border-radius: 6px;
-  border: 1px solid var(--color-border);
+  border: 1px solid hsl(220 12% 85%);
 }
 
 .tiptap-editor .ProseMirror th {
-  background: color-mix(in oklab, var(--color-accent) 60%, transparent);
+  background: hsl(220 14% 94%);
   font-weight: 600;
   text-align: left;
   padding: 0.5em 0.75em;
-  border: 1px solid var(--color-border);
+  border: 1px solid hsl(220 12% 85%);
   font-size: 0.8em;
   letter-spacing: 0.02em;
+  color: var(--editor-ink);
 }
 
 .tiptap-editor .ProseMirror td {
   padding: 0.5em 0.75em;
-  border: 1px solid color-mix(in oklab, var(--color-border) 60%, transparent);
+  border: 1px solid hsl(220 12% 88%);
   vertical-align: top;
+  color: var(--editor-ink);
 }
 
 .tiptap-editor .ProseMirror tr:nth-child(even) td {
-  background: color-mix(in oklab, var(--color-accent) 20%, transparent);
+  background: hsl(220 14% 97%);
 }
 
 .tiptap-editor .ProseMirror .selectedCell::after {
@@ -717,4 +731,119 @@
 
 .tiptap-editor .ProseMirror [data-question-answer] {
   margin: 1em 0;
+}
+
+/* ─────────────────────────────────────────
+   TAILWIND UTILITY OVERRIDES
+   Map Tailwind class names → our dark theme tokens
+   so inline Tailwind classes in TSX files resolve correctly.
+───────────────────────────────────────── */
+
+/* bg-editor-surface — used on sidebar wrapper divs in TSX */
+/* We intentionally point this to the sidebar dark tone.   */
+/* The actual white writing card is set via .editor-main > div below. */
+.bg-editor-surface {
+  background-color: var(--editor-sidebar-bg) !important;
+}
+
+/* bg-editor-highlight used in EditorHeader.tsx publish button */
+.bg-editor-highlight {
+  background-color: var(--editor-highlight) !important;
+}
+
+/* bg-background / bg-card */
+.bg-background {
+  background-color: var(--color-background) !important;
+}
+.bg-card {
+  background-color: var(--color-card) !important;
+}
+
+/* Inputs inside sidebars should be slightly lighter than sidebar bg */
+.editor-sidebar-left input,
+.editor-sidebar-left select,
+.editor-sidebar-right input,
+.editor-sidebar-right select {
+  background: color-mix(
+    in oklab,
+    var(--editor-sidebar-bg) 60%,
+    var(--color-card)
+  );
+  color: var(--color-foreground);
+  border-color: var(--color-border);
+}
+
+.editor-sidebar-left input::placeholder,
+.editor-sidebar-right input::placeholder {
+  color: var(--color-muted-foreground);
+}
+
+/* Hover "red" danger rows in dark mode: swap red-50 to a dark tint */
+.editor-sidebar-right .hover\:bg-red-50:hover,
+.editor-sidebar-left .hover\:bg-red-50:hover {
+  background-color: color-mix(in oklab, #ef4444 12%, transparent) !important;
+}
+
+/* bg-muted (used for toggle off-state) */
+.bg-muted {
+  background-color: var(--color-muted) !important;
+}
+
+/* bg-primary (toggle on-state, etc.) */
+.bg-primary {
+  background-color: var(--color-primary) !important;
+}
+
+/* bg-accent */
+.bg-accent {
+  background-color: var(--color-accent) !important;
+}
+.bg-accent\/50 {
+  background-color: color-mix(
+    in oklab,
+    var(--color-accent) 50%,
+    transparent
+  ) !important;
+}
+.bg-accent\/70 {
+  background-color: color-mix(
+    in oklab,
+    var(--color-accent) 70%,
+    transparent
+  ) !important;
+}
+.hover\:bg-accent\/50:hover {
+  background-color: color-mix(
+    in oklab,
+    var(--color-accent) 50%,
+    transparent
+  ) !important;
+}
+.hover\:bg-accent\/70:hover {
+  background-color: color-mix(
+    in oklab,
+    var(--color-accent) 70%,
+    transparent
+  ) !important;
+}
+
+/* Text color tokens */
+.text-foreground {
+  color: var(--color-foreground) !important;
+}
+.text-muted-foreground {
+  color: var(--color-muted-foreground) !important;
+}
+.text-primary {
+  color: var(--color-primary) !important;
+}
+
+/* Border tokens */
+.border-border {
+  border-color: var(--color-border) !important;
+}
+
+/* Focus rings — sidebar inputs */
+.focus\:ring-primary\/40:focus {
+  --tw-ring-color: color-mix(in oklab, var(--color-primary) 40%, transparent);
 }
