@@ -1,5 +1,429 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────
+   LAYOUT SYSTEM
+   left: 240px  |  right: 288px  |  center: fluid
+───────────────────────────────────────── */
+
+.editor-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr 288px;
+  grid-template-rows: 56px 1fr;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--color-editor-canvas);
+}
+
+.editor-header {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  z-index: 40;
+}
+
+.editor-sidebar-left {
+  grid-column: 1;
+  grid-row: 2;
+  overflow-y: auto;
+  border-right: 1px solid
+    color-mix(in oklab, var(--color-border) 60%, transparent);
+  background: var(--color-editor-surface);
+}
+
+.editor-main {
+  grid-column: 2;
+  grid-row: 2;
+  overflow-y: auto;
+  cursor: text;
+}
+
+.editor-sidebar-right {
+  grid-column: 3;
+  grid-row: 2;
+  overflow-y: auto;
+  border-left: 1px solid
+    color-mix(in oklab, var(--color-border) 60%, transparent);
+  background: var(--color-editor-surface);
+}
+
+/* Scrollbar — thin & subtle */
+.editor-sidebar-left::-webkit-scrollbar,
+.editor-sidebar-right::-webkit-scrollbar,
+.editor-main::-webkit-scrollbar {
+  width: 4px;
+}
+.editor-sidebar-left::-webkit-scrollbar-track,
+.editor-sidebar-right::-webkit-scrollbar-track,
+.editor-main::-webkit-scrollbar-track {
+  background: transparent;
+}
+.editor-sidebar-left::-webkit-scrollbar-thumb,
+.editor-sidebar-right::-webkit-scrollbar-thumb,
+.editor-main::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--color-border) 80%, transparent);
+  border-radius: 4px;
+}
+
+/* ─────────────────────────────────────────
+   HEADER
+───────────────────────────────────────── */
+
+.editor-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid
+    color-mix(in oklab, var(--color-border) 50%, transparent);
+  background: color-mix(in oklab, var(--color-background) 85%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* ─────────────────────────────────────────
+   SIDEBAR SHARED
+───────────────────────────────────────── */
+
+.sidebar-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.45rem 0.625rem;
+  border-radius: 6px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--color-muted-foreground) 60%, transparent);
+  transition: background 0.15s, color 0.15s;
+  cursor: pointer;
+}
+
+.sidebar-section-header:hover {
+  background: color-mix(in oklab, var(--color-accent) 40%, transparent);
+  color: var(--color-foreground);
+}
+
+.sidebar-tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.375rem 0.625rem;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  color: var(--color-muted-foreground);
+  transition: background 0.12s, color 0.12s;
+  cursor: pointer;
+}
+
+.sidebar-tool-btn:hover {
+  background: color-mix(in oklab, var(--color-accent) 50%, transparent);
+  color: var(--color-foreground);
+}
+
+.sidebar-tool-btn.active {
+  background: var(--color-accent);
+  color: var(--color-foreground);
+  font-weight: 500;
+}
+
+.sidebar-sub-label {
+  display: block;
+  padding: 0.5rem 0.5rem 0.25rem;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--color-muted-foreground) 35%, transparent);
+}
+
+.sidebar-divider {
+  margin: 0.375rem 0;
+  border: none;
+  border-top: 1px solid
+    color-mix(in oklab, var(--color-border) 50%, transparent);
+}
+
+/* Color swatch buttons */
+.color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+  flex-shrink: 0;
+}
+
+.color-swatch:hover {
+  border-color: color-mix(in oklab, var(--color-foreground) 30%, transparent);
+  transform: scale(1.15);
+}
+
+/* Alignment pill group */
+.align-group {
+  display: flex;
+  gap: 2px;
+  padding: 0.25rem 0.5rem;
+}
+
+.align-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem;
+  border-radius: 5px;
+  color: var(--color-muted-foreground);
+  transition: background 0.12s, color 0.12s;
+  cursor: pointer;
+}
+
+.align-btn:hover {
+  background: color-mix(in oklab, var(--color-accent) 50%, transparent);
+  color: var(--color-foreground);
+}
+
+.align-btn.active {
+  background: var(--color-accent);
+  color: var(--color-foreground);
+}
+
+/* Outline TOC items */
+.outline-item {
+  display: block;
+  width: 100%;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  text-align: left;
+  color: var(--color-muted-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.12s, color 0.12s;
+  cursor: pointer;
+}
+
+.outline-item:hover {
+  background: color-mix(in oklab, var(--color-accent) 50%, transparent);
+  color: var(--color-foreground);
+}
+
+.outline-item[data-level="1"] {
+  padding-left: 0.5rem;
+  font-weight: 500;
+}
+.outline-item[data-level="2"] {
+  padding-left: 1.25rem;
+}
+.outline-item[data-level="3"] {
+  padding-left: 2rem;
+  font-size: 0.7rem;
+}
+
+/* Search inputs */
+.search-input {
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  padding: 0.375rem 0.625rem;
+  font-size: 0.75rem;
+  outline: none;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.search-input:focus {
+  border-color: color-mix(in oklab, var(--color-primary) 50%, transparent);
+  box-shadow: 0 0 0 3px
+    color-mix(in oklab, var(--color-primary) 12%, transparent);
+}
+
+/* ─────────────────────────────────────────
+   RIGHT SIDEBAR — PROPERTIES PANEL
+───────────────────────────────────────── */
+
+.props-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid
+    color-mix(in oklab, var(--color-border) 50%, transparent);
+  background: var(--color-editor-surface);
+}
+
+.props-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: color-mix(in oklab, var(--color-accent) 70%, transparent);
+  color: var(--color-foreground);
+  margin-top: 0.25rem;
+}
+
+.props-section-title {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--color-muted-foreground) 50%, transparent);
+}
+
+.props-input {
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  padding: 0.375rem 0.625rem;
+  font-size: 0.75rem;
+  outline: none;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.props-input:focus {
+  border-color: color-mix(in oklab, var(--color-primary) 50%, transparent);
+  box-shadow: 0 0 0 3px
+    color-mix(in oklab, var(--color-primary) 12%, transparent);
+}
+
+.props-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.625rem;
+}
+
+.props-label {
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+  flex-shrink: 0;
+}
+
+.props-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.props-grid-btn {
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  padding: 0.375rem 0.5rem;
+  font-size: 0.6875rem;
+  color: var(--color-muted-foreground);
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.props-grid-btn:hover {
+  background: color-mix(in oklab, var(--color-accent) 50%, transparent);
+  color: var(--color-foreground);
+}
+
+/* Toggle switch */
+.toggle-track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Stat card */
+.stat-card {
+  border-radius: 8px;
+  border: 1px solid color-mix(in oklab, var(--color-border) 60%, transparent);
+  padding: 0.625rem 0.75rem;
+  background: color-mix(in oklab, var(--color-background) 60%, transparent);
+}
+
+.stat-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-foreground);
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-muted-foreground);
+  margin-top: 1px;
+}
+
+/* Export buttons */
+.export-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  border-radius: 7px;
+  border: 1px solid color-mix(in oklab, var(--color-border) 70%, transparent);
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  margin-bottom: 6px;
+}
+
+.export-btn:hover {
+  background: color-mix(in oklab, var(--color-accent) 50%, transparent);
+  color: var(--color-foreground);
+  border-color: var(--color-border);
+}
+
+/* Danger button */
+.danger-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.375rem 0.625rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: #ef4444;
+  cursor: pointer;
+  transition: background 0.12s;
+  margin-top: 4px;
+}
+
+.danger-btn:hover {
+  background: color-mix(in oklab, #ef4444 8%, transparent);
+}
+
+/* ─────────────────────────────────────────
+   PROSEMIRROR / EDITOR CANVAS
+───────────────────────────────────────── */
+
 .tiptap-editor .ProseMirror {
   font-family: var(--font-serif);
   font-size: var(--editor-body-size);
@@ -148,11 +572,23 @@
   color: hsl(210 60% 50%);
 }
 
+/* Images */
 .tiptap-editor .ProseMirror img {
   max-width: 100%;
   height: auto;
   border-radius: 4px;
   margin: 1.5em 0;
+  display: block;
+}
+
+.tiptap-editor .ProseMirror img[data-align="center"] {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.tiptap-editor .ProseMirror img[data-align="right"] {
+  margin-left: auto;
+  margin-right: 0;
 }
 
 .tiptap-editor .ProseMirror img.ProseMirror-selectednode {
@@ -160,6 +596,7 @@
   outline-offset: 2px;
 }
 
+/* Video embed */
 .tiptap-editor .ProseMirror div[data-youtube-video] {
   margin: 1.5em 0;
 }
@@ -170,12 +607,14 @@
   aspect-ratio: 16 / 9;
 }
 
+/* HR */
 .tiptap-editor .ProseMirror hr {
   border: none;
   border-top: 1px solid var(--color-border);
   margin: 2em 0;
 }
 
+/* Lists */
 .tiptap-editor .ProseMirror ul,
 .tiptap-editor .ProseMirror ol {
   padding-left: 1.5em;
@@ -186,6 +625,92 @@
   margin-bottom: 0.3em;
 }
 
+/* Task list */
+.tiptap-editor .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0.25em;
+}
+
+.tiptap-editor .ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+}
+
+.tiptap-editor .ProseMirror ul[data-type="taskList"] li > label {
+  display: flex;
+  align-items: center;
+  margin-top: 0.1em;
+  flex-shrink: 0;
+}
+
+.tiptap-editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.tiptap-editor
+  .ProseMirror
+  ul[data-type="taskList"]
+  li[data-checked="true"]
+  > div {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+/* Table */
+.tiptap-editor .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.5em 0;
+  font-size: 0.9em;
+  overflow: hidden;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+}
+
+.tiptap-editor .ProseMirror th {
+  background: color-mix(in oklab, var(--color-accent) 60%, transparent);
+  font-weight: 600;
+  text-align: left;
+  padding: 0.5em 0.75em;
+  border: 1px solid var(--color-border);
+  font-size: 0.8em;
+  letter-spacing: 0.02em;
+}
+
+.tiptap-editor .ProseMirror td {
+  padding: 0.5em 0.75em;
+  border: 1px solid color-mix(in oklab, var(--color-border) 60%, transparent);
+  vertical-align: top;
+}
+
+.tiptap-editor .ProseMirror tr:nth-child(even) td {
+  background: color-mix(in oklab, var(--color-accent) 20%, transparent);
+}
+
+.tiptap-editor .ProseMirror .selectedCell::after {
+  background: color-mix(in oklab, var(--color-primary) 12%, transparent);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+}
+
+.tiptap-editor .ProseMirror .column-resize-handle {
+  background-color: var(--color-primary);
+  bottom: -2px;
+  pointer-events: none;
+  position: absolute;
+  right: -2px;
+  top: 0;
+  width: 3px;
+}
+
+/* Custom nodes */
 .tiptap-editor .ProseMirror [data-fabric-canvas] {
   margin: 1.5em 0;
 }

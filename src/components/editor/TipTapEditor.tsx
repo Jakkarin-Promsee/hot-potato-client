@@ -1,10 +1,23 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
-import Link from "@tiptap/extension-link";
+import TextAlign from "@tiptap/extension-text-align";
 import Image from "@tiptap/extension-image";
 import Youtube from "@tiptap/extension-youtube";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { Color } from "@tiptap/extension-color";
+import { TextStyle } from "@tiptap/extension-text-style";
+import { Highlight } from "@tiptap/extension-highlight";
+import Underline from "@tiptap/extension-underline";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
+import { Markdown } from "tiptap-markdown";
+import Link from "@tiptap/extension-link";
+
 import { common, createLowlight } from "lowlight";
 import EditorBubbleMenu from "./EditorBubbleMenu";
 import EditorFloatingMenu from "./EditorFloatingMenu";
@@ -16,6 +29,9 @@ import { useCallback } from "react";
 import { useCanvasContext } from "@/contexts/CanvasContext";
 import PropertiesPanel from "../design/PropertiesPanel";
 import CanvasSidebar from "../design/CanvasSidebar";
+import EditroPropPanel from "./EditorPropPanel";
+import EditorLeftSidebar from "./EditorLeftSidebar";
+import EditorRightSidebar from "./EditorRightSidebar";
 
 const lowlight = createLowlight(common);
 
@@ -25,11 +41,22 @@ const TipTapEditor = () => {
       StarterKit.configure({
         codeBlock: false,
         heading: { levels: [1, 2, 3] },
-        link: {
-          openOnClick: false,
-          HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
-        },
       }),
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
+      }),
+      Markdown.configure({
+        html: true,
+        tightLists: true,
+      }),
+      TextAlign.configure({
+        types: ["heading", "paragraph"],
+      }),
+      Underline,
+      TextStyle,
+      Color,
+      Highlight.configure({ multicolor: true }),
       Placeholder.configure({
         placeholder: "Tell your story...",
       }),
@@ -37,12 +64,16 @@ const TipTapEditor = () => {
         allowBase64: true,
         HTMLAttributes: { class: "editor-image" },
       }),
-      Youtube.configure({
-        width: 720,
-        height: 405,
-        HTMLAttributes: { class: "editor-youtube" },
-      }),
+      Youtube.configure({ width: 560, height: 315 }),
       CodeBlockLowlight.configure({ lowlight }),
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      TaskList,
+      TaskItem.configure({ nested: true }),
       FabricCanvasNode,
       QuestionAnswerNode,
     ],
@@ -88,43 +119,41 @@ const TipTapEditor = () => {
   const { canvas } = useCanvasContext();
 
   return (
-    <div className="h-screen flex-col overflow-hidden bg-editor-canvas">
-      {/* Top side bar */}
-      <EditorHeader editor={editor} />
+    <div className="editor-layout">
+      {/* ── TOP HEADER ── */}
+      <header className="editor-header">
+        <EditorHeader editor={editor} />
+      </header>
 
-      <div className="flex flex-1">
-        {/* Left side bar (floating)*/}
-        <aside className="fixed top-12 left-0 bottom-0 w-60 overflow-y-auto border-r border-gray-200">
-          {!canvas && editor && <EditorSidebar editor={editor} />}
-          {canvas && <CanvasSidebar />}
-        </aside>
+      {/* ── LEFT SIDEBAR ── */}
+      <aside className="editor-sidebar-left">
+        {!canvas && editor && <EditorLeftSidebar editor={editor} />}
+        {canvas && <CanvasSidebar />}
+      </aside>
 
-        {/* Center side bar */}
-        <main
-          className="flex-1 h-screen overflow-y-auto cursor-text bg-editor-canvas"
-          onClick={handleEditorClick}
-        >
-          <div className="w-fit mx-auto px-10 bg-editor-surface shadow-sm">
-            <div
-              className="tiptap-editor w1 mx-auto bg-editor-surface pt-16 pb-40"
-              style={{ width: "600px" }}
-            >
-              {editor && (
-                <>
-                  <EditorBubbleMenu editor={editor} />
-                  <EditorFloatingMenu editor={editor} />
-                </>
-              )}
-              <EditorContent editor={editor} />
-            </div>
+      {/* ── CENTER EDITOR ── */}
+      <main className="editor-main" onClick={handleEditorClick}>
+        <div className="w-fit mx-auto px-10 bg-editor-surface shadow-sm">
+          <div
+            className="tiptap-editor mx-auto pt-16 pb-40"
+            style={{ width: "600px" }}
+          >
+            {editor && (
+              <>
+                <EditorBubbleMenu editor={editor} />
+                <EditorFloatingMenu editor={editor} />
+              </>
+            )}
+            <EditorContent editor={editor} />
           </div>
-        </main>
+        </div>
+      </main>
 
-        {/* Right side bar */}
-        <aside className="fixed top-12 right-0 bottom-0 w-72 overflow-y-auto border-l border-gray-200">
-          <PropertiesPanel />
-        </aside>
-      </div>
+      {/* ── RIGHT SIDEBAR ── */}
+      <aside className="editor-sidebar-right">
+        {!canvas && <EditorRightSidebar editor={editor} />}
+        {canvas && <PropertiesPanel />}
+      </aside>
     </div>
   );
 };
