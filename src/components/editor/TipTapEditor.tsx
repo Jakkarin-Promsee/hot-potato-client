@@ -22,14 +22,12 @@ import { common, createLowlight } from "lowlight";
 import EditorBubbleMenu from "./EditorBubbleMenu";
 import EditorFloatingMenu from "./EditorFloatingMenu";
 import EditorHeader from "./EditorHeader";
-import EditorSidebar from "./EditorSidebar";
 import { FabricCanvasNode } from "../extensions/FabricCanvasNode";
 import { QuestionAnswerNode } from "../extensions/QuestionAnswerNode";
 import { useCallback } from "react";
 import { useCanvasContext } from "@/contexts/CanvasContext";
 import PropertiesPanel from "../design/PropertiesPanel";
 import CanvasSidebar from "../design/CanvasSidebar";
-import EditroPropPanel from "./EditorPropPanel";
 import EditorLeftSidebar from "./EditorLeftSidebar";
 import EditorRightSidebar from "./EditorRightSidebar";
 
