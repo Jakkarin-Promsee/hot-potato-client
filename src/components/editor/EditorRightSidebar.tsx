@@ -6,10 +6,7 @@ import {
   AlignRight,
   AlignJustify,
   Trash2,
-  FileText,
-  Download,
   Search,
-  BookOpen,
   ChevronDown,
   ChevronRight,
   Type,
@@ -21,9 +18,7 @@ import {
   Underline,
   Strikethrough,
   Quote,
-  Edit,
   Text,
-  Link2,
   Link,
 } from "lucide-react";
 
@@ -33,9 +28,41 @@ import {
   type SearchMatch,
 } from "../extensions/searchHighlight";
 
-// ─── Constants outside component ─────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-// --- Constants outside component (never recreated) ---------------------------
+type PanelMode = keyof typeof MODE_LABELS;
+type SectionKey = "document" | "outline" | "search" | "text";
+type TextAlign = "left" | "center" | "right" | "justify";
+
+// All reactive isActive / getAttributes reads — computed once per transaction
+// in EditorRightSidebar and passed down as plain props for memo to diff
+interface ActiveFormats {
+  paragraph: boolean;
+  h1: boolean;
+  h2: boolean;
+  h3: boolean;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  strike: boolean;
+  blockquote: boolean;
+  link: boolean;
+  textAlign: TextAlign;
+  textColor: string;
+  highlightColor: string;
+}
+
+interface ImageAttrs {
+  alt: string;
+  align: string;
+}
+
+interface CodeAttrs {
+  language: string;
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 const COLORS = [
   "#ef4444",
   "#f97316",
@@ -91,12 +118,24 @@ const MODE_LABELS = {
   codeBlock: "Code Block",
 } as const;
 
-type PanelMode = keyof typeof MODE_LABELS;
+const DEFAULT_ACTIVE_FORMATS: ActiveFormats = {
+  paragraph: false,
+  h1: false,
+  h2: false,
+  h3: false,
+  bold: false,
+  italic: false,
+  underline: false,
+  strike: false,
+  blockquote: false,
+  link: false,
+  textAlign: "left",
+  textColor: "",
+  highlightColor: "",
+};
 
-// Toggle tools
-type SectionKey = "document" | "outline" | "search" | "text";
+// ─── Shared primitives ────────────────────────────────────────────────────────
 
-// --- Sub-components memoized so they only re-render when their props change --
 const SectionHeader = memo(
   ({
     sectionKey,
@@ -159,8 +198,6 @@ const ToolBtn = memo(
   ),
 );
 
-// ─── Shared primitives ────────────────────────────────────────────────────────
-
 const Section = memo(
   ({ title, children }: { title: string; children: React.ReactNode }) => (
     <div className="mb-4">
@@ -207,212 +244,229 @@ const IconBtn = memo(
   ),
 );
 
-// ─── Panel components (memoized, defined at module level) ─────────────────────
+// ─── Panel components ─────────────────────────────────────────────────────────
 
-const DocumentPanel = memo(({ editor }: { editor: Editor }) => {
-  const { wordCount, readTime } = useMemo(() => {
-    const words = editor.state.doc.textContent
-      .split(/\s+/)
-      .filter(Boolean).length;
-    return { wordCount: words, readTime: Math.max(1, Math.ceil(words / 265)) };
-  }, [editor.state.doc]); // recomputes only when doc content changes
+// ✅ No editor.isActive() calls — all active states come from props
+const DocumentPanel = memo(
+  ({ wordCount, readTime }: { wordCount: number; readTime: number }) => (
+    <Section title="Document">
+      <Row label="Words">
+        <span className="text-xs font-medium">{wordCount}</span>
+      </Row>
+      <Row label="Read time">
+        <span className="text-xs font-medium">{readTime} min</span>
+      </Row>
+    </Section>
+  ),
+);
 
-  return (
-    <>
-      <Section title="Document">
-        <Row label="Words">
-          <span className="text-xs font-medium">{wordCount}</span>
-        </Row>
-        <Row label="Read time">
-          <span className="text-xs font-medium">{readTime} min</span>
-        </Row>
-      </Section>
-    </>
-  );
-});
+// ✅ active states from props — memo diffs primitives correctly
+const TextPanel = memo(
+  ({ editor, active }: { editor: Editor; active: ActiveFormats }) => {
+    const setColor = useCallback(
+      (color: string) => editor.chain().focus().setColor(color).run(),
+      [editor],
+    );
+    const setHighlight = useCallback(
+      (color: string) =>
+        editor.chain().focus().toggleHighlight({ color }).run(),
+      [editor],
+    );
 
-const TextPanel = memo(({ editor }: { editor: Editor }) => {
-  const setColor = useCallback(
-    (color: string) => editor.chain().focus().setColor(color).run(),
-    [editor],
-  );
-  const setHighlight = useCallback(
-    (color: string) => editor.chain().focus().toggleHighlight({ color }).run(),
-    [editor],
-  );
-
-  return (
-    <div className="mb-2 flex flex-col gap-0.5 pl-1">
-      <span className="px-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-        Structure
-      </span>
-      <ToolBtn
-        icon={Type}
-        label="Normal Text"
-        onClick={() => editor.chain().focus().setParagraph().run()}
-        active={editor.isActive("paragraph") && !editor.isActive("heading")}
-      />
-      <ToolBtn
-        icon={Heading1}
-        label="Heading 1"
-        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-        active={editor.isActive("heading", { level: 1 })}
-      />
-      <ToolBtn
-        icon={Heading2}
-        label="Heading 2"
-        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        active={editor.isActive("heading", { level: 2 })}
-      />
-      <ToolBtn
-        icon={Heading3}
-        label="Heading 3"
-        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-        active={editor.isActive("heading", { level: 3 })}
-      />
-
-      <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-        Format
-      </span>
-      <ToolBtn
-        icon={Bold}
-        label="Bold"
-        onClick={() => editor.chain().focus().toggleBold().run()}
-        active={editor.isActive("bold")}
-      />
-      <ToolBtn
-        icon={Italic}
-        label="Italic"
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-        active={editor.isActive("italic")}
-      />
-      <ToolBtn
-        icon={Underline}
-        label="Underline"
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-        active={editor.isActive("underline")}
-      />
-      <ToolBtn
-        icon={Strikethrough}
-        label="Strikethrough"
-        onClick={() => editor.chain().focus().toggleStrike().run()}
-        active={editor.isActive("strike")}
-      />
-      <ToolBtn
-        icon={Quote}
-        label="Blockquote"
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        active={editor.isActive("blockquote")}
-      />
-      <ToolBtn
-        icon={Link}
-        label="Link"
-        onClick={() => {
-          if (editor.isActive("link")) {
-            editor.chain().focus().unsetLink().run();
-            return;
+    return (
+      <div className="mb-2 flex flex-col gap-0.5 pl-1">
+        <span className="px-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+          Structure
+        </span>
+        <ToolBtn
+          icon={Type}
+          label="Normal Text"
+          active={active.paragraph}
+          onClick={() => editor.chain().focus().setParagraph().run()}
+        />
+        <ToolBtn
+          icon={Heading1}
+          label="Heading 1"
+          active={active.h1}
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 1 }).run()
           }
-          const url = window.prompt("Enter URL");
-          if (url) editor.chain().focus().setLink({ href: url }).run();
-        }}
-        active={editor.isActive("link")}
-      />
+        />
+        <ToolBtn
+          icon={Heading2}
+          label="Heading 2"
+          active={active.h2}
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 2 }).run()
+          }
+        />
+        <ToolBtn
+          icon={Heading3}
+          label="Heading 3"
+          active={active.h3}
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 3 }).run()
+          }
+        />
 
-      <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-        Alignment
-      </span>
-      <div className="flex gap-1 px-2 py-1">
-        {ALIGN_OPTIONS.map(({ Icon: Icon, align }) => (
-          <button
-            key={align}
-            onClick={() => editor.chain().focus().setTextAlign(align).run()}
-            title={`Align ${align}`}
-            className={`flex-1 flex items-center justify-center rounded py-1.5 transition-colors ${
-              editor.isActive({ textAlign: align })
-                ? "bg-accent text-foreground"
-                : "text-muted-foreground hover:bg-accent/50"
-            }`}
-          >
-            <Icon size={13} strokeWidth={1.8} />
-          </button>
-        ))}
-      </div>
+        <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+          Format
+        </span>
+        <ToolBtn
+          icon={Bold}
+          label="Bold"
+          active={active.bold}
+          onClick={() => editor.chain().focus().toggleBold().run()}
+        />
+        <ToolBtn
+          icon={Italic}
+          label="Italic"
+          active={active.italic}
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+        />
+        <ToolBtn
+          icon={Underline}
+          label="Underline"
+          active={active.underline}
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+        />
+        <ToolBtn
+          icon={Strikethrough}
+          label="Strikethrough"
+          active={active.strike}
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+        />
+        <ToolBtn
+          icon={Quote}
+          label="Blockquote"
+          active={active.blockquote}
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        />
+        <ToolBtn
+          icon={Link}
+          label="Link"
+          active={active.link}
+          onClick={() => {
+            if (active.link) {
+              editor.chain().focus().unsetLink().run();
+              return;
+            }
+            const url = window.prompt("Enter URL");
+            if (url) editor.chain().focus().setLink({ href: url }).run();
+          }}
+        />
 
-      <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-        Text Color
-      </span>
-      <div className="flex flex-wrap gap-1.5 px-2 py-1">
-        {COLORS.map((c) => (
-          <button
-            key={c}
-            onClick={() => setColor(c)}
-            title={c}
-            className="h-5 w-5 rounded-full border-2 border-transparent hover:border-foreground/30 transition-all"
-            style={{ background: c }}
-          />
-        ))}
-      </div>
-
-      <span className="px-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-        Highlight
-      </span>
-      <div className="flex flex-wrap gap-1.5 px-2 py-1">
-        {HIGHLIGHTS.map((c) => (
-          <button
-            key={c}
-            onClick={() => setHighlight(c)}
-            title={c}
-            className="h-5 w-5 rounded-full border-2 border-transparent hover:border-foreground/30 transition-all"
-            style={{ background: c }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-});
-
-const TextTogglePanel = memo(({ editor }: { editor: Editor }) => {
-  const [openSections, setOpenSections] = useState({
-    document: false,
-    outline: false,
-    search: false,
-    text: true,
-  });
-
-  // Stable toggle — never recreated
-  const toggle = useCallback(
-    (key: SectionKey) =>
-      setOpenSections((prev) => ({ ...prev, [key]: !prev[key] })),
-    [],
-  );
-
-  return (
-    <>
-      <SectionHeader
-        sectionKey="search"
-        icon={Search}
-        label="Search & Replace"
-        isOpen={openSections.search}
-        onToggle={toggle}
-      />
-      {openSections.search && (
-        <div className="px-2">
-          <SearchPanel editor={editor} />
+        <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+          Alignment
+        </span>
+        <div className="flex gap-1 px-2 py-1">
+          {ALIGN_OPTIONS.map(({ Icon, align }) => (
+            <button
+              key={align}
+              onClick={() => editor.chain().focus().setTextAlign(align).run()}
+              title={`Align ${align}`}
+              className={`flex-1 flex items-center justify-center rounded py-1.5 transition-colors ${
+                active.textAlign === align
+                  ? "bg-accent text-foreground"
+                  : "text-muted-foreground hover:bg-accent/50"
+              }`}
+            >
+              <Icon size={13} strokeWidth={1.8} />
+            </button>
+          ))}
         </div>
-      )}
 
-      <SectionHeader
-        sectionKey="text"
-        icon={Text}
-        label="text"
-        isOpen={openSections.text}
-        onToggle={toggle}
-      />
-      {openSections.text && <TextPanel editor={editor} />}
-    </>
-  );
-});
+        <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+          Text Color
+        </span>
+        <div className="flex flex-wrap gap-1.5 px-2 py-1">
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              onClick={() => setColor(c)}
+              title={c}
+              className="h-5 w-5 rounded-full transition-all"
+              style={{
+                background: c,
+                outline:
+                  active.textColor === c
+                    ? "2px solid currentColor"
+                    : "2px solid transparent",
+                outlineOffset: "2px",
+              }}
+            />
+          ))}
+        </div>
 
+        <span className="px-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+          Highlight
+        </span>
+        <div className="flex flex-wrap gap-1.5 px-2 py-1">
+          {HIGHLIGHTS.map((c) => (
+            <button
+              key={c}
+              onClick={() => setHighlight(c)}
+              title={c}
+              className="h-5 w-5 rounded-full transition-all"
+              style={{
+                background: c,
+                outline:
+                  active.highlightColor === c
+                    ? "2px solid currentColor"
+                    : "2px solid transparent",
+                outlineOffset: "2px",
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  },
+);
+
+// ✅ openSections is local UI state — fine inside memo, doesn't relate to editor state
+const TextTogglePanel = memo(
+  ({ editor, active }: { editor: Editor; active: ActiveFormats }) => {
+    const [openSections, setOpenSections] = useState({
+      search: false,
+      text: true,
+    });
+
+    const toggle = useCallback(
+      (key: "search" | "text") =>
+        setOpenSections((prev) => ({ ...prev, [key]: !prev[key] })),
+      [],
+    );
+
+    return (
+      <>
+        <SectionHeader
+          sectionKey="search"
+          icon={Search}
+          label="Search & Replace"
+          isOpen={openSections.search}
+          onToggle={toggle as any}
+        />
+        {openSections.search && (
+          <div className="px-2">
+            <SearchPanel editor={editor} />
+          </div>
+        )}
+
+        <SectionHeader
+          sectionKey="text"
+          icon={Text}
+          label="Text"
+          isOpen={openSections.text}
+          onToggle={toggle as any}
+        />
+        {openSections.text && <TextPanel editor={editor} active={active} />}
+      </>
+    );
+  },
+);
+
+// ✅ linkUrl, linkNewTab come from props (lifted to sidebar) — memo diffs them correctly
 const LinkPanel = memo(
   ({
     editor,
@@ -428,13 +482,12 @@ const LinkPanel = memo(
     setLinkNewTab: (v: boolean) => void;
   }) => {
     const applyLink = useCallback(
-      (url: string, newTab: boolean) => {
+      (url: string, newTab: boolean) =>
         editor
           .chain()
           .focus()
           .setLink({ href: url, target: newTab ? "_blank" : "" })
-          .run();
-      },
+          .run(),
       [editor],
     );
 
@@ -483,16 +536,16 @@ const LinkPanel = memo(
   },
 );
 
-const ImagePanel = memo(({ editor }: { editor: Editor }) => {
-  const attrs = editor.getAttributes("image");
-  return (
+// ✅ imageAttrs from props — no editor.getAttributes() inside memo
+const ImagePanel = memo(
+  ({ editor, imageAttrs }: { editor: Editor; imageAttrs: ImageAttrs }) => (
     <Section title="Image">
       <div className="mb-2">
         <label className="mb-1 block text-xs text-muted-foreground">
           Alt Text
         </label>
         <input
-          defaultValue={attrs.alt ?? ""}
+          defaultValue={imageAttrs.alt}
           placeholder="Describe the image…"
           className="w-full rounded border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/40"
           onChange={(e) =>
@@ -511,6 +564,7 @@ const ImagePanel = memo(({ editor }: { editor: Editor }) => {
               key={align}
               icon={Icon}
               title={align}
+              active={imageAttrs.align === align}
               onClick={() =>
                 editor
                   .chain()
@@ -523,9 +577,10 @@ const ImagePanel = memo(({ editor }: { editor: Editor }) => {
         </div>
       </Row>
     </Section>
-  );
-});
+  ),
+);
 
+// ✅ No reactive reads inside — TablePanel is pure commands, always safe with memo
 const TablePanel = memo(({ editor }: { editor: Editor }) => (
   <Section title="Table">
     <div className="grid grid-cols-2 gap-1.5">
@@ -548,15 +603,15 @@ const TablePanel = memo(({ editor }: { editor: Editor }) => (
   </Section>
 ));
 
-const CodePanel = memo(({ editor }: { editor: Editor }) => {
-  const current = editor.getAttributes("codeBlock").language ?? "plaintext";
-  return (
+// ✅ codeAttrs.language from props — no editor.getAttributes() inside memo
+const CodePanel = memo(
+  ({ editor, codeAttrs }: { editor: Editor; codeAttrs: CodeAttrs }) => (
     <Section title="Code Block">
       <label className="mb-1 block text-xs text-muted-foreground">
         Language
       </label>
       <select
-        value={current}
+        value={codeAttrs.language}
         onChange={(e) =>
           editor
             .chain()
@@ -573,9 +628,10 @@ const CodePanel = memo(({ editor }: { editor: Editor }) => {
         ))}
       </select>
     </Section>
-  );
-});
+  ),
+);
 
+// ✅ SearchPanel manages its own isolated state — no isActive reads, memo is fine as-is
 const SearchPanel = memo(({ editor }: { editor: Editor }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [replaceQuery, setReplaceQuery] = useState("");
@@ -590,16 +646,16 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
 
   const isSearchActive = matches.length > 0 || searchQuery !== "";
 
-  // Push new state into the plugin
   const pushPluginState = useCallback(
     (term: string, index: number, newMatches: SearchMatch[]) => {
       const { state, dispatch } = editor.view;
-      const tr = state.tr.setMeta(searchHighlightKey, {
-        searchTerm: term,
-        currentIndex: index,
-        matches: newMatches,
-      });
-      dispatch(tr);
+      dispatch(
+        state.tr.setMeta(searchHighlightKey, {
+          searchTerm: term,
+          currentIndex: index,
+          matches: newMatches,
+        }),
+      );
     },
     [editor],
   );
@@ -619,8 +675,6 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
 
   const handleSearch = useCallback(() => {
     if (!searchQuery) return;
-
-    // If already active, clear
     if (matches.length > 0) {
       setMatches([]);
       setCurrentIndex(0);
@@ -629,7 +683,6 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
       pushPluginState("", 0, []);
       return;
     }
-
     const found = findMatches(editor.state.doc, searchQuery);
     if (!found.length) {
       setMatches([]);
@@ -637,7 +690,6 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
       return;
     }
 
-    // Find closest match to cursor
     const cursorPos = editor.state.selection.from;
     const closest = found.reduce(
       (best, r, i) =>
@@ -646,7 +698,6 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
           : best,
       0,
     );
-
     setMatches(found);
     setCurrentIndex(closest);
     pushPluginState(searchQuery, closest, found);
@@ -666,25 +717,20 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
 
   const handleReplaceOnce = useCallback(() => {
     if (!matches.length) return;
-
     if (replaceOnceStage === "idle") {
       scrollToMatch(currentIndex, matches);
       setReplaceOnceStage("preview");
       setReplaceAllStage("idle");
       return;
     }
-
-    // Confirm: do the replacement
-    const match = matches[currentIndex];
+    const match = matches[currentIndex]!;
     editor
       .chain()
       .focus()
-      .deleteRange({ from: match!.from, to: match!.to })
-      .insertContentAt(match!.from, replaceQuery)
+      .deleteRange({ from: match.from, to: match.to })
+      .insertContentAt(match.from, replaceQuery)
       .run();
     setReplaceOnceStage("idle");
-
-    // Recompute matches after replacement
     setTimeout(() => {
       const newMatches = findMatches(editor.state.doc, searchQuery);
       const next = newMatches.length ? currentIndex % newMatches.length : 0;
@@ -706,14 +752,11 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
 
   const handleReplaceAll = useCallback(() => {
     if (!matches.length) return;
-
     if (replaceAllStage === "idle") {
       setReplaceAllStage("preview");
       setReplaceOnceStage("idle");
       return;
     }
-
-    // Confirm: replace all (iterate in reverse to preserve positions)
     const chain = editor.chain().focus();
     [...matches].reverse().forEach((match) => {
       chain
@@ -721,7 +764,6 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
         .insertContentAt(match.from, replaceQuery);
     });
     chain.run();
-
     setMatches([]);
     setCurrentIndex(0);
     setReplaceAllStage("idle");
@@ -740,7 +782,6 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
 
   return (
     <div className="mb-2 flex flex-col gap-1.5 px-1">
-      {/* Search row */}
       <div className="flex gap-1">
         <input
           type="text"
@@ -764,8 +805,6 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
           {matches.length > 0 ? "✕" : "Search"}
         </button>
       </div>
-
-      {/* Match count + navigation */}
       {isSearchActive && (
         <div className="flex items-center justify-between px-0.5">
           <span className="text-[11px] text-muted-foreground">
@@ -791,8 +830,6 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
           )}
         </div>
       )}
-
-      {/* Replace input */}
       <input
         type="text"
         placeholder="Replace with…"
@@ -800,8 +837,6 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
         onChange={(e) => setReplaceQuery(e.target.value)}
         className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/40"
       />
-
-      {/* Replace buttons */}
       <div className="flex gap-1">
         <button
           onClick={handleReplaceOnce}
@@ -832,49 +867,83 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
   );
 });
 
-// ─── Main panel ───────────────────────────────────────────────────────────────
+// ─── Main sidebar — single transaction listener, all reactive reads here ──────
 
-const EditorRightSidebar = ({ editor }: { editor: Editor }) => {
+const EditorRightSidebar = ({ editor }: { editor: Editor | null }) => {
   const [mode, setMode] = useState<PanelMode>("document");
   const [linkUrl, setLinkUrl] = useState("");
   const [linkNewTab, setLinkNewTab] = useState(false);
+  const [activeFormats, setActiveFormats] = useState<ActiveFormats>(
+    DEFAULT_ACTIVE_FORMATS,
+  );
+  const [imageAttrs, setImageAttrs] = useState<ImageAttrs>({
+    alt: "",
+    align: "left",
+  });
+  const [codeAttrs, setCodeAttrs] = useState<CodeAttrs>({
+    language: "plaintext",
+  });
+
+  // Word count / read time derived from doc — stable via useMemo
+  const { wordCount, readTime } = useMemo(() => {
+    if (!editor) return { wordCount: 0, readTime: 1 };
+    const words = editor.state.doc.textContent
+      .split(/\s+/)
+      .filter(Boolean).length;
+    return { wordCount: words, readTime: Math.max(1, Math.ceil(words / 265)) };
+  }, [editor?.state.doc]);
 
   useEffect(() => {
     if (!editor) return;
 
     const update = () => {
+      // ── Mode ──────────────────────────────────────────────────────────────
       if (editor.isActive("image")) {
+        const attrs = editor.getAttributes("image");
+        setImageAttrs({
+          alt: attrs.alt ?? "",
+          align: attrs["data-align"] ?? "left",
+        });
         setMode("image");
-        return;
-      }
-      if (editor.isActive("link")) {
+      } else if (editor.isActive("link")) {
         const attrs = editor.getAttributes("link");
         setLinkUrl(attrs.href ?? "");
         setLinkNewTab(attrs.target === "_blank");
         setMode("link");
-        return;
-      }
-      if (editor.isActive("table")) {
+      } else if (editor.isActive("table")) {
         setMode("table");
-        return;
-      }
-      if (editor.isActive("codeBlock")) {
+      } else if (editor.isActive("codeBlock")) {
+        const attrs = editor.getAttributes("codeBlock");
+        setCodeAttrs({ language: attrs.language ?? "plaintext" });
         setMode("codeBlock");
-        return;
-      }
-      if (editor.isActive("heading")) {
+      } else if (editor.isActive("heading")) {
         setMode("heading");
-        return;
+      } else {
+        setMode(
+          editor.state.selection.$from.parent.isTextblock ? "text" : "document",
+        );
       }
 
-      const { from, to, $from } = editor.state.selection;
-
-      // Activate text mode if cursor is inside a text-containing block (e.g. paragraph)
-      const isInTextBlock = $from.parent.isTextblock;
-
-      setMode(isInTextBlock ? "text" : "document");
+      // ── Active formats — all reads in ONE place ───────────────────────────
+      setActiveFormats({
+        textColor: editor.getAttributes("textStyle").color ?? "#000000",
+        highlightColor: editor.getAttributes("highlight").color ?? "",
+        paragraph: editor.isActive("paragraph") && !editor.isActive("heading"),
+        h1: editor.isActive("heading", { level: 1 }),
+        h2: editor.isActive("heading", { level: 2 }),
+        h3: editor.isActive("heading", { level: 3 }),
+        bold: editor.isActive("bold"),
+        italic: editor.isActive("italic"),
+        underline: editor.isActive("underline"),
+        strike: editor.isActive("strike"),
+        blockquote: editor.isActive("blockquote"),
+        link: editor.isActive("link"),
+        textAlign:
+          (editor.getAttributes("paragraph").textAlign as TextAlign) ?? "left",
+      });
     };
 
+    update(); // run once on mount
     editor.on("selectionUpdate", update);
     editor.on("transaction", update);
     return () => {
@@ -898,10 +967,11 @@ const EditorRightSidebar = ({ editor }: { editor: Editor }) => {
       </div>
 
       <div className="editor-sidebar-left flex-1 overflow-y-auto p-4">
+        {mode === "document" && (
+          <DocumentPanel wordCount={wordCount} readTime={readTime} />
+        )}
         {(mode === "text" || mode === "heading") && (
-          <>
-            <TextTogglePanel editor={editor} />
-          </>
+          <TextTogglePanel editor={editor} active={activeFormats} />
         )}
         {mode === "link" && (
           <>
@@ -912,12 +982,16 @@ const EditorRightSidebar = ({ editor }: { editor: Editor }) => {
               setLinkUrl={setLinkUrl}
               setLinkNewTab={setLinkNewTab}
             />
-            <TextTogglePanel editor={editor} />
+            <TextTogglePanel editor={editor} active={activeFormats} />
           </>
         )}
-        {mode === "image" && <ImagePanel editor={editor} />}
+        {mode === "image" && (
+          <ImagePanel editor={editor} imageAttrs={imageAttrs} />
+        )}
         {mode === "table" && <TablePanel editor={editor} />}
-        {mode === "codeBlock" && <CodePanel editor={editor} />}
+        {mode === "codeBlock" && (
+          <CodePanel editor={editor} codeAttrs={codeAttrs} />
+        )}
       </div>
     </div>
   );

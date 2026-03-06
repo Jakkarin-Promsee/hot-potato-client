@@ -1,21 +1,16 @@
-import { useState, useCallback, useMemo, memo } from "react";
+import { useState, useCallback, useMemo, memo, useEffect } from "react";
 import { Editor } from "@tiptap/react";
 import {
   Type,
   Heading1,
   Heading2,
   Heading3,
-  Bold,
-  Italic,
-  Underline,
-  Strikethrough,
   AlignLeft,
   AlignCenter,
   AlignRight,
   AlignJustify,
   Link,
   Quote,
-  Highlighter,
   ImagePlus,
   Images,
   Video,
@@ -27,11 +22,10 @@ import {
   LayoutDashboard,
   HelpCircle,
   Columns,
-  Search,
-  BookOpen,
 } from "lucide-react";
 
-// --- Constants outside component (never recreated) ---------------------------
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 const COLORS = [
   "#ef4444",
   "#f97316",
@@ -42,6 +36,7 @@ const COLORS = [
   "#000000",
 ];
 const HIGHLIGHTS = ["#fef08a", "#bbf7d0", "#bfdbfe", "#fecaca", "#e9d5ff"];
+
 const ALIGN_OPTIONS = [
   { icon: AlignLeft, align: "left" },
   { icon: AlignCenter, align: "center" },
@@ -50,8 +45,35 @@ const ALIGN_OPTIONS = [
 ] as const;
 
 type SectionKey = "text" | "image" | "video" | "other" | "special";
+type TextAlign = "left" | "center" | "right" | "justify";
 
-// --- Sub-components memoized so they only re-render when their props change --
+// All reactive isActive reads for the left sidebar
+interface LeftActiveFormats {
+  paragraph: boolean;
+  h1: boolean;
+  h2: boolean;
+  h3: boolean;
+  blockquote: boolean;
+  taskList: boolean;
+  textAlign: TextAlign;
+  textColor: string;
+  highlightColor: string;
+}
+
+const DEFAULT_ACTIVE: LeftActiveFormats = {
+  paragraph: false,
+  h1: false,
+  h2: false,
+  h3: false,
+  blockquote: false,
+  taskList: false,
+  textAlign: "left",
+  textColor: "",
+  highlightColor: "",
+};
+
+// ─── Primitives ───────────────────────────────────────────────────────────────
+
 const SectionHeader = memo(
   ({
     sectionKey,
@@ -114,10 +136,10 @@ const ToolBtn = memo(
   ),
 );
 
-// ─── Section panels — only mount/compute when open ───────────────────────────
+// ─── Section panels ───────────────────────────────────────────────────────────
 
+// ✅ Headings derived from doc via useMemo — no isActive reads, always correct
 const OutlinePanel = memo(({ editor }: { editor: Editor }) => {
-  // Compute headings only when this panel is actually rendered
   const headings = useMemo(() => {
     const items: { level: number; text: string; pos: number }[] = [];
     editor.state.doc.descendants((node, pos) => {
@@ -126,7 +148,7 @@ const OutlinePanel = memo(({ editor }: { editor: Editor }) => {
       }
     });
     return items;
-  }, [editor.state.doc]); // re-runs only when doc changes, not on every keystroke
+  }, [editor.state.doc]);
 
   const jumpTo = useCallback(
     (pos: number) => editor.chain().focus().setTextSelection(pos).run(),
@@ -155,112 +177,215 @@ const OutlinePanel = memo(({ editor }: { editor: Editor }) => {
   );
 });
 
-const TextPanel = memo(({ editor }: { editor: Editor }) => {
-  const setColor = useCallback(
-    (color: string) => editor.chain().focus().setColor(color).run(),
-    [editor],
-  );
-  const setHighlight = useCallback(
-    (color: string) => editor.chain().focus().toggleHighlight({ color }).run(),
-    [editor],
-  );
+// ✅ active states from props — memo diffs plain booleans/strings correctly
+const TextPanel = memo(
+  ({ editor, active }: { editor: Editor; active: LeftActiveFormats }) => {
+    const setColor = useCallback(
+      (c: string) => editor.chain().focus().setColor(c).run(),
+      [editor],
+    );
+    const setHighlight = useCallback(
+      (c: string) => editor.chain().focus().toggleHighlight({ color: c }).run(),
+      [editor],
+    );
 
-  return (
+    return (
+      <div className="mb-2 flex flex-col gap-0.5 pl-1">
+        <span className="px-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+          Structure
+        </span>
+        <ToolBtn
+          icon={Type}
+          label="Normal Text"
+          active={active.paragraph}
+          onClick={() => editor.chain().focus().setParagraph().run()}
+        />
+        <ToolBtn
+          icon={Heading1}
+          label="Heading 1"
+          active={active.h1}
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 1 }).run()
+          }
+        />
+        <ToolBtn
+          icon={Heading2}
+          label="Heading 2"
+          active={active.h2}
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 2 }).run()
+          }
+        />
+        <ToolBtn
+          icon={Heading3}
+          label="Heading 3"
+          active={active.h3}
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 3 }).run()
+          }
+        />
+        <ToolBtn
+          icon={Quote}
+          label="Blockquote"
+          active={active.blockquote}
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        />
+
+        <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+          Alignment
+        </span>
+        <div className="flex gap-1 px-2 py-1">
+          {ALIGN_OPTIONS.map(({ icon: Icon, align }) => (
+            <button
+              key={align}
+              onClick={() => editor.chain().focus().setTextAlign(align).run()}
+              title={`Align ${align}`}
+              className={`flex-1 flex items-center justify-center rounded py-1.5 transition-colors ${
+                active.textAlign === align
+                  ? "bg-accent text-foreground"
+                  : "text-muted-foreground hover:bg-accent/50"
+              }`}
+            >
+              <Icon size={13} strokeWidth={1.8} />
+            </button>
+          ))}
+        </div>
+
+        <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+          Text Color
+        </span>
+        <div className="flex flex-wrap gap-1.5 px-2 py-1">
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              onClick={() => setColor(c)}
+              title={c}
+              className="h-5 w-5 rounded-full transition-all"
+              style={{
+                background: c,
+                outline:
+                  active.textColor === c
+                    ? "2px solid currentColor"
+                    : "2px solid transparent",
+                outlineOffset: "2px",
+              }}
+            />
+          ))}
+        </div>
+
+        <span className="px-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+          Highlight
+        </span>
+        <div className="flex flex-wrap gap-1.5 px-2 py-1">
+          {HIGHLIGHTS.map((c) => (
+            <button
+              key={c}
+              onClick={() => setHighlight(c)}
+              title={c}
+              className="h-5 w-5 rounded-full transition-all"
+              style={{
+                background: c,
+                outline:
+                  active.highlightColor === c
+                    ? "2px solid currentColor"
+                    : "2px solid transparent",
+                outlineOffset: "2px",
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  },
+);
+
+// ✅ No isActive reads — pure command buttons, memo always safe
+const ImagePanel = memo(({ editor }: { editor: Editor }) => (
+  <div className="mb-2 flex flex-col gap-0.5 pl-1">
+    <ToolBtn
+      icon={ImagePlus}
+      label="Add by URL"
+      onClick={() => {
+        const url = window.prompt("Image URL");
+        if (url) editor.chain().focus().setImage({ src: url }).run();
+      }}
+    />
+    <ToolBtn
+      icon={Images}
+      label="Gallery"
+      onClick={() => alert("Gallery coming soon")}
+    />
+  </div>
+));
+
+const VideoPanel = memo(({ editor: _ }: { editor: Editor }) => (
+  <div className="mb-2 flex flex-col gap-0.5 pl-1">
+    <ToolBtn
+      icon={Video}
+      label="Embed by URL"
+      onClick={() => alert("Video embed coming soon")}
+    />
+    <ToolBtn
+      icon={VideoIcon}
+      label="Gallery"
+      onClick={() => alert("Gallery coming soon")}
+    />
+  </div>
+));
+
+// ✅ taskList active state comes from props
+const OtherPanel = memo(
+  ({ editor, taskListActive }: { editor: Editor; taskListActive: boolean }) => (
     <div className="mb-2 flex flex-col gap-0.5 pl-1">
-      <span className="px-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-        Structure
-      </span>
       <ToolBtn
-        icon={Type}
-        label="Normal Text"
-        onClick={() => editor.chain().focus().setParagraph().run()}
-        active={editor.isActive("paragraph") && !editor.isActive("heading")}
+        icon={Table}
+        label="Table"
+        onClick={() =>
+          editor
+            .chain()
+            .focus()
+            .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+            .run()
+        }
       />
       <ToolBtn
-        icon={Heading1}
-        label="Heading 1"
-        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-        active={editor.isActive("heading", { level: 1 })}
+        icon={ListTodo}
+        label="Task List"
+        active={taskListActive}
+        onClick={() => editor.chain().focus().toggleTaskList().run()}
       />
-      <ToolBtn
-        icon={Heading2}
-        label="Heading 2"
-        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        active={editor.isActive("heading", { level: 2 })}
-      />
-      <ToolBtn
-        icon={Heading3}
-        label="Heading 3"
-        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-        active={editor.isActive("heading", { level: 3 })}
-      />
-      <ToolBtn
-        icon={Quote}
-        label="Blockquote"
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        active={editor.isActive("blockquote")}
-      />
-
-      <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-        Alignment
-      </span>
-      <div className="flex gap-1 px-2 py-1">
-        {ALIGN_OPTIONS.map(({ icon: Icon, align }) => (
-          <button
-            key={align}
-            onClick={() => editor.chain().focus().setTextAlign(align).run()}
-            title={`Align ${align}`}
-            className={`flex-1 flex items-center justify-center rounded py-1.5 transition-colors ${
-              editor.isActive({ textAlign: align })
-                ? "bg-accent text-foreground"
-                : "text-muted-foreground hover:bg-accent/50"
-            }`}
-          >
-            <Icon size={13} strokeWidth={1.8} />
-          </button>
-        ))}
-      </div>
-
-      <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-        Text Color
-      </span>
-      <div className="flex flex-wrap gap-1.5 px-2 py-1">
-        {COLORS.map((c) => (
-          <button
-            key={c}
-            onClick={() => setColor(c)}
-            title={c}
-            className="h-5 w-5 rounded-full border-2 border-transparent hover:border-foreground/30 transition-all"
-            style={{ background: c }}
-          />
-        ))}
-      </div>
-
-      <span className="px-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-        Highlight
-      </span>
-      <div className="flex flex-wrap gap-1.5 px-2 py-1">
-        {HIGHLIGHTS.map((c) => (
-          <button
-            key={c}
-            onClick={() => setHighlight(c)}
-            title={c}
-            className="h-5 w-5 rounded-full border-2 border-transparent hover:border-foreground/30 transition-all"
-            style={{ background: c }}
-          />
-        ))}
-      </div>
     </div>
-  );
-});
+  ),
+);
 
-// ─── Main sidebar ─────────────────────────────────────────────────────────────
+// ✅ Pure command buttons — no isActive reads
+const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
+  <div className="mb-2 flex flex-col gap-0.5 pl-1">
+    <ToolBtn
+      icon={LayoutDashboard}
+      label="Canvas Board"
+      onClick={() =>
+        editor.chain().focus().insertContent({ type: "fabricCanvas" }).run()
+      }
+    />
+    <ToolBtn
+      icon={HelpCircle}
+      label="Q&A Card"
+      onClick={() =>
+        editor.chain().focus().insertContent({ type: "questionAnswer" }).run()
+      }
+    />
+    <ToolBtn
+      icon={Columns}
+      label="Layout"
+      onClick={() => alert("Layout coming soon")}
+    />
+  </div>
+));
 
-interface EditorSidebarProps {
-  editor: Editor;
-}
+// ─── Main sidebar — single transaction listener, all reactive reads here ──────
 
-const EditorLeftSidebar = ({ editor }: EditorSidebarProps) => {
+const EditorLeftSidebar = ({ editor }: { editor: Editor }) => {
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(
     {
       text: true,
@@ -271,7 +396,34 @@ const EditorLeftSidebar = ({ editor }: EditorSidebarProps) => {
     },
   );
 
-  // Stable toggle — never recreated
+  const [active, setActive] = useState<LeftActiveFormats>(DEFAULT_ACTIVE);
+
+  // Single listener — all isActive reads in one place
+  useEffect(() => {
+    const update = () => {
+      setActive({
+        textColor: editor.getAttributes("textStyle").color ?? "#000000",
+        highlightColor: editor.getAttributes("highlight").color ?? "",
+        paragraph: editor.isActive("paragraph") && !editor.isActive("heading"),
+        h1: editor.isActive("heading", { level: 1 }),
+        h2: editor.isActive("heading", { level: 2 }),
+        h3: editor.isActive("heading", { level: 3 }),
+        blockquote: editor.isActive("blockquote"),
+        taskList: editor.isActive("taskList"),
+        textAlign:
+          (editor.getAttributes("paragraph").textAlign as TextAlign) ?? "left",
+      });
+    };
+
+    update();
+    editor.on("selectionUpdate", update);
+    editor.on("transaction", update);
+    return () => {
+      editor.off("selectionUpdate", update);
+      editor.off("transaction", update);
+    };
+  }, [editor]);
+
   const toggle = useCallback(
     (key: SectionKey) =>
       setOpenSections((prev) => ({ ...prev, [key]: !prev[key] })),
@@ -280,7 +432,6 @@ const EditorLeftSidebar = ({ editor }: EditorSidebarProps) => {
 
   return (
     <div className="editor-sidebar-left flex h-full w-60 flex-col gap-0.5 overflow-y-auto border-r border-border bg-editor-surface p-3">
-      {/* TEXT */}
       <SectionHeader
         sectionKey="text"
         icon={Type}
@@ -288,9 +439,8 @@ const EditorLeftSidebar = ({ editor }: EditorSidebarProps) => {
         isOpen={openSections.text}
         onToggle={toggle}
       />
-      {openSections.text && <TextPanel editor={editor} />}
+      {openSections.text && <TextPanel editor={editor} active={active} />}
 
-      {/* IMAGE */}
       <SectionHeader
         sectionKey="image"
         icon={Images}
@@ -298,25 +448,8 @@ const EditorLeftSidebar = ({ editor }: EditorSidebarProps) => {
         isOpen={openSections.image}
         onToggle={toggle}
       />
-      {openSections.image && (
-        <div className="mb-2 flex flex-col gap-0.5 pl-1">
-          <ToolBtn
-            icon={ImagePlus}
-            label="Add by URL"
-            onClick={() => {
-              const url = window.prompt("Image URL");
-              if (url) editor.chain().focus().setImage({ src: url }).run();
-            }}
-          />
-          <ToolBtn
-            icon={Images}
-            label="Gallery"
-            onClick={() => alert("Gallery coming soon")}
-          />
-        </div>
-      )}
+      {openSections.image && <ImagePanel editor={editor} />}
 
-      {/* VIDEO */}
       <SectionHeader
         sectionKey="video"
         icon={VideoIcon}
@@ -324,22 +457,8 @@ const EditorLeftSidebar = ({ editor }: EditorSidebarProps) => {
         isOpen={openSections.video}
         onToggle={toggle}
       />
-      {openSections.video && (
-        <div className="mb-2 flex flex-col gap-0.5 pl-1">
-          <ToolBtn
-            icon={Video}
-            label="Embed by URL"
-            onClick={() => alert("Video embed coming soon")}
-          />
-          <ToolBtn
-            icon={VideoIcon}
-            label="Gallery"
-            onClick={() => alert("Gallery coming soon")}
-          />
-        </div>
-      )}
+      {openSections.video && <VideoPanel editor={editor} />}
 
-      {/* OTHER */}
       <SectionHeader
         sectionKey="other"
         icon={Table}
@@ -348,28 +467,9 @@ const EditorLeftSidebar = ({ editor }: EditorSidebarProps) => {
         onToggle={toggle}
       />
       {openSections.other && (
-        <div className="mb-2 flex flex-col gap-0.5 pl-1">
-          <ToolBtn
-            icon={Table}
-            label="Table"
-            onClick={() =>
-              editor
-                .chain()
-                .focus()
-                .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-                .run()
-            }
-          />
-          <ToolBtn
-            icon={ListTodo}
-            label="Task List"
-            onClick={() => editor.chain().focus().toggleTaskList().run()}
-            active={editor.isActive("taskList")}
-          />
-        </div>
+        <OtherPanel editor={editor} taskListActive={active.taskList} />
       )}
 
-      {/* SPECIAL */}
       <SectionHeader
         sectionKey="special"
         icon={LayoutDashboard}
@@ -377,37 +477,7 @@ const EditorLeftSidebar = ({ editor }: EditorSidebarProps) => {
         isOpen={openSections.special}
         onToggle={toggle}
       />
-      {openSections.special && (
-        <div className="mb-2 flex flex-col gap-0.5 pl-1">
-          <ToolBtn
-            icon={LayoutDashboard}
-            label="Canvas Board"
-            onClick={() =>
-              editor
-                .chain()
-                .focus()
-                .insertContent({ type: "fabricCanvas" })
-                .run()
-            }
-          />
-          <ToolBtn
-            icon={HelpCircle}
-            label="Q&A Card"
-            onClick={() =>
-              editor
-                .chain()
-                .focus()
-                .insertContent({ type: "questionAnswer" })
-                .run()
-            }
-          />
-          <ToolBtn
-            icon={Columns}
-            label="Layout"
-            onClick={() => alert("Layout coming soon")}
-          />
-        </div>
-      )}
+      {openSections.special && <SpecialPanel editor={editor} />}
     </div>
   );
 };
