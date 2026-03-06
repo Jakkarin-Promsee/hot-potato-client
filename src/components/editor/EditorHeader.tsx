@@ -1,6 +1,14 @@
 import { useState, useRef, useEffect, useCallback, memo } from "react";
 import { Editor } from "@tiptap/react";
-import { Undo2, Redo2, Save, Loader2, Link2 } from "lucide-react";
+import {
+  Undo2,
+  Redo2,
+  Save,
+  Loader2,
+  Link2,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 
 // ✅ Moved OUTSIDE — no longer recreated on every render
 const IconBtn = memo(
@@ -30,20 +38,43 @@ interface EditorHeaderProps {
   editor: Editor | null;
   linkClickMode: "ctrl" | "direct";
   onLinkClickModeChange: (mode: "ctrl" | "direct") => void;
+  zoom: number;
+  onZoomChange: (zoom: number) => void;
 }
 
+const ZOOM_STEPS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 2.0;
+const ZOOM_STEP = 0.25;
+
 const EditorHeader = memo(
-  ({ editor, linkClickMode, onLinkClickModeChange }: EditorHeaderProps) => {
+  ({
+    editor,
+    linkClickMode,
+    onLinkClickModeChange,
+    zoom,
+    onZoomChange,
+  }: EditorHeaderProps) => {
     const [title, setTitle] = useState("Untitled");
     const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">(
       "idle",
     );
     const [canUndo, setCanUndo] = useState(false);
     const [canRedo, setCanRedo] = useState(false);
+    const [zoomInputFocused, setZoomInputFocused] = useState(false);
+    const [zoomInputValue, setZoomInputValue] = useState(
+      String(Math.round(zoom * 100)),
+    );
     const inputRef = useRef<HTMLInputElement>(null);
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // ✅ useCallback so this ref stays stable across renders
+    // Sync zoomInputValue when zoom prop changes externally (e.g. ctrl+scroll)
+    useEffect(() => {
+      if (!zoomInputFocused) {
+        setZoomInputValue(String(Math.round(zoom * 100)));
+      }
+    }, [zoom, zoomInputFocused]);
+
     const triggerSave = useCallback(() => {
       setSaveState("saving");
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -63,13 +94,10 @@ const EditorHeader = memo(
 
     useEffect(() => {
       if (!editor) return;
-
-      // ✅ Named function so it can be cleanly removed
       const update = () => {
         setCanUndo(editor.can().undo());
         setCanRedo(editor.can().redo());
       };
-
       update();
       editor.on("transaction", update);
       return () => {
@@ -83,7 +111,6 @@ const EditorHeader = memo(
       };
     }, []);
 
-    // ✅ Stable callbacks for undo/redo buttons
     const handleUndo = useCallback(
       () => editor?.chain().focus().undo().run(),
       [editor],
@@ -95,6 +122,57 @@ const EditorHeader = memo(
     const handleLinkToggle = useCallback(() => {
       onLinkClickModeChange(linkClickMode === "ctrl" ? "direct" : "ctrl");
     }, [linkClickMode, onLinkClickModeChange]);
+
+    const handleZoomOut = useCallback(() => {
+      onZoomChange(
+        Math.max(ZOOM_MIN, Math.round((zoom - ZOOM_STEP) * 100) / 100),
+      );
+    }, [zoom, onZoomChange]);
+
+    const handleZoomIn = useCallback(() => {
+      onZoomChange(
+        Math.min(ZOOM_MAX, Math.round((zoom + ZOOM_STEP) * 100) / 100),
+      );
+    }, [zoom, onZoomChange]);
+
+    const handleZoomReset = useCallback(
+      () => onZoomChange(1.0),
+      [onZoomChange],
+    );
+
+    const handleZoomInputChange = useCallback(
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        setZoomInputValue(e.target.value);
+      },
+      [],
+    );
+
+    const commitZoomInput = useCallback(() => {
+      const parsed = parseInt(zoomInputValue, 10);
+      if (!isNaN(parsed)) {
+        const clamped = Math.min(
+          ZOOM_MAX * 100,
+          Math.max(ZOOM_MIN * 100, parsed),
+        );
+        onZoomChange(Math.round(clamped) / 100);
+        setZoomInputValue(String(Math.round(clamped)));
+      } else {
+        setZoomInputValue(String(Math.round(zoom * 100)));
+      }
+      setZoomInputFocused(false);
+    }, [zoomInputValue, zoom, onZoomChange]);
+
+    const handleZoomInputKeyDown = useCallback(
+      (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        if (e.key === "Escape") {
+          setZoomInputValue(String(Math.round(zoom * 100)));
+          setZoomInputFocused(false);
+          (e.target as HTMLInputElement).blur();
+        }
+      },
+      [zoom],
+    );
 
     return (
       <div className="editor-header-inner">
@@ -148,6 +226,62 @@ const EditorHeader = memo(
         </div>
 
         <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground px-1 select-none">
+            Zoom:
+          </span>
+          {/* ── ZOOM CONTROLS ── */}
+          <div className="flex items-center gap-0.5 rounded-md border border-border/60 px-1 py-0.5">
+            <button
+              onClick={handleZoomOut}
+              disabled={zoom <= ZOOM_MIN}
+              title="Zoom out"
+              className="flex items-center justify-center w-5 h-5 rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+            >
+              <ZoomOut size={12} strokeWidth={1.8} />
+            </button>
+
+            <button
+              onClick={handleZoomReset}
+              title="Reset zoom (100%)"
+              className="relative flex items-center justify-center h-5 rounded px-0.5 transition-colors hover:bg-accent group"
+              style={{ minWidth: "2.5rem" }}
+            >
+              {/* Static display — hidden when input is focused */}
+              {!zoomInputFocused && (
+                <span className="text-xs text-muted-foreground group-hover:text-foreground tabular-nums">
+                  {Math.round(zoom * 100)}%
+                </span>
+              )}
+
+              {/* Editable input — shown on focus */}
+              <input
+                type="text"
+                value={zoomInputValue}
+                onChange={handleZoomInputChange}
+                onFocus={() => setZoomInputFocused(true)}
+                onBlur={commitZoomInput}
+                onKeyDown={handleZoomInputKeyDown}
+                className={`absolute inset-0 w-full text-center text-xs bg-accent text-foreground outline-none rounded tabular-nums transition-opacity ${
+                  zoomInputFocused
+                    ? "opacity-100"
+                    : "opacity-0 pointer-events-none"
+                }`}
+                aria-label="Zoom percentage"
+              />
+            </button>
+
+            <button
+              onClick={handleZoomIn}
+              disabled={zoom >= ZOOM_MAX}
+              title="Zoom in"
+              className="flex items-center justify-center w-5 h-5 rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+            >
+              <ZoomIn size={12} strokeWidth={1.8} />
+            </button>
+          </div>
+
+          <div className="mx-1 h-4 w-px bg-border" />
+
           <button
             onClick={handleLinkToggle}
             title={

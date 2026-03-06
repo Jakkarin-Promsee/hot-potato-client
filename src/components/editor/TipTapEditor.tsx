@@ -23,7 +23,7 @@ import { common, createLowlight } from "lowlight";
 import EditorHeader from "./EditorHeader";
 import { FabricCanvasNode } from "../extensions/FabricCanvasNode";
 import { QuestionAnswerNode } from "../extensions/QuestionAnswerNode";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useCanvasContext } from "@/contexts/CanvasContext";
 import PropertiesPanel from "../design/PropertiesPanel";
 import CanvasSidebar from "../design/CanvasSidebar";
@@ -32,8 +32,15 @@ import EditorRightSidebar from "./EditorRightSidebar";
 
 const lowlight = createLowlight(common);
 
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 2.0;
+const ZOOM_STEP = 0.1; // finer step for ctrl+scroll
+
 const TipTapEditor = () => {
   const [linkClickMode, setLinkClickMode] = useState<"ctrl" | "direct">("ctrl");
+  const [zoom, setZoom] = useState(1.0);
+  const mainRef = useRef<HTMLDivElement>(null);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -43,7 +50,7 @@ const TipTapEditor = () => {
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
-          class: "cursor-text", // show text cursor instead of pointer by default
+          class: "cursor-text",
         },
       }),
       Markdown.configure({
@@ -132,6 +139,51 @@ const TipTapEditor = () => {
     }
   }, [editor]);
 
+  // ── Ctrl+Scroll zoom ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+
+      setZoom((prev) => {
+        const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+        const next = Math.round((prev + delta) * 100) / 100;
+        return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next));
+      });
+    };
+
+    // passive: false so we can preventDefault (blocks browser native zoom)
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
+  // ── Ctrl +/- keyboard shortcuts ──────────────────────────────────────────
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      if (e.key === "=" || e.key === "+") {
+        e.preventDefault();
+        setZoom((prev) =>
+          Math.min(ZOOM_MAX, Math.round((prev + 0.25) * 100) / 100),
+        );
+      } else if (e.key === "-") {
+        e.preventDefault();
+        setZoom((prev) =>
+          Math.max(ZOOM_MIN, Math.round((prev - 0.25) * 100) / 100),
+        );
+      } else if (e.key === "0") {
+        e.preventDefault();
+        setZoom(1.0);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const { canvas } = useCanvasContext();
 
   return (
@@ -142,6 +194,8 @@ const TipTapEditor = () => {
           editor={editor}
           linkClickMode={linkClickMode}
           onLinkClickModeChange={setLinkClickMode}
+          zoom={zoom}
+          onZoomChange={setZoom}
         />
       </header>
 
@@ -152,20 +206,19 @@ const TipTapEditor = () => {
       </aside>
 
       {/* ── CENTER EDITOR ── */}
-      <main className="editor-main" onClick={handleEditorClick}>
-        <div className="w-fit mx-auto px-10 editor-card shadow-sm">
-          {/* bg-editor-surface → editor-card */}
+      <main ref={mainRef} className="editor-main" onClick={handleEditorClick}>
+        <div
+          className="w-fit mx-auto px-10 editor-card shadow-sm"
+          style={{
+            transform: `scale(${zoom})`,
+            transformOrigin: "top center",
+            marginBottom: `calc((${zoom} - 1) * 100%)`,
+          }}
+        >
           <div
             className="tiptap-editor mx-auto pt-16 pb-40"
             style={{ width: "600px" }}
           >
-            {/* {editor && (
-              <>
-                <EditorBubbleMenu editor={editor} />
-                <EditorFloatingMenu editor={editor} />
-              </>
-            )} */}
-
             <EditorContent editor={editor} />
           </div>
         </div>
