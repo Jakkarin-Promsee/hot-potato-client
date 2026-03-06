@@ -30,6 +30,7 @@ interface CanvasContextType {
   setSelectedCategory: (cat: SelectedCategory) => void;
   saveStateRef: React.RefObject<(() => void) | null>;
   setSaveState: (f: () => void) => void;
+  isSidebarInteracting: React.RefObject<boolean>;
 }
 
 const CanvasContext = createContext<CanvasContextType | null>(null);
@@ -39,6 +40,7 @@ export function CanvasProvider({ children }: { children: React.ReactNode }) {
   const [canvasesSaveState, setCanvasesSaveState] = useState<
     Map<string, () => void>
   >(new Map());
+  const isSidebarInteracting = useRef(false);
 
   const registerCanvas = useCallback(
     (id: string, newCanvas: Canvas, onSaveState: () => void) => {
@@ -112,6 +114,7 @@ export function CanvasProvider({ children }: { children: React.ReactNode }) {
         setSelectedCategory,
         saveStateRef,
         setSaveState,
+        isSidebarInteracting,
       }}
     >
       {children}

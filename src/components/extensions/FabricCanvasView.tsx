@@ -17,8 +17,13 @@ const FabricCanvasView = ({
   const { width, height, canvasData } = node.attrs;
   const backgroundColor = "#fafafa";
 
-  const { setCanvasSync, setSaveState, registerCanvas, unregisterCanvas } =
-    useCanvasContext();
+  const {
+    setCanvasSync,
+    setSaveState,
+    registerCanvas,
+    unregisterCanvas,
+    isSidebarInteracting,
+  } = useCanvasContext();
 
   const canvasSelectPrevref = useRef(false);
   useEffect(() => {
@@ -27,14 +32,18 @@ const FabricCanvasView = ({
       return;
     }
 
-    // Compile once after unselect
-    if (canvasSelectPrevref) {
+    if (canvasSelectPrevref.current) {
+      canvasSelectPrevref.current = false;
       const canvas = canvasRef.current;
       if (!canvas) return;
 
       canvas.discardActiveObject();
       canvas.requestRenderAll();
-      setCanvasSync(null);
+
+      // Only null out if the user isn't clicking the sidebar
+      if (!isSidebarInteracting.current) {
+        setCanvasSync(null);
+      }
     }
   }, [selected]);
 

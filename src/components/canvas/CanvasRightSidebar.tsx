@@ -549,7 +549,8 @@ const ImagePanel = memo(
 // ─── Main sidebar ─────────────────────────────────────────────────────────────
 
 export default function CanvasRightSidebar() {
-  const { canvas, selectedObjects, saveStateRef } = useCanvasContext();
+  const { canvas, selectedObjects, saveStateRef, isSidebarInteracting } =
+    useCanvasContext();
   const [, setTick] = useState(0);
   const forceUpdate = useCallback(() => setTick((n) => n + 1), []);
 
@@ -746,7 +747,15 @@ export default function CanvasRightSidebar() {
     : 100;
 
   return (
-    <div className="flex h-full flex-col border-l border-border bg-editor-surface">
+    <div
+      className="flex h-full flex-col border-l border-border bg-editor-surface"
+      onMouseDown={() => {
+        isSidebarInteracting.current = true;
+      }}
+      onMouseUp={() => {
+        isSidebarInteracting.current = false;
+      }}
+    >
       {/* ── Sticky header ── */}
       <div className="sticky top-0 z-10 border-b border-border/50 bg-editor-surface px-4 py-3">
         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
