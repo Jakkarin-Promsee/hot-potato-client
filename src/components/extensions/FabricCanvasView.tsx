@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState, RefObject } from "react";
 import { NodeViewWrapper } from "@tiptap/react";
-import { Canvas } from "fabric";
+import { ActiveSelection, Canvas, FabricObject } from "fabric";
 import useFabricSetup from "@/hooks/useFabricSetup";
 import { useCanvasContext } from "@/contexts/CanvasContext";
 import { v4 as uuidv4 } from "uuid";
@@ -26,6 +26,20 @@ const FabricCanvasView = ({
   } = useCanvasContext();
 
   const canvasSelectPrevref = useRef(false);
+
+  useEffect(() => {
+    setTimeout(() => {
+      setSaveState(onSaveState);
+      canvasSelectPrevref.current = true;
+    }, 0);
+
+    registerCanvas(idRef.current, canvasRef.current as Canvas, onSaveState);
+
+    return () => {
+      unregisterCanvas(idRef.current);
+    };
+  }, []);
+
   useEffect(() => {
     if (selected) {
       canvasSelectPrevref.current = true;
@@ -37,12 +51,11 @@ const FabricCanvasView = ({
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      canvas.discardActiveObject();
-      canvas.requestRenderAll();
-
       // Only null out if the user isn't clicking the sidebar
       if (!isSidebarInteracting.current) {
         setCanvasSync(null);
+        canvas.discardActiveObject();
+        canvas.requestRenderAll();
       }
     }
   }, [selected]);
@@ -53,36 +66,40 @@ const FabricCanvasView = ({
     if (!canvas) return;
 
     const json = JSON.stringify(canvas.toJSON());
-
     if (json === canvasDataPrevRef.current) return;
     canvasDataPrevRef.current = json;
 
-    // Save identity of active object, not the reference itself
-    const activeObject = canvas.getActiveObject();
-    const activeObjectIndex = activeObject
-      ? canvas.getObjects().indexOf(activeObject)
-      : -1;
+    // Save indices of all active objects
+    const allObjects = canvas.getObjects();
+    const activeObjects = canvas.getActiveObjects();
+    const activeIndices = activeObjects.map((o) => allObjects.indexOf(o));
 
+    isSidebarInteracting.current = true;
     updateAttributes({ canvasData: json });
 
-    // Restore selection by re-finding the object in the canvas
     requestAnimationFrame(() => {
-      if (activeObjectIndex === -1) return;
-
       const objects = canvas.getObjects();
-      const target = objects[activeObjectIndex];
 
-      if (target) {
-        canvas.setActiveObject(target);
-        // Force Fabric to recalculate controls position
-        target.setCoords();
-        canvas.requestRenderAll();
+      const targets = activeIndices
+        .map((i) => objects[i])
+        .filter((o): o is FabricObject => o !== undefined);
+
+      if (targets.length === 1 && targets[0]) {
+        canvas.setActiveObject(targets[0]);
+        targets[0].setCoords();
+      } else if (targets.length > 1) {
+        const selection = new ActiveSelection(targets, { canvas });
+        canvas.setActiveObject(selection);
+        selection.setCoords();
       }
+
+      console.log("save");
+      canvas.requestRenderAll();
+      isSidebarInteracting.current = false;
     });
   }, []);
 
   const onFocus = useCallback(() => {
-    console.log("set");
     setSaveState(onSaveState);
     if (typeof getPos === "function") {
       editor.commands.setNodeSelection(getPos());
@@ -100,14 +117,6 @@ const FabricCanvasView = ({
   });
 
   const idRef = useRef<string>(uuidv4());
-
-  useEffect(() => {
-    registerCanvas(idRef.current, canvasRef.current as Canvas, onSaveState);
-
-    return () => {
-      unregisterCanvas(idRef.current);
-    };
-  }, []);
 
   const isResizing = useRef(false);
   const lastY = useRef(0); // Track last mouse Y to compute delta per frame

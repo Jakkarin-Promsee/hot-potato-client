@@ -189,6 +189,7 @@ const SliderRow = memo(
     max,
     display,
     onChange,
+    onCommit,
   }: {
     label: string;
     value: number;
@@ -196,6 +197,7 @@ const SliderRow = memo(
     max: number;
     display: string;
     onChange: (v: number) => void;
+    onCommit?: () => void;
   }) => (
     <div className="mb-3">
       <div className="mb-1 flex items-center justify-between">
@@ -208,6 +210,8 @@ const SliderRow = memo(
         max={max}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
+        onMouseUp={onCommit}
+        onTouchEnd={onCommit}
         className="w-full accent-primary"
       />
     </div>
@@ -412,8 +416,6 @@ const ShapePanel = memo(
   ),
 );
 
-// ─── Mixed multi-select panel (text + shapes + images together) ───────────────
-
 const MixedPanel = memo(
   ({
     attrs,
@@ -575,6 +577,15 @@ export default function CanvasRightSidebar() {
     };
   }, [canvas, forceUpdate]);
 
+  // Global mouseup to release sidebar guard even if cursor leaves sidebar during drag
+  useEffect(() => {
+    const onMouseUp = () => {
+      isSidebarInteracting.current = false;
+    };
+    window.addEventListener("mouseup", onMouseUp);
+    return () => window.removeEventListener("mouseup", onMouseUp);
+  }, [isSidebarInteracting]);
+
   // ── Single-object helpers ──────────────────────────────────────────────────
   const isText =
     obj &&
@@ -587,12 +598,10 @@ export default function CanvasRightSidebar() {
   const isGroup =
     selectedObjects.length === 1 && selectedObjects[0]?.type === "group";
 
-  // Children of a group (empty when not a group)
   const groupChildren = isGroup
     ? (selectedObjects[0] as FabricGroup).getObjects()
     : [];
 
-  // Objects to type-sniff: multi-selection items OR group's children
   const activeObjects = isMulti
     ? selectedObjects
     : isGroup
@@ -623,8 +632,19 @@ export default function CanvasRightSidebar() {
       ? "image"
       : "shape";
 
-  // ── Update single object ───────────────────────────────────────────────────
-  const update = useCallback(
+  // ── Single object: live update (no save) ───────────────────────────────────
+  const updateLive = useCallback(
+    (props: Record<string, any>) => {
+      if (!obj || !canvas) return;
+      obj.set(props);
+      canvas.renderAll();
+      forceUpdate();
+    },
+    [obj, canvas, forceUpdate],
+  );
+
+  // ── Single object: commit update (with save) ───────────────────────────────
+  const updateCommit = useCallback(
     (props: Record<string, any>) => {
       if (!obj || !canvas) return;
       saveStateRef.current?.();
@@ -635,8 +655,23 @@ export default function CanvasRightSidebar() {
     [obj, canvas, saveStateRef, forceUpdate],
   );
 
-  // ── Update all selected objects (or group children) ──────────────────────
-  const updateAll = useCallback(
+  // ── Multi object: live update (no save) ───────────────────────────────────
+  const updateAllLive = useCallback(
+    (props: Record<string, any>) => {
+      if (!canvas) return;
+      if (isGroup && groupChildren.length > 0) {
+        groupChildren.forEach((o) => o.set(props));
+      } else {
+        selectedObjects.forEach((o) => o.set(props));
+      }
+      canvas.renderAll();
+      forceUpdate();
+    },
+    [isGroup, groupChildren, selectedObjects, canvas, forceUpdate],
+  );
+
+  // ── Multi object: commit update (with save) ───────────────────────────────
+  const updateAllCommit = useCallback(
     (props: Record<string, any>) => {
       if (!canvas) return;
       saveStateRef.current?.();
@@ -679,7 +714,6 @@ export default function CanvasRightSidebar() {
         fill: "#000000",
       };
 
-  // For multi-all-text: snapshot from the first active text object
   const firstActive = activeObjects[0];
   const multiTextAttrs: TextAttrs =
     multiAllText && firstActive
@@ -712,7 +746,6 @@ export default function CanvasRightSidebar() {
         opacity: 1,
       };
 
-  // For multi-all-shape: snapshot from the first active shape object
   const multiShapeAttrs: ShapeAttrs =
     multiAllShape && firstActive
       ? {
@@ -725,7 +758,6 @@ export default function CanvasRightSidebar() {
         }
       : shapeAttrs;
 
-  // For mixed multi: snapshot shared attrs from the first active object
   const mixedAttrs: MixedAttrs =
     multiMixed && firstActive
       ? {
@@ -752,9 +784,6 @@ export default function CanvasRightSidebar() {
       onMouseDown={() => {
         isSidebarInteracting.current = true;
       }}
-      onMouseUp={() => {
-        isSidebarInteracting.current = false;
-      }}
     >
       {/* ── Sticky header ── */}
       <div className="sticky top-0 z-10 border-b border-border/50 bg-editor-surface px-4 py-3">
@@ -777,6 +806,7 @@ export default function CanvasRightSidebar() {
         {/* ── Single object ── */}
         {obj && mode !== "multi" && (
           <>
+            {/* Slider: live on drag, save on release */}
             <Section title="Opacity">
               <SliderRow
                 label="Opacity"
@@ -784,7 +814,8 @@ export default function CanvasRightSidebar() {
                 min={0}
                 max={100}
                 display={`${opacity}%`}
-                onChange={(v) => update({ opacity: v / 100 })}
+                onChange={(v) => updateLive({ opacity: v / 100 })}
+                onCommit={() => saveStateRef.current?.()}
               />
             </Section>
 
@@ -793,8 +824,10 @@ export default function CanvasRightSidebar() {
               sendBackward={sendBackward}
             />
 
-            {isText && <TextPanel attrs={textAttrs} onUpdate={update} />}
-            {isShape && <ShapePanel attrs={shapeAttrs} onUpdate={update} />}
+            {isText && <TextPanel attrs={textAttrs} onUpdate={updateCommit} />}
+            {isShape && (
+              <ShapePanel attrs={shapeAttrs} onUpdate={updateCommit} />
+            )}
             {isImage && (
               <ImagePanel
                 obj={obj as FabricImage}
@@ -809,7 +842,6 @@ export default function CanvasRightSidebar() {
         {/* ── Multi-select ── */}
         {mode === "multi" && (
           <>
-            {/* Group / Ungroup actions */}
             <Section title="Group">
               <div className="flex flex-col gap-1.5">
                 {isMulti && (
@@ -837,7 +869,7 @@ export default function CanvasRightSidebar() {
               </div>
             </Section>
 
-            {/* Shared opacity */}
+            {/* Slider: live on drag, save on release */}
             <Section title="Opacity">
               <SliderRow
                 label="Opacity"
@@ -845,29 +877,24 @@ export default function CanvasRightSidebar() {
                 min={0}
                 max={100}
                 display={`${multiOpacity}%`}
-                onChange={(v) => updateAll({ opacity: v / 100 })}
+                onChange={(v) => updateAllLive({ opacity: v / 100 })}
+                onCommit={() => saveStateRef.current?.()}
               />
             </Section>
 
-            {/* Shared layer controls */}
             <LayerSection
               bringForward={bringForward}
               sendBackward={sendBackward}
             />
 
-            {/* All-text: show full TextPanel */}
             {multiAllText && (
-              <TextPanel attrs={multiTextAttrs} onUpdate={updateAll} />
+              <TextPanel attrs={multiTextAttrs} onUpdate={updateAllCommit} />
             )}
-
-            {/* All-shape: show full ShapePanel */}
             {multiAllShape && (
-              <ShapePanel attrs={multiShapeAttrs} onUpdate={updateAll} />
+              <ShapePanel attrs={multiShapeAttrs} onUpdate={updateAllCommit} />
             )}
-
-            {/* Mixed: show shared color/stroke controls */}
             {multiMixed && (
-              <MixedPanel attrs={mixedAttrs} onUpdate={updateAll} />
+              <MixedPanel attrs={mixedAttrs} onUpdate={updateAllCommit} />
             )}
           </>
         )}
