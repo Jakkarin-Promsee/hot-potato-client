@@ -7,7 +7,7 @@
 
 .editor-layout {
   display: grid;
-  grid-template-columns: 288px 1fr 240px;
+  grid-template-columns: 288px 1fr 260px;
   grid-template-rows: 56px 1fr;
   height: 100vh;
   overflow: hidden;

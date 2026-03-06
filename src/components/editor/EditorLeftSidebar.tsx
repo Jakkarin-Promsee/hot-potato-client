@@ -360,11 +360,14 @@ const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
 const EditorLeftSidebar = ({
   editor,
   dynamicUpdate,
+  activeCategory,
+  onCategoryChange,
 }: {
   editor: Editor;
   dynamicUpdate: Boolean;
+  activeCategory: CategoryKey;
+  onCategoryChange: (key: CategoryKey) => void;
 }) => {
-  const [activeCategory, setActiveCategory] = useState<CategoryKey>("text");
   const [active, setActive] = useState<LeftActiveFormats>(DEFAULT_ACTIVE);
 
   useEffect(() => {
@@ -410,22 +413,22 @@ const EditorLeftSidebar = ({
   };
 
   return (
-    <div className="editor-sidebar-left flex w-fit h-full border-r border-border bg-editor-surface">
+    <div className="editor-sidebar-left flex h-full border-r border-border bg-editor-surface">
       {/* ── Icon rail (left column) ── */}
-      <div className="flex w-14 flex-col items-center gap-1 border-r border-border/60 px-1.5 py-3">
+      <div className="flex w-16 flex-col items-center gap-1 border-r border-border/60 px-1.5 py-3">
         {CATEGORIES.map(({ key, icon, label }) => (
           <CategoryBtn
             key={key}
             icon={icon}
             label={label}
             isActive={activeCategory === key}
-            onClick={() => setActiveCategory(key)}
+            onClick={() => onCategoryChange(key)}
           />
         ))}
       </div>
 
       {/* ── Tool panel (right column) ── */}
-      <div className="flex w-64 flex-col overflow-y-auto p-2">
+      <div className="flex w-52 flex-col overflow-y-auto p-2">
         {/* Panel title */}
         <p className="mb-2 px-1 text-xs font-semibold text-foreground capitalize">
           {activeCategory}

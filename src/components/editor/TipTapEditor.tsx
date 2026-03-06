@@ -18,7 +18,6 @@ import { Markdown } from "tiptap-markdown";
 import Link from "@tiptap/extension-link";
 import { SearchHighlightExtension } from "../extensions/searchHighlight";
 
-import { common, createLowlight } from "lowlight";
 import EditorHeader from "./EditorHeader";
 import { FabricCanvasNode } from "../extensions/FabricCanvasNode";
 import { QuestionAnswerNode } from "../extensions/QuestionAnswerNode";
@@ -36,6 +35,9 @@ const ZOOM_STEP = 0.1; // finer step for ctrl+scroll
 const TipTapEditor = () => {
   const [dynamicUpdate, setDynamicUpdate] = useState(true);
   const [linkClickMode, setLinkClickMode] = useState<"ctrl" | "direct">("ctrl");
+  const [sidebarCategory, setSidebarCategory] = useState<
+    "text" | "image" | "video" | "other" | "special"
+  >("text");
   const [zoom, setZoom] = useState(1.0);
   const mainRef = useRef<HTMLDivElement>(null);
 
@@ -201,7 +203,12 @@ const TipTapEditor = () => {
       {/* ── LEFT SIDEBAR ── */}
       <aside className="editor-sidebar-left flex">
         {!canvas && editor && (
-          <EditorLeftSidebar editor={editor} dynamicUpdate={dynamicUpdate} />
+          <EditorLeftSidebar
+            editor={editor}
+            dynamicUpdate={dynamicUpdate}
+            activeCategory={sidebarCategory}
+            onCategoryChange={setSidebarCategory}
+          />
         )}
         {canvas && <CanvasSidebar />}
       </aside>
