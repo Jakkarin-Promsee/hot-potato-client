@@ -8,13 +8,21 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  Group,
+  Ungroup,
 } from "lucide-react";
-import { FabricImage, filters, IText, Rect } from "fabric";
+import {
+  FabricImage,
+  filters,
+  IText,
+  Rect,
+  Group as FabricGroup,
+} from "fabric";
 import { useFabric } from "@/hooks/useFabric";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type PanelMode = "none" | "text" | "shape" | "image";
+type PanelMode = "none" | "text" | "shape" | "image" | "multi";
 
 interface TextAttrs {
   fontFamily: string;
@@ -35,7 +43,10 @@ interface ShapeAttrs {
   opacity: number;
 }
 
-interface ImageAttrs {
+interface MixedAttrs {
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
   opacity: number;
 }
 
@@ -68,6 +79,7 @@ const MODE_LABELS: Record<PanelMode, string> = {
   text: "Text",
   shape: "Shape",
   image: "Image",
+  multi: "Multiple items",
 };
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
@@ -114,6 +126,27 @@ const IconBtn = memo(
       }`}
     >
       <Icon size={13} strokeWidth={1.8} />
+    </button>
+  ),
+);
+
+const NavButton = memo(
+  ({
+    icon: Icon,
+    onClick,
+    title,
+  }: {
+    icon: React.ElementType;
+    onClick: () => void;
+    title?: string;
+  }) => (
+    <button
+      onClick={onClick}
+      title={title}
+      className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent/50 transition-colors w-full justify-center"
+    >
+      <Icon size={13} strokeWidth={1.8} />
+      {title}
     </button>
   ),
 );
@@ -379,6 +412,42 @@ const ShapePanel = memo(
   ),
 );
 
+// ─── Mixed multi-select panel (text + shapes + images together) ───────────────
+
+const MixedPanel = memo(
+  ({
+    attrs,
+    onUpdate,
+  }: {
+    attrs: MixedAttrs;
+    onUpdate: (props: Record<string, any>) => void;
+  }) => (
+    <>
+      <Section title="Appearance">
+        <ColorRow
+          label="Fill / Color"
+          value={attrs.fill}
+          onChange={(v) => onUpdate({ fill: v })}
+        />
+        <ColorRow
+          label="Stroke"
+          value={attrs.stroke}
+          onChange={(v) =>
+            onUpdate({ stroke: v, strokeWidth: attrs.strokeWidth || 2 })
+          }
+        />
+        <NumberInput
+          label="Stroke Width"
+          value={attrs.strokeWidth}
+          min={0}
+          max={20}
+          onChange={(v) => onUpdate({ strokeWidth: v })}
+        />
+      </Section>
+    </>
+  ),
+);
+
 const ImagePanel = memo(
   ({
     obj,
@@ -485,7 +554,12 @@ export default function CanvasRightSidebar() {
   const forceUpdate = useCallback(() => setTick((n) => n + 1), []);
 
   const obj = selectedObjects.length === 1 ? selectedObjects[0] : null;
-  const { bringForward, sendBackward } = useFabric();
+  const {
+    bringForward,
+    sendBackward,
+    groupSelected: groupSelection,
+    ungroupSelected: ungroupSelection,
+  } = useFabric();
 
   // Re-render when canvas selection/modification changes
   useEffect(() => {
@@ -500,21 +574,55 @@ export default function CanvasRightSidebar() {
     };
   }, [canvas, forceUpdate]);
 
-  // Derive mode and attrs from the selected object
+  // ── Single-object helpers ──────────────────────────────────────────────────
   const isText =
     obj &&
     (obj.type === "i-text" || obj.type === "text" || obj.type === "textbox");
   const isImage = obj && obj.type === "image";
   const isShape = obj && !isText && !isImage;
 
-  const mode: PanelMode = !obj
-    ? "none"
-    : isText
-    ? "text"
-    : isImage
-    ? "image"
-    : "shape";
+  // ── Multi-select helpers ───────────────────────────────────────────────────
+  const isMulti = selectedObjects.length > 1;
+  const isGroup =
+    selectedObjects.length === 1 && selectedObjects[0]?.type === "group";
 
+  // Children of a group (empty when not a group)
+  const groupChildren = isGroup
+    ? (selectedObjects[0] as FabricGroup).getObjects()
+    : [];
+
+  // Objects to type-sniff: multi-selection items OR group's children
+  const activeObjects = isMulti
+    ? selectedObjects
+    : isGroup
+    ? groupChildren
+    : [];
+
+  const isTextType = (o: any) =>
+    o.type === "i-text" || o.type === "text" || o.type === "textbox";
+  const isImageType = (o: any) => o.type === "image";
+  const isShapeType = (o: any) => !isTextType(o) && !isImageType(o);
+
+  const multiAllText =
+    activeObjects.length > 0 && activeObjects.every(isTextType);
+  const multiAllShape =
+    activeObjects.length > 0 && activeObjects.every(isShapeType);
+  const multiMixed =
+    activeObjects.length > 0 && !multiAllText && !multiAllShape;
+
+  // ── Mode ───────────────────────────────────────────────────────────────────
+  const mode: PanelMode =
+    isMulti || isGroup
+      ? "multi"
+      : !obj
+      ? "none"
+      : isText
+      ? "text"
+      : isImage
+      ? "image"
+      : "shape";
+
+  // ── Update single object ───────────────────────────────────────────────────
   const update = useCallback(
     (props: Record<string, any>) => {
       if (!obj || !canvas) return;
@@ -526,7 +634,30 @@ export default function CanvasRightSidebar() {
     [obj, canvas, saveStateRef, forceUpdate],
   );
 
-  // Snapshot attrs from the live object — safe because forceUpdate re-renders on every change
+  // ── Update all selected objects (or group children) ──────────────────────
+  const updateAll = useCallback(
+    (props: Record<string, any>) => {
+      if (!canvas) return;
+      saveStateRef.current?.();
+      if (isGroup && groupChildren.length > 0) {
+        groupChildren.forEach((o) => o.set(props));
+      } else {
+        selectedObjects.forEach((o) => o.set(props));
+      }
+      canvas.renderAll();
+      forceUpdate();
+    },
+    [
+      isGroup,
+      groupChildren,
+      selectedObjects,
+      canvas,
+      saveStateRef,
+      forceUpdate,
+    ],
+  );
+
+  // ── Attr snapshots ─────────────────────────────────────────────────────────
   const textAttrs: TextAttrs = isText
     ? {
         fontFamily: (obj as IText).fontFamily || "Inter",
@@ -547,6 +678,21 @@ export default function CanvasRightSidebar() {
         fill: "#000000",
       };
 
+  // For multi-all-text: snapshot from the first active text object
+  const firstActive = activeObjects[0];
+  const multiTextAttrs: TextAttrs =
+    multiAllText && firstActive
+      ? {
+          fontFamily: (firstActive as IText).fontFamily || "Inter",
+          fontSize: (firstActive as IText).fontSize || 16,
+          fontWeight: ((firstActive as IText).fontWeight as string) || "normal",
+          fontStyle: ((firstActive as IText).fontStyle as string) || "normal",
+          textAlign: (firstActive as IText).textAlign || "left",
+          lineHeight: (firstActive as IText).lineHeight || 1.2,
+          fill: ((firstActive as IText).fill as string) || "#000000",
+        }
+      : textAttrs;
+
   const shapeAttrs: ShapeAttrs = isShape
     ? {
         fill: (obj!.fill as string) || "#6c5ce7",
@@ -565,7 +711,39 @@ export default function CanvasRightSidebar() {
         opacity: 1,
       };
 
+  // For multi-all-shape: snapshot from the first active shape object
+  const multiShapeAttrs: ShapeAttrs =
+    multiAllShape && firstActive
+      ? {
+          fill: (firstActive.fill as string) || "#6c5ce7",
+          stroke: (firstActive.stroke as string) || "",
+          strokeWidth: firstActive.strokeWidth || 0,
+          rx: (firstActive as Rect).rx || 0,
+          isRect: firstActive.type === "rect",
+          opacity: firstActive.opacity ?? 1,
+        }
+      : shapeAttrs;
+
+  // For mixed multi: snapshot shared attrs from the first active object
+  const mixedAttrs: MixedAttrs =
+    multiMixed && firstActive
+      ? {
+          fill: (firstActive.fill as string) || "#6c5ce7",
+          stroke: (firstActive.stroke as string) || "",
+          strokeWidth: firstActive.strokeWidth || 0,
+          opacity: firstActive.opacity ?? 1,
+        }
+      : {
+          fill: "#6c5ce7",
+          stroke: "",
+          strokeWidth: 0,
+          opacity: 1,
+        };
+
   const opacity = obj ? Math.round((obj.opacity ?? 1) * 100) : 100;
+  const multiOpacity = firstActive
+    ? Math.round((firstActive.opacity ?? 1) * 100)
+    : 100;
 
   return (
     <div className="flex h-full flex-col border-l border-border bg-editor-surface">
@@ -575,7 +753,11 @@ export default function CanvasRightSidebar() {
           Properties
         </span>
         <p className="text-xs font-medium text-foreground">
-          {MODE_LABELS[mode]}
+          {mode === "multi" && isMulti
+            ? `${selectedObjects.length} items selected`
+            : mode === "multi" && isGroup
+            ? `Group (${groupChildren.length} items)`
+            : MODE_LABELS[mode]}
         </p>
       </div>
 
@@ -583,9 +765,9 @@ export default function CanvasRightSidebar() {
       <div className="flex-1 overflow-y-auto p-4">
         {mode === "none" && <NonePanel />}
 
-        {obj && (
+        {/* ── Single object ── */}
+        {obj && mode !== "multi" && (
           <>
-            {/* Opacity — universal */}
             <Section title="Opacity">
               <SliderRow
                 label="Opacity"
@@ -597,13 +779,11 @@ export default function CanvasRightSidebar() {
               />
             </Section>
 
-            {/* Layer — universal */}
             <LayerSection
               bringForward={bringForward}
               sendBackward={sendBackward}
             />
 
-            {/* Mode-specific panels */}
             {isText && <TextPanel attrs={textAttrs} onUpdate={update} />}
             {isShape && <ShapePanel attrs={shapeAttrs} onUpdate={update} />}
             {isImage && (
@@ -613,6 +793,72 @@ export default function CanvasRightSidebar() {
                 saveStateRef={saveStateRef}
                 forceUpdate={forceUpdate}
               />
+            )}
+          </>
+        )}
+
+        {/* ── Multi-select ── */}
+        {mode === "multi" && (
+          <>
+            {/* Group / Ungroup actions */}
+            <Section title="Group">
+              <div className="flex flex-col gap-1.5">
+                {isMulti && (
+                  <NavButton
+                    icon={Group}
+                    onClick={() => {
+                      saveStateRef.current?.();
+                      groupSelection();
+                      forceUpdate();
+                    }}
+                    title="Group"
+                  />
+                )}
+                {isGroup && (
+                  <NavButton
+                    icon={Ungroup}
+                    onClick={() => {
+                      saveStateRef.current?.();
+                      ungroupSelection();
+                      forceUpdate();
+                    }}
+                    title="Ungroup"
+                  />
+                )}
+              </div>
+            </Section>
+
+            {/* Shared opacity */}
+            <Section title="Opacity">
+              <SliderRow
+                label="Opacity"
+                value={multiOpacity}
+                min={0}
+                max={100}
+                display={`${multiOpacity}%`}
+                onChange={(v) => updateAll({ opacity: v / 100 })}
+              />
+            </Section>
+
+            {/* Shared layer controls */}
+            <LayerSection
+              bringForward={bringForward}
+              sendBackward={sendBackward}
+            />
+
+            {/* All-text: show full TextPanel */}
+            {multiAllText && (
+              <TextPanel attrs={multiTextAttrs} onUpdate={updateAll} />
+            )}
+
+            {/* All-shape: show full ShapePanel */}
+            {multiAllShape && (
+              <ShapePanel attrs={multiShapeAttrs} onUpdate={updateAll} />
+            )}
+
+            {/* Mixed: show shared color/stroke controls */}
+            {multiMixed && (
+              <MixedPanel attrs={mixedAttrs} onUpdate={updateAll} />
             )}
           </>
         )}

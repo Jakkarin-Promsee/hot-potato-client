@@ -451,18 +451,20 @@ button.bg-editor-highlight {
 }
 
 .tiptap-editor .ProseMirror p {
-  margin-bottom: 1.2em;
+  margin-bottom: 0.25em; /* feels like a single enter */
   letter-spacing: -0.003em;
   word-break: break-word;
 }
+
+/* ── Headings ── */
 
 .tiptap-editor .ProseMirror h1 {
   font-family: var(--font-serif);
   font-size: 2.5em;
   font-weight: 700;
   line-height: 1.15;
-  margin-top: 1.6em;
-  margin-bottom: 0.4em;
+  margin-top: 0.7em; /* was 1em */
+  margin-bottom: 0.15em; /* was 0.25em */
   letter-spacing: -0.02em;
   color: var(--editor-ink);
 }
@@ -472,8 +474,8 @@ button.bg-editor-highlight {
   font-size: 1.6em;
   font-weight: 600;
   line-height: 1.25;
-  margin-top: 1.4em;
-  margin-bottom: 0.4em;
+  margin-top: 0.6em; /* was 0.9em */
+  margin-bottom: 0.12em; /* was 0.2em */
   letter-spacing: -0.015em;
   color: var(--editor-ink);
 }
@@ -483,19 +485,29 @@ button.bg-editor-highlight {
   font-size: 1.25em;
   font-weight: 600;
   line-height: 1.3;
-  margin-top: 1.2em;
-  margin-bottom: 0.3em;
+  margin-top: 0.8em; /* was 1.2em */
+  margin-bottom: 0.15em; /* was 0.3em */
   color: var(--editor-ink);
 }
+
+/* Remove top margin when a heading is the very first element */
+.tiptap-editor .ProseMirror > h1:first-child,
+.tiptap-editor .ProseMirror > h2:first-child,
+.tiptap-editor .ProseMirror > h3:first-child {
+  margin-top: 0;
+}
+
+/* ── Blockquote ── */
 
 .tiptap-editor .ProseMirror blockquote {
   border-left: 3px solid color-mix(in oklab, var(--editor-ink) 20%, transparent);
   padding-left: 1.2em;
-  margin-left: 0;
-  margin-right: 0;
+  margin: 0.75em 0; /* was implicit browser default — now explicit and tighter */
   font-style: italic;
   color: var(--editor-ink-muted);
 }
+
+/* ── Links ── */
 
 .tiptap-editor .ProseMirror a {
   color: hsl(252 70% 50%);
@@ -512,6 +524,8 @@ button.bg-editor-highlight {
 .tiptap-editor .ProseMirror ::selection {
   background: var(--editor-selection);
 }
+
+/* ── Placeholder ── */
 
 .tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
@@ -530,11 +544,13 @@ button.bg-editor-highlight {
   height: 0;
 }
 
+/* ── Code ── */
+
 .tiptap-editor .ProseMirror pre {
   background: var(--editor-code-bg);
   border-radius: 6px;
-  padding: 1em 1.2em;
-  margin: 1.5em 0;
+  padding: 0.85em 1.1em; /* was 1em 1.2em — slightly tighter */
+  margin: 1em 0; /* was 1.5em — less vertical separation */
   overflow-x: auto;
   font-family: var(--font-mono);
   font-size: 0.85em;
@@ -557,7 +573,8 @@ button.bg-editor-highlight {
   font-size: 0.88em;
 }
 
-/* Syntax highlighting */
+/* ── Syntax highlighting ── */
+
 .tiptap-editor .ProseMirror pre .hljs-comment,
 .tiptap-editor .ProseMirror pre .hljs-quote {
   color: hsl(220 8% 50%);
@@ -584,12 +601,13 @@ button.bg-editor-highlight {
   color: hsl(210 60% 48%);
 }
 
-/* Images */
+/* ── Images ── */
+
 .tiptap-editor .ProseMirror img {
   max-width: 100%;
   height: auto;
   border-radius: 4px;
-  margin: 1.5em 0;
+  margin: 1em 0; /* was 1.5em */
   display: block;
 }
 
@@ -608,9 +626,10 @@ button.bg-editor-highlight {
   outline-offset: 2px;
 }
 
-/* Video embed */
+/* ── Video embed ── */
+
 .tiptap-editor .ProseMirror div[data-youtube-video] {
-  margin: 1.5em 0;
+  margin: 1em 0; /* was 1.5em */
 }
 
 .tiptap-editor .ProseMirror div[data-youtube-video] iframe {
@@ -619,25 +638,28 @@ button.bg-editor-highlight {
   aspect-ratio: 16 / 9;
 }
 
-/* HR */
+/* ── HR ── */
+
 .tiptap-editor .ProseMirror hr {
   border: none;
   border-top: 1px solid hsl(220 12% 85%);
-  margin: 2em 0;
+  margin: 1.25em 0; /* was 2em — much less aggressive */
 }
 
-/* Lists */
+/* ── Lists ── */
+
 .tiptap-editor .ProseMirror ul,
 .tiptap-editor .ProseMirror ol {
   padding-left: 1.5em;
-  margin-bottom: 1.2em;
+  margin-bottom: 0.85em; /* was 1.2em — matches paragraph spacing */
 }
 
 .tiptap-editor .ProseMirror li {
-  margin-bottom: 0.3em;
+  margin-bottom: 0.2em; /* was 0.3em */
 }
 
-/* Task list */
+/* ── Task list ── */
+
 .tiptap-editor .ProseMirror ul[data-type="taskList"] {
   list-style: none;
   padding-left: 0.25em;
@@ -672,11 +694,12 @@ button.bg-editor-highlight {
   text-decoration: line-through;
 }
 
-/* Table */
+/* ── Table ── */
+
 .tiptap-editor .ProseMirror table {
   border-collapse: collapse;
   width: 100%;
-  margin: 1.5em 0;
+  margin: 1em 0; /* was 1.5em */
   font-size: 0.9em;
   overflow: hidden;
   border-radius: 6px;
@@ -724,13 +747,14 @@ button.bg-editor-highlight {
   width: 3px;
 }
 
-/* Custom nodes */
+/* ── Custom nodes ── */
+
 .tiptap-editor .ProseMirror [data-fabric-canvas] {
-  margin: 1.5em 0;
+  margin: 1em 0; /* was 1.5em */
 }
 
 .tiptap-editor .ProseMirror [data-question-answer] {
-  margin: 1em 0;
+  margin: 0.75em 0; /* was 1em */
 }
 
 /* ─────────────────────────────────────────

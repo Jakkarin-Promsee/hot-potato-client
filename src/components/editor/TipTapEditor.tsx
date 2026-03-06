@@ -23,7 +23,6 @@ import { FabricCanvasNode } from "../extensions/FabricCanvasNode";
 import { QuestionAnswerNode } from "../extensions/QuestionAnswerNode";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCanvasContext } from "@/contexts/CanvasContext";
-import PropertiesPanel from "../design/PropertiesPanel";
 // import CanvasSidebar from "../design/CanvasSidebar";
 
 import EditorLeftSidebar from "./EditorLeftSidebar";
