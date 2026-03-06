@@ -869,7 +869,13 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
 
 // ─── Main sidebar — single transaction listener, all reactive reads here ──────
 
-const EditorRightSidebar = ({ editor }: { editor: Editor | null }) => {
+const EditorRightSidebar = ({
+  editor,
+  dynamicUpdate,
+}: {
+  editor: Editor;
+  dynamicUpdate: Boolean;
+}) => {
   const [mode, setMode] = useState<PanelMode>("document");
   const [linkUrl, setLinkUrl] = useState("");
   const [linkNewTab, setLinkNewTab] = useState(false);
@@ -925,6 +931,8 @@ const EditorRightSidebar = ({ editor }: { editor: Editor | null }) => {
       }
 
       // ── Active formats — all reads in ONE place ───────────────────────────
+      if (!dynamicUpdate) return; // ← skip attaching listener entirely
+
       setActiveFormats({
         textColor: editor.getAttributes("textStyle").color ?? "#000000",
         highlightColor: editor.getAttributes("highlight").color ?? "",
@@ -950,7 +958,7 @@ const EditorRightSidebar = ({ editor }: { editor: Editor | null }) => {
       editor.off("selectionUpdate", update);
       editor.off("transaction", update);
     };
-  }, [editor]);
+  }, [editor, dynamicUpdate]);
 
   if (!editor) return null;
 

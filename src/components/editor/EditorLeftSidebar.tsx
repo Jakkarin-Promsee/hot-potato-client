@@ -385,7 +385,13 @@ const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
 
 // ─── Main sidebar — single transaction listener, all reactive reads here ──────
 
-const EditorLeftSidebar = ({ editor }: { editor: Editor }) => {
+const EditorLeftSidebar = ({
+  editor,
+  dynamicUpdate,
+}: {
+  editor: Editor;
+  dynamicUpdate: Boolean;
+}) => {
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(
     {
       text: true,
@@ -400,6 +406,8 @@ const EditorLeftSidebar = ({ editor }: { editor: Editor }) => {
 
   // Single listener — all isActive reads in one place
   useEffect(() => {
+    if (!dynamicUpdate) return; // ← skip attaching listener entirely
+
     const update = () => {
       setActive({
         textColor: editor.getAttributes("textStyle").color ?? "#000000",
@@ -422,7 +430,7 @@ const EditorLeftSidebar = ({ editor }: { editor: Editor }) => {
       editor.off("selectionUpdate", update);
       editor.off("transaction", update);
     };
-  }, [editor]);
+  }, [editor, dynamicUpdate]);
 
   const toggle = useCallback(
     (key: SectionKey) =>

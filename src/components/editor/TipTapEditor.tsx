@@ -37,6 +37,7 @@ const ZOOM_MAX = 2.0;
 const ZOOM_STEP = 0.1; // finer step for ctrl+scroll
 
 const TipTapEditor = () => {
+  const [dynamicUpdate, setDynamicUpdate] = useState(true);
   const [linkClickMode, setLinkClickMode] = useState<"ctrl" | "direct">("ctrl");
   const [zoom, setZoom] = useState(1.0);
   const mainRef = useRef<HTMLDivElement>(null);
@@ -192,6 +193,8 @@ const TipTapEditor = () => {
       <header className="editor-header">
         <EditorHeader
           editor={editor}
+          dynamicUpdate={dynamicUpdate}
+          onDynamicUpdateChange={setDynamicUpdate}
           linkClickMode={linkClickMode}
           onLinkClickModeChange={setLinkClickMode}
           zoom={zoom}
@@ -201,7 +204,9 @@ const TipTapEditor = () => {
 
       {/* ── LEFT SIDEBAR ── */}
       <aside className="editor-sidebar-left">
-        {!canvas && editor && <EditorLeftSidebar editor={editor} />}
+        {!canvas && editor && (
+          <EditorLeftSidebar editor={editor} dynamicUpdate={dynamicUpdate} />
+        )}
         {canvas && <CanvasSidebar />}
       </aside>
 
@@ -226,7 +231,9 @@ const TipTapEditor = () => {
 
       {/* ── RIGHT SIDEBAR ── */}
       <aside className="editor-sidebar-right">
-        {!canvas && <EditorRightSidebar editor={editor} />}
+        {!canvas && (
+          <EditorRightSidebar editor={editor} dynamicUpdate={dynamicUpdate} />
+        )}
         {canvas && <PropertiesPanel />}
       </aside>
     </div>
