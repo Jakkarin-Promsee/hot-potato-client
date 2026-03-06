@@ -9,7 +9,6 @@ import {
   AlignCenter,
   AlignRight,
   AlignJustify,
-  Link,
   Quote,
   ImagePlus,
   Images,
@@ -17,11 +16,10 @@ import {
   VideoIcon,
   Table,
   ListTodo,
-  ChevronDown,
-  ChevronRight,
   LayoutDashboard,
   HelpCircle,
   Columns,
+  List,
 } from "lucide-react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -44,10 +42,9 @@ const ALIGN_OPTIONS = [
   { icon: AlignJustify, align: "justify" },
 ] as const;
 
-type SectionKey = "text" | "image" | "video" | "other" | "special";
+type CategoryKey = "text" | "image" | "video" | "other" | "special";
 type TextAlign = "left" | "center" | "right" | "justify";
 
-// All reactive isActive reads for the left sidebar
 interface LeftActiveFormats {
   paragraph: boolean;
   h1: boolean;
@@ -72,34 +69,21 @@ const DEFAULT_ACTIVE: LeftActiveFormats = {
   highlightColor: "",
 };
 
-// ─── Primitives ───────────────────────────────────────────────────────────────
+// ─── Category definitions ─────────────────────────────────────────────────────
 
-const SectionHeader = memo(
-  ({
-    sectionKey,
-    icon: Icon,
-    label,
-    isOpen,
-    onToggle,
-  }: {
-    sectionKey: SectionKey;
-    icon: React.ElementType;
-    label: string;
-    isOpen: boolean;
-    onToggle: (key: SectionKey) => void;
-  }) => (
-    <button
-      onClick={() => onToggle(sectionKey)}
-      className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground/70 hover:bg-accent/40 hover:text-foreground transition-colors"
-    >
-      <span className="flex items-center gap-2">
-        <Icon size={13} strokeWidth={2} />
-        {label}
-      </span>
-      {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-    </button>
-  ),
-);
+const CATEGORIES: {
+  key: CategoryKey;
+  icon: React.ElementType;
+  label: string;
+}[] = [
+  { key: "text", icon: Type, label: "Text" },
+  { key: "image", icon: Images, label: "Image" },
+  { key: "video", icon: VideoIcon, label: "Video" },
+  { key: "other", icon: List, label: "Other" },
+  { key: "special", icon: LayoutDashboard, label: "Special" },
+];
+
+// ─── Primitives ───────────────────────────────────────────────────────────────
 
 const ToolBtn = memo(
   ({
@@ -107,13 +91,11 @@ const ToolBtn = memo(
     label,
     onClick,
     active = false,
-    colorDot,
   }: {
     icon: React.ElementType;
     label: string;
     onClick: () => void;
     active?: boolean;
-    colorDot?: string;
   }) => (
     <button
       onClick={onClick}
@@ -126,58 +108,55 @@ const ToolBtn = memo(
     >
       <Icon size={14} strokeWidth={1.8} />
       <span className="flex-1 text-left">{label}</span>
-      {colorDot && (
-        <span
-          className="h-3 w-3 rounded-full border border-border"
-          style={{ background: colorDot }}
-        />
-      )}
     </button>
   ),
 );
 
-// ─── Section panels ───────────────────────────────────────────────────────────
+// ─── Category icon rail button ────────────────────────────────────────────────
 
-// ✅ Headings derived from doc via useMemo — no isActive reads, always correct
-const OutlinePanel = memo(({ editor }: { editor: Editor }) => {
-  const headings = useMemo(() => {
-    const items: { level: number; text: string; pos: number }[] = [];
-    editor.state.doc.descendants((node, pos) => {
-      if (node.type.name === "heading") {
-        items.push({ level: node.attrs.level, text: node.textContent, pos });
-      }
-    });
-    return items;
-  }, [editor.state.doc]);
-
-  const jumpTo = useCallback(
-    (pos: number) => editor.chain().focus().setTextSelection(pos).run(),
-    [editor],
-  );
-
-  return (
-    <div className="mb-2 flex flex-col gap-0.5 pl-1">
-      {headings.length === 0 ? (
-        <p className="px-2 py-1 text-xs text-muted-foreground/50">
-          No headings yet
-        </p>
-      ) : (
-        headings.map((h, i) => (
-          <button
-            key={i}
-            onClick={() => jumpTo(h.pos)}
-            className="truncate rounded px-2 py-1 text-left text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-            style={{ paddingLeft: `${(h.level - 1) * 10 + 8}px` }}
-          >
-            {h.text || `Heading ${h.level}`}
-          </button>
-        ))
+const CategoryBtn = memo(
+  ({
+    icon: Icon,
+    label,
+    isActive,
+    onClick,
+  }: {
+    icon: React.ElementType;
+    label: string;
+    isActive: boolean;
+    onClick: () => void;
+  }) => (
+    <button
+      onClick={onClick}
+      title={label}
+      className={`relative flex flex-col items-center justify-center gap-1 rounded-lg px-1 py-2.5 w-full transition-all duration-150 group ${
+        isActive
+          ? "bg-accent text-foreground"
+          : "text-muted-foreground hover:bg-accent/40 hover:text-foreground"
+      }`}
+    >
+      {/* Active indicator bar on the right edge */}
+      {isActive && (
+        <span className="absolute right-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-full bg-primary" />
       )}
-    </div>
-  );
-});
+      <Icon size={16} strokeWidth={isActive ? 2 : 1.8} />
+      <span className="text-[9px] font-semibold tracking-wide leading-none">
+        {label}
+      </span>
+    </button>
+  ),
+);
 
-// ✅ active states from props — memo diffs plain booleans/strings correctly
+// ─── Panel: Section label ─────────────────────────────────────────────────────
+
+const PanelLabel = ({ children }: { children: React.ReactNode }) => (
+  <span className="px-2 pt-2 pb-0.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 block">
+    {children}
+  </span>
+);
+
+// ─── Tool Panels ──────────────────────────────────────────────────────────────
+
 const TextPanel = memo(
   ({ editor, active }: { editor: Editor; active: LeftActiveFormats }) => {
     const setColor = useCallback(
@@ -190,10 +169,8 @@ const TextPanel = memo(
     );
 
     return (
-      <div className="mb-2 flex flex-col gap-0.5 pl-1">
-        <span className="px-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-          Structure
-        </span>
+      <div className="flex flex-col gap-0.5">
+        <PanelLabel>Structure</PanelLabel>
         <ToolBtn
           icon={Type}
           label="Normal Text"
@@ -231,9 +208,7 @@ const TextPanel = memo(
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
         />
 
-        <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-          Alignment
-        </span>
+        <PanelLabel>Alignment</PanelLabel>
         <div className="flex gap-1 px-2 py-1">
           {ALIGN_OPTIONS.map(({ icon: Icon, align }) => (
             <button
@@ -251,9 +226,7 @@ const TextPanel = memo(
           ))}
         </div>
 
-        <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-          Text Color
-        </span>
+        <PanelLabel>Text Color</PanelLabel>
         <div className="flex flex-wrap gap-1.5 px-2 py-1">
           {COLORS.map((c) => (
             <button
@@ -273,9 +246,7 @@ const TextPanel = memo(
           ))}
         </div>
 
-        <span className="px-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-          Highlight
-        </span>
+        <PanelLabel>Highlight</PanelLabel>
         <div className="flex flex-wrap gap-1.5 px-2 py-1">
           {HIGHLIGHTS.map((c) => (
             <button
@@ -299,9 +270,9 @@ const TextPanel = memo(
   },
 );
 
-// ✅ No isActive reads — pure command buttons, memo always safe
 const ImagePanel = memo(({ editor }: { editor: Editor }) => (
-  <div className="mb-2 flex flex-col gap-0.5 pl-1">
+  <div className="flex flex-col gap-0.5">
+    <PanelLabel>Insert</PanelLabel>
     <ToolBtn
       icon={ImagePlus}
       label="Add by URL"
@@ -319,7 +290,8 @@ const ImagePanel = memo(({ editor }: { editor: Editor }) => (
 ));
 
 const VideoPanel = memo(({ editor: _ }: { editor: Editor }) => (
-  <div className="mb-2 flex flex-col gap-0.5 pl-1">
+  <div className="flex flex-col gap-0.5">
+    <PanelLabel>Insert</PanelLabel>
     <ToolBtn
       icon={Video}
       label="Embed by URL"
@@ -333,10 +305,10 @@ const VideoPanel = memo(({ editor: _ }: { editor: Editor }) => (
   </div>
 ));
 
-// ✅ taskList active state comes from props
 const OtherPanel = memo(
   ({ editor, taskListActive }: { editor: Editor; taskListActive: boolean }) => (
-    <div className="mb-2 flex flex-col gap-0.5 pl-1">
+    <div className="flex flex-col gap-0.5">
+      <PanelLabel>Elements</PanelLabel>
       <ToolBtn
         icon={Table}
         label="Table"
@@ -358,9 +330,9 @@ const OtherPanel = memo(
   ),
 );
 
-// ✅ Pure command buttons — no isActive reads
 const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
-  <div className="mb-2 flex flex-col gap-0.5 pl-1">
+  <div className="flex flex-col gap-0.5">
+    <PanelLabel>Blocks</PanelLabel>
     <ToolBtn
       icon={LayoutDashboard}
       label="Canvas Board"
@@ -383,7 +355,7 @@ const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
   </div>
 ));
 
-// ─── Main sidebar — single transaction listener, all reactive reads here ──────
+// ─── Main sidebar ─────────────────────────────────────────────────────────────
 
 const EditorLeftSidebar = ({
   editor,
@@ -392,21 +364,11 @@ const EditorLeftSidebar = ({
   editor: Editor;
   dynamicUpdate: Boolean;
 }) => {
-  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>(
-    {
-      text: true,
-      image: false,
-      video: false,
-      other: false,
-      special: false,
-    },
-  );
-
+  const [activeCategory, setActiveCategory] = useState<CategoryKey>("text");
   const [active, setActive] = useState<LeftActiveFormats>(DEFAULT_ACTIVE);
 
-  // Single listener — all isActive reads in one place
   useEffect(() => {
-    if (!dynamicUpdate) return; // ← skip attaching listener entirely
+    if (!dynamicUpdate) return;
 
     const update = () => {
       setActive({
@@ -432,60 +394,44 @@ const EditorLeftSidebar = ({
     };
   }, [editor, dynamicUpdate]);
 
-  const toggle = useCallback(
-    (key: SectionKey) =>
-      setOpenSections((prev) => ({ ...prev, [key]: !prev[key] })),
-    [],
-  );
+  const renderPanel = () => {
+    switch (activeCategory) {
+      case "text":
+        return <TextPanel editor={editor} active={active} />;
+      case "image":
+        return <ImagePanel editor={editor} />;
+      case "video":
+        return <VideoPanel editor={editor} />;
+      case "other":
+        return <OtherPanel editor={editor} taskListActive={active.taskList} />;
+      case "special":
+        return <SpecialPanel editor={editor} />;
+    }
+  };
 
   return (
-    <div className="editor-sidebar-left flex h-full w-60 flex-col gap-0.5 overflow-y-auto border-r border-border bg-editor-surface p-3">
-      <SectionHeader
-        sectionKey="text"
-        icon={Type}
-        label="Text"
-        isOpen={openSections.text}
-        onToggle={toggle}
-      />
-      {openSections.text && <TextPanel editor={editor} active={active} />}
+    <div className="editor-sidebar-left flex w-fit h-full border-r border-border bg-editor-surface">
+      {/* ── Icon rail (left column) ── */}
+      <div className="flex w-14 flex-col items-center gap-1 border-r border-border/60 px-1.5 py-3">
+        {CATEGORIES.map(({ key, icon, label }) => (
+          <CategoryBtn
+            key={key}
+            icon={icon}
+            label={label}
+            isActive={activeCategory === key}
+            onClick={() => setActiveCategory(key)}
+          />
+        ))}
+      </div>
 
-      <SectionHeader
-        sectionKey="image"
-        icon={Images}
-        label="Image"
-        isOpen={openSections.image}
-        onToggle={toggle}
-      />
-      {openSections.image && <ImagePanel editor={editor} />}
-
-      <SectionHeader
-        sectionKey="video"
-        icon={VideoIcon}
-        label="Video"
-        isOpen={openSections.video}
-        onToggle={toggle}
-      />
-      {openSections.video && <VideoPanel editor={editor} />}
-
-      <SectionHeader
-        sectionKey="other"
-        icon={Table}
-        label="Other"
-        isOpen={openSections.other}
-        onToggle={toggle}
-      />
-      {openSections.other && (
-        <OtherPanel editor={editor} taskListActive={active.taskList} />
-      )}
-
-      <SectionHeader
-        sectionKey="special"
-        icon={LayoutDashboard}
-        label="Special"
-        isOpen={openSections.special}
-        onToggle={toggle}
-      />
-      {openSections.special && <SpecialPanel editor={editor} />}
+      {/* ── Tool panel (right column) ── */}
+      <div className="flex w-64 flex-col overflow-y-auto p-2">
+        {/* Panel title */}
+        <p className="mb-2 px-1 text-xs font-semibold text-foreground capitalize">
+          {activeCategory}
+        </p>
+        {renderPanel()}
+      </div>
     </div>
   );
 };

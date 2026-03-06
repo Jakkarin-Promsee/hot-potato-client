@@ -963,7 +963,7 @@ const EditorRightSidebar = ({
   if (!editor) return null;
 
   return (
-    <div className="editor-sidebar-left flex h-full w-72 flex-col overflow-y-auto border-l border-border bg-editor-surface">
+    <div className="editor-sidebar-left flex h-full  flex-col overflow-y-auto border-l border-border bg-editor-surface">
       {/* Header */}
       <div className="sticky top-0 z-10 border-b border-border/50 bg-editor-surface px-4 py-3">
         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">

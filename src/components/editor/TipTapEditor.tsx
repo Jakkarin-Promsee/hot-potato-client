@@ -4,7 +4,6 @@ import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
 import Image from "@tiptap/extension-image";
 import Youtube from "@tiptap/extension-youtube";
-import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import { TableCell } from "@tiptap/extension-table-cell";
@@ -29,8 +28,6 @@ import PropertiesPanel from "../design/PropertiesPanel";
 import CanvasSidebar from "../design/CanvasSidebar";
 import EditorLeftSidebar from "./EditorLeftSidebar";
 import EditorRightSidebar from "./EditorRightSidebar";
-
-const lowlight = createLowlight(common);
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.0;
@@ -73,7 +70,6 @@ const TipTapEditor = () => {
         HTMLAttributes: { class: "editor-image" },
       }),
       Youtube.configure({ width: 560, height: 315 }),
-      CodeBlockLowlight.configure({ lowlight }),
       Table.configure({
         resizable: true,
       }),
@@ -203,7 +199,7 @@ const TipTapEditor = () => {
       </header>
 
       {/* ── LEFT SIDEBAR ── */}
-      <aside className="editor-sidebar-left">
+      <aside className="editor-sidebar-left flex">
         {!canvas && editor && (
           <EditorLeftSidebar editor={editor} dynamicUpdate={dynamicUpdate} />
         )}
