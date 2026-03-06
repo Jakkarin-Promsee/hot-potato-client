@@ -194,52 +194,11 @@ const TextPanel = memo(({ editor }: { editor: Editor }) => {
         onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
         active={editor.isActive("heading", { level: 3 })}
       />
-
-      <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-        Format
-      </span>
-      <ToolBtn
-        icon={Bold}
-        label="Bold"
-        onClick={() => editor.chain().focus().toggleBold().run()}
-        active={editor.isActive("bold")}
-      />
-      <ToolBtn
-        icon={Italic}
-        label="Italic"
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-        active={editor.isActive("italic")}
-      />
-      <ToolBtn
-        icon={Underline}
-        label="Underline"
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-        active={editor.isActive("underline")}
-      />
-      <ToolBtn
-        icon={Strikethrough}
-        label="Strikethrough"
-        onClick={() => editor.chain().focus().toggleStrike().run()}
-        active={editor.isActive("strike")}
-      />
       <ToolBtn
         icon={Quote}
         label="Blockquote"
         onClick={() => editor.chain().focus().toggleBlockquote().run()}
         active={editor.isActive("blockquote")}
-      />
-      <ToolBtn
-        icon={Link}
-        label="Link"
-        onClick={() => {
-          if (editor.isActive("link")) {
-            editor.chain().focus().unsetLink().run();
-            return;
-          }
-          const url = window.prompt("Enter URL");
-          if (url) editor.chain().focus().setLink({ href: url }).run();
-        }}
-        active={editor.isActive("link")}
       />
 
       <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
