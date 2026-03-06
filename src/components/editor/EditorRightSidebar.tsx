@@ -26,7 +26,7 @@ import {
   searchHighlightKey,
   findMatches,
   type SearchMatch,
-} from "../extensions/searchHighlight";
+} from "../extensions/SearchHighlight";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

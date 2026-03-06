@@ -16,7 +16,7 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { Markdown } from "tiptap-markdown";
 import Link from "@tiptap/extension-link";
-import { SearchHighlightExtension } from "../extensions/searchHighlight";
+import { SearchHighlightExtension } from "../extensions/SearchHighlight";
 
 import EditorHeader from "./EditorHeader";
 import { FabricCanvasNode } from "../extensions/FabricCanvasNode";
@@ -24,9 +24,12 @@ import { QuestionAnswerNode } from "../extensions/QuestionAnswerNode";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCanvasContext } from "@/contexts/CanvasContext";
 import PropertiesPanel from "../design/PropertiesPanel";
-import CanvasSidebar from "../design/CanvasSidebar";
+// import CanvasSidebar from "../design/CanvasSidebar";
+
 import EditorLeftSidebar from "./EditorLeftSidebar";
 import EditorRightSidebar from "./EditorRightSidebar";
+import CanvasLeftSidebar from "../canvas/CanvasLeftSidebar";
+import CanvasRightSidebar from "../canvas/CanvasRightSidebar";
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.0;
@@ -210,7 +213,7 @@ const TipTapEditor = () => {
             onCategoryChange={setSidebarCategory}
           />
         )}
-        {canvas && <CanvasSidebar />}
+        {canvas && <CanvasLeftSidebar />}
       </aside>
 
       {/* ── CENTER EDITOR ── */}
@@ -237,7 +240,7 @@ const TipTapEditor = () => {
         {!canvas && (
           <EditorRightSidebar editor={editor} dynamicUpdate={dynamicUpdate} />
         )}
-        {canvas && <PropertiesPanel />}
+        {canvas && <CanvasRightSidebar />}
       </aside>
     </div>
   );

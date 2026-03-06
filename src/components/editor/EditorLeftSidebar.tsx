@@ -100,13 +100,13 @@ const ToolBtn = memo(
     <button
       onClick={onClick}
       title={label}
-      className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors ${
+      className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
         active
           ? "bg-accent text-foreground font-medium"
           : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
       }`}
     >
-      <Icon size={14} strokeWidth={1.8} />
+      <Icon size={16} strokeWidth={1.8} />
       <span className="flex-1 text-left">{label}</span>
     </button>
   ),
@@ -129,7 +129,7 @@ const CategoryBtn = memo(
     <button
       onClick={onClick}
       title={label}
-      className={`relative flex flex-col items-center justify-center gap-1 rounded-lg px-1 py-2.5 w-full transition-all duration-150 group ${
+      className={`relative flex flex-col items-center justify-center gap-1.5 rounded-lg px-1 py-3 w-full transition-all duration-150 group ${
         isActive
           ? "bg-accent text-foreground"
           : "text-muted-foreground hover:bg-accent/40 hover:text-foreground"
@@ -137,10 +137,10 @@ const CategoryBtn = memo(
     >
       {/* Active indicator bar on the right edge */}
       {isActive && (
-        <span className="absolute right-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-full bg-primary" />
+        <span className="absolute right-0 top-1/2 -translate-y-1/2 h-6 w-0.5 rounded-full bg-primary" />
       )}
-      <Icon size={16} strokeWidth={isActive ? 2 : 1.8} />
-      <span className="text-[9px] font-semibold tracking-wide leading-none">
+      <Icon size={19} strokeWidth={isActive ? 2 : 1.8} />
+      <span className="text-[10px] font-semibold tracking-wide leading-none">
         {label}
       </span>
     </button>
@@ -150,7 +150,7 @@ const CategoryBtn = memo(
 // ─── Panel: Section label ─────────────────────────────────────────────────────
 
 const PanelLabel = ({ children }: { children: React.ReactNode }) => (
-  <span className="px-2 pt-2 pb-0.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 block">
+  <span className="px-2 pt-2 pb-0.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 block">
     {children}
   </span>
 );
@@ -209,31 +209,31 @@ const TextPanel = memo(
         />
 
         <PanelLabel>Alignment</PanelLabel>
-        <div className="flex gap-1 px-2 py-1">
+        <div className="flex gap-1.5 px-2 py-1">
           {ALIGN_OPTIONS.map(({ icon: Icon, align }) => (
             <button
               key={align}
               onClick={() => editor.chain().focus().setTextAlign(align).run()}
               title={`Align ${align}`}
-              className={`flex-1 flex items-center justify-center rounded py-1.5 transition-colors ${
+              className={`flex-1 flex items-center justify-center rounded py-2 transition-colors ${
                 active.textAlign === align
                   ? "bg-accent text-foreground"
                   : "text-muted-foreground hover:bg-accent/50"
               }`}
             >
-              <Icon size={13} strokeWidth={1.8} />
+              <Icon size={15} strokeWidth={1.8} />
             </button>
           ))}
         </div>
 
         <PanelLabel>Text Color</PanelLabel>
-        <div className="flex flex-wrap gap-1.5 px-2 py-1">
+        <div className="flex flex-wrap gap-2 px-2 py-1">
           {COLORS.map((c) => (
             <button
               key={c}
               onClick={() => setColor(c)}
               title={c}
-              className="h-5 w-5 rounded-full transition-all"
+              className="h-6 w-6 rounded-full transition-all"
               style={{
                 background: c,
                 outline:
@@ -247,13 +247,13 @@ const TextPanel = memo(
         </div>
 
         <PanelLabel>Highlight</PanelLabel>
-        <div className="flex flex-wrap gap-1.5 px-2 py-1">
+        <div className="flex flex-wrap gap-2 px-2 py-1">
           {HIGHLIGHTS.map((c) => (
             <button
               key={c}
               onClick={() => setHighlight(c)}
               title={c}
-              className="h-5 w-5 rounded-full transition-all"
+              className="h-6 w-6 rounded-full transition-all"
               style={{
                 background: c,
                 outline:
@@ -415,7 +415,7 @@ const EditorLeftSidebar = ({
   return (
     <div className="editor-sidebar-left flex h-full border-r border-border bg-editor-surface">
       {/* ── Icon rail (left column) ── */}
-      <div className="flex w-16 flex-col items-center gap-1 border-r border-border/60 px-1.5 py-3">
+      <div className="flex w-20 flex-col items-center gap-1.5 border-r border-border/60 px-2 py-3">
         {CATEGORIES.map(({ key, icon, label }) => (
           <CategoryBtn
             key={key}
@@ -428,9 +428,9 @@ const EditorLeftSidebar = ({
       </div>
 
       {/* ── Tool panel (right column) ── */}
-      <div className="flex w-52 flex-col overflow-y-auto p-2">
+      <div className="flex w-60 flex-col overflow-y-auto p-2.5">
         {/* Panel title */}
-        <p className="mb-2 px-1 text-xs font-semibold text-foreground capitalize">
+        <p className="mb-2 px-1 text-sm font-semibold text-foreground capitalize">
           {activeCategory}
         </p>
         {renderPanel()}
