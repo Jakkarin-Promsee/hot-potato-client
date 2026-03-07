@@ -190,7 +190,12 @@ const TipTapEditor = () => {
   return (
     <div className="editor-layout">
       {/* ── TOP HEADER ── */}
-      <header className="editor-header">
+      <header
+        className="editor-header"
+        // To get back focus to editor content
+        onMouseDown={(e) => editor.chain().focus()} // Remove focus to UI
+        onMouseUp={(e) => editor.chain().focus()} // Get forcus back
+      >
         <EditorHeader
           editor={editor}
           dynamicUpdate={dynamicUpdate}
@@ -203,7 +208,12 @@ const TipTapEditor = () => {
       </header>
 
       {/* ── LEFT SIDEBAR ── */}
-      <aside className="editor-sidebar-left flex">
+      <aside
+        className="editor-sidebar-left flex"
+        // To get back focus to editor content
+        onMouseDown={(e) => editor.chain().focus()} // Remove focus to UI
+        onMouseUp={(e) => editor.chain().focus()} // Get forcus back
+      >
         {!canvas && editor && (
           <EditorLeftSidebar
             editor={editor}
@@ -235,7 +245,12 @@ const TipTapEditor = () => {
       </main>
 
       {/* ── RIGHT SIDEBAR ── */}
-      <aside className="editor-sidebar-right">
+      <aside
+        className="editor-sidebar-right"
+        // To get back focus to editor content
+        onMouseDown={(e) => editor.chain().focus()} // Remove focus to UI
+        onMouseUp={(e) => editor.chain().focus()} // Get forcus back
+      >
         {!canvas && (
           <EditorRightSidebar editor={editor} dynamicUpdate={dynamicUpdate} />
         )}
