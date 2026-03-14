@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useCallback } from "react";
 import {
   Line,
   FabricObject,
@@ -20,23 +20,6 @@ FabricObject.ownDefaults.originY = "top";
 export function useFabric() {
   const { canvasRef, saveStateRef } = useCanvasContext();
 
-  // Zoom handling
-  // useEffect(() => {
-  //   if (!canvas) return;
-
-  //   const scale = zoom / 100;
-
-  //   const centerPoint = new Point(ARTBOARD_WIDTH / 2, ARTBOARD_HEIGHT / 2);
-  //   canvas.zoomToPoint(centerPoint, zoom / 100);
-  //   canvas.setDimensions({
-  //     width: ARTBOARD_WIDTH * scale,
-  //     height: ARTBOARD_HEIGHT * scale,
-  //   });
-
-  //   canvas.setViewportTransform([scale, 0, 0, scale, 0, 0]);
-  //   canvas.requestRenderAll();
-  // }, [zoom, canvas]);
-
   const addShape = useCallback((type: string) => {
     if (!canvasRef.current) return;
 
@@ -44,13 +27,7 @@ export function useFabric() {
     const baseProps = { left: 100, top: 100, fill: "#1F1F1F" };
     switch (type) {
       case "rect":
-        obj = new Rect({
-          ...baseProps,
-          width: 120,
-          height: 80,
-          rx: 8,
-          ry: 8,
-        });
+        obj = new Rect({ ...baseProps, width: 120, height: 80, rx: 8, ry: 8 });
         break;
       case "circle":
         obj = new Circle({ ...baseProps, radius: 50 });
@@ -63,9 +40,9 @@ export function useFabric() {
         obj = new Polygon(points, { ...baseProps });
         break;
       }
-      case "line":
-        const points = [50, 50, 200, 200]; // [x1, y1, x2, y2]
-        obj = new Line(points as [number, number, number, number], {
+      case "line": {
+        const pts = [50, 50, 200, 200] as [number, number, number, number];
+        obj = new Line(pts, {
           ...baseProps,
           stroke: baseProps.fill,
           strokeWidth: 4,
@@ -73,11 +50,12 @@ export function useFabric() {
           originX: "left",
           originY: "top",
           hasBorders: false,
-          perPixelTargetFind: true, // Only select if clicking the actual line
+          perPixelTargetFind: true,
         });
         break;
+      }
       case "arrow": {
-        const arrow = new Group(
+        obj = new Group(
           [
             new Line([0, 25, 150, 25], {
               stroke: baseProps.fill,
@@ -95,7 +73,6 @@ export function useFabric() {
           ],
           { ...baseProps },
         );
-        obj = arrow;
         break;
       }
       case "diamond": {
@@ -114,7 +91,6 @@ export function useFabric() {
 
     canvasRef.current.add(obj);
     canvasRef.current.setActiveObject(obj);
-
     saveStateRef.current?.();
     canvasRef.current.requestRenderAll();
   }, []);
@@ -122,27 +98,49 @@ export function useFabric() {
   const addText = useCallback((preset: "heading" | "subheading" | "body") => {
     if (!canvasRef.current) return;
 
-    const sizes = { heading: 36, subheading: 24, body: 16 };
-    const weights = { heading: "bold", subheading: "600", body: "normal" };
-    const labels = {
-      heading: "Add a heading",
-      subheading: "Add a subheading",
-      body: "Add body text",
+    const config = {
+      heading: {
+        text: "Add a heading",
+        fontSize: 36,
+        fontWeight: "bold",
+        charSpacing: -20,
+        lineHeight: 1.1,
+      },
+      subheading: {
+        text: "Add a subheading",
+        fontSize: 24,
+        fontWeight: "600",
+        charSpacing: 0,
+        lineHeight: 1.2,
+      },
+      body: {
+        text: "Add body text",
+        fontSize: 16,
+        fontWeight: "normal",
+        charSpacing: 0,
+        lineHeight: 1.5,
+      },
     };
 
-    const text = new Textbox(labels[preset], {
+    const cfg = config[preset];
+
+    const text = new Textbox(cfg.text, {
       left: 100,
       top: 100,
       width: 300,
-      fontSize: sizes[preset],
-      fontWeight: weights[preset],
+      fontSize: cfg.fontSize,
+      fontWeight: cfg.fontWeight,
       fontFamily: "Inter",
       fill: "#1a1a2e",
+      charSpacing: cfg.charSpacing,
+      lineHeight: cfg.lineHeight,
+      underline: false,
+      linethrough: false,
+      textBackgroundColor: "",
     });
 
     canvasRef.current.add(text);
     canvasRef.current.setActiveObject(text);
-
     saveStateRef.current?.();
     canvasRef.current.requestRenderAll();
   }, []);
@@ -151,28 +149,19 @@ export function useFabric() {
     if (!canvasRef.current) return;
 
     const img = await FabricImage.fromURL(url, { crossOrigin: "anonymous" });
-
     const maxW = 300;
     const scale = maxW / (img.width || 300);
-    img.set({
-      left: 100,
-      top: 100,
-      scaleX: scale,
-      scaleY: scale,
-    });
+    img.set({ left: 100, top: 100, scaleX: scale, scaleY: scale });
 
     canvasRef.current.add(img);
     canvasRef.current.setActiveObject(img);
-
     saveStateRef.current?.();
     canvasRef.current.requestRenderAll();
   }, []);
 
   const toggleDrawing = useCallback((enable: boolean, brushSize = 4) => {
     if (!canvasRef.current) return;
-
     canvasRef.current.isDrawingMode = enable;
-
     if (enable) {
       canvasRef.current.freeDrawingBrush = new PencilBrush(canvasRef.current);
       canvasRef.current.freeDrawingBrush.width = brushSize;
@@ -192,7 +181,6 @@ export function useFabric() {
 
   const downloadCanvas = useCallback((format: "png" | "jpeg") => {
     if (!canvasRef.current) return;
-
     const dataURL = canvasRef.current.toDataURL({
       format,
       quality: 1,
@@ -206,84 +194,54 @@ export function useFabric() {
 
   const groupSelected = useCallback(() => {
     if (!canvasRef.current) return;
-
     const activeSelection = canvasRef.current.getActiveObject();
-
-    // 1. Verify it's actually an ActiveSelection instance
     if (!activeSelection || !(activeSelection instanceof ActiveSelection)) {
       console.warn("Please select multiple objects.");
       return;
     }
-
-    // 2. Create the Group manually from the selection's objects
     const objects = activeSelection.getObjects();
-    const group = new Group(objects, {
-      canvas: canvasRef.current,
-    });
-
-    // 3. Clear the selection and add the group
+    const group = new Group(objects, { canvas: canvasRef.current });
     canvasRef.current.discardActiveObject();
-
-    // Remove individual objects and add the group
     objects.forEach((obj) => canvasRef.current?.remove(obj));
     canvasRef.current.add(group);
-
     canvasRef.current.setActiveObject(group);
-
     saveStateRef.current?.();
     canvasRef.current.requestRenderAll();
   }, []);
 
   const ungroupSelected = useCallback(() => {
     if (!canvasRef.current) return;
-
     const group = canvasRef.current.getActiveObject();
-
-    // 1. Verify it's a Group instance
     if (!group || !(group instanceof Group)) {
       console.warn("Select a group to ungroup.");
       return;
     }
-
-    // 2. Extract objects and destroy the group container
     const objects = group.getObjects();
-    group.removeAll(); // Modern Fabric 7 way to release children
+    group.removeAll();
     canvasRef.current.remove(group);
-
-    // 3. Add objects back to canvas individually
     canvasRef.current.add(...objects);
-
-    // 4. Create a new ActiveSelection so they stay "highlighted"
     const activeSelection = new ActiveSelection(objects, {
       canvas: canvasRef.current,
     });
-
     canvasRef.current.setActiveObject(activeSelection);
-
     saveStateRef.current?.();
     canvasRef.current.requestRenderAll();
   }, []);
 
   const bringForward = useCallback(() => {
     if (!canvasRef.current) return;
-
     const active = canvasRef.current.getActiveObject();
     if (!active) return;
-
     canvasRef.current.bringObjectForward(active);
-
     saveStateRef.current?.();
     canvasRef.current.requestRenderAll();
   }, []);
 
   const sendBackward = useCallback(() => {
     if (!canvasRef.current) return;
-
     const active = canvasRef.current.getActiveObject();
     if (!active) return;
-
     canvasRef.current.sendObjectBackwards(active);
-
     saveStateRef.current?.();
     canvasRef.current.requestRenderAll();
   }, []);
