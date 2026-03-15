@@ -15,6 +15,7 @@ import {
   Ungroup,
   ChevronDown,
   Check,
+  Minus,
 } from "lucide-react";
 import {
   FabricImage,
@@ -23,11 +24,16 @@ import {
   Rect,
   Group as FabricGroup,
 } from "fabric";
-import { useFabric } from "@/hooks/useFabric";
+import {
+  useFabric,
+  RichLine,
+  type ArrowType,
+  type LineStyle,
+} from "@/hooks/useFabric";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type PanelMode = "none" | "text" | "shape" | "image" | "multi";
+type PanelMode = "none" | "text" | "shape" | "image" | "richLine" | "multi";
 
 interface TextAttrs {
   fontFamily: string;
@@ -100,10 +106,13 @@ const MODE_LABELS: Record<PanelMode, string> = {
   text: "Text",
   shape: "Shape",
   image: "Image",
+  richLine: "Line / Connector",
   multi: "Multiple items",
 };
 
-// ─── Shared primitives ────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared primitives
+// ─────────────────────────────────────────────────────────────────────────────
 
 const Section = memo(
   ({ title, children }: { title: string; children: React.ReactNode }) => (
@@ -172,15 +181,9 @@ const NavButton = memo(
   ),
 );
 
-// ─── FontDropdown ─────────────────────────────────────────────────────────────
-//
-// Replaces native <select> which has a critical bug: the native dropdown closes
-// on mouseup, but our sidebar sets isSidebarInteracting.current on mousedown,
-// which fires during the first click to open — causing the dropdown to immediately
-// close before the user can select an option.
-//
-// This custom dropdown is built entirely from <button> elements so it survives
-// the sidebar's mousedown/mouseup guard cycle without issue.
+// ─────────────────────────────────────────────────────────────────────────────
+// FontDropdown  (custom — avoids native <select> mousedown bug)
+// ─────────────────────────────────────────────────────────────────────────────
 
 const FontDropdown = memo(
   ({
@@ -193,27 +196,20 @@ const FontDropdown = memo(
     onCommit: (v: string) => void;
   }) => {
     const [open, setOpen] = useState(false);
-    const containerRef = useRef<HTMLDivElement>(null);
+    const ref = useRef<HTMLDivElement>(null);
 
-    // Close on outside click
     useEffect(() => {
       if (!open) return;
       const handler = (e: MouseEvent) => {
-        if (
-          containerRef.current &&
-          !containerRef.current.contains(e.target as Node)
-        ) {
+        if (ref.current && !ref.current.contains(e.target as Node))
           setOpen(false);
-        }
       };
-      // Use capture so we catch clicks before they bubble
       document.addEventListener("mousedown", handler, true);
       return () => document.removeEventListener("mousedown", handler, true);
     }, [open]);
 
     return (
-      <div ref={containerRef} className="relative w-36">
-        {/* Trigger button */}
+      <div ref={ref} className="relative w-36">
         <button
           onClick={() => setOpen((o) => !o)}
           className="flex w-full items-center justify-between rounded border border-border bg-background px-2 py-1 text-xs outline-none hover:border-primary/50 focus:ring-1 focus:ring-primary/40"
@@ -227,18 +223,14 @@ const FontDropdown = memo(
             }`}
           />
         </button>
-
-        {/* Dropdown list — rendered in a portal-like absolute positioned layer */}
         {open && (
           <div className="absolute left-0 top-full z-50 mt-1 w-full rounded-md border border-border bg-background shadow-lg overflow-hidden">
             <div className="max-h-48 overflow-y-auto py-1">
               {FONTS.map((f) => (
                 <button
                   key={f}
-                  // Use onMouseDown instead of onClick so the selection fires
-                  // before the outside-click handler can close the dropdown
                   onMouseDown={(e) => {
-                    e.preventDefault(); // prevent blur on any focused input
+                    e.preventDefault();
                     onChangeLive(f);
                     onCommit(f);
                     setOpen(false);
@@ -264,12 +256,9 @@ const FontDropdown = memo(
   },
 );
 
-// ─── SliderNumber ─────────────────────────────────────────────────────────────
-//
-// Combined control: left = range slider, right = number input.
-// Both share the same live/commit pair:
-//   - slider onChange → live, mouseUp → commit
-//   - number onChange → live, onBlur  → commit
+// ─────────────────────────────────────────────────────────────────────────────
+// SliderNumber  (slider + number input, shared live/commit)
+// ─────────────────────────────────────────────────────────────────────────────
 
 const SliderNumber = memo(
   ({
@@ -296,7 +285,6 @@ const SliderNumber = memo(
         <span className="text-xs text-muted-foreground">{label}</span>
       </div>
       <div className="flex items-center gap-2">
-        {/* Range slider — left half */}
         <input
           type="range"
           min={min}
@@ -312,7 +300,6 @@ const SliderNumber = memo(
           }
           className="flex-1 accent-primary h-1.5"
         />
-        {/* Number input — right half */}
         <div className="flex items-center gap-0.5 shrink-0">
           <input
             type="number"
@@ -333,7 +320,9 @@ const SliderNumber = memo(
   ),
 );
 
-// ─── SliderRow (opacity only — already full-width, kept as-is) ────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// SliderRow  (opacity)
+// ─────────────────────────────────────────────────────────────────────────────
 
 const SliderRow = memo(
   ({
@@ -372,14 +361,9 @@ const SliderRow = memo(
   ),
 );
 
-// ─── ColorRow ─────────────────────────────────────────────────────────────────
-//
-// Transparent swatch is now ALWAYS shown (removed the allowTransparent prop —
-// every color in the app can be transparent/none).
-//
-// Picker:   onChange → onChangeLive  |  onBlur → onCommit
-// Swatches: onClick  → onCommit  (discrete single click)
-// Transparent: onClick → onCommit("")
+// ─────────────────────────────────────────────────────────────────────────────
+// ColorRow
+// ─────────────────────────────────────────────────────────────────────────────
 
 const ColorRow = memo(
   ({
@@ -398,7 +382,6 @@ const ColorRow = memo(
         {label}
       </span>
       <div className="flex flex-wrap items-center gap-1.5">
-        {/* Native color picker — live while dragging, commit on blur */}
         <input
           type="color"
           value={value || "#000000"}
@@ -406,8 +389,6 @@ const ColorRow = memo(
           onBlur={(e) => onCommit(e.target.value)}
           className="h-7 w-7 cursor-pointer rounded border border-border"
         />
-
-        {/* Transparent / none swatch — always visible */}
         <button
           onClick={() => onCommit("")}
           title="None / Transparent"
@@ -419,8 +400,6 @@ const ColorRow = memo(
               "repeating-conic-gradient(#aaa 0% 25%, white 0% 50%) 0 0 / 8px 8px",
           }}
         />
-
-        {/* Preset swatches — discrete clicks, commit immediately */}
         {PRESET_COLORS.map((c) => (
           <button
             key={c}
@@ -436,7 +415,9 @@ const ColorRow = memo(
   ),
 );
 
-// ─── Panel components ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// NonePanel
+// ─────────────────────────────────────────────────────────────────────────────
 
 const NonePanel = memo(() => (
   <Section title="Canvas">
@@ -445,6 +426,10 @@ const NonePanel = memo(() => (
     </p>
   </Section>
 ));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LayerSection
+// ─────────────────────────────────────────────────────────────────────────────
 
 const LayerSection = memo(
   ({
@@ -467,7 +452,9 @@ const LayerSection = memo(
   ),
 );
 
-// ─── Rich TextPanel ───────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// TextPanel
+// ─────────────────────────────────────────────────────────────────────────────
 
 const TextPanel = memo(
   ({
@@ -488,16 +475,7 @@ const TextPanel = memo(
 
     return (
       <>
-        {/* ── Font ── */}
         <Section title="Font">
-          {/*
-           * Font family — custom dropdown (not native <select>).
-           * Native <select> breaks because the sidebar's onMouseDown guard fires
-           * on the first click (to open), which the browser treats as the start
-           * of a drag, closing the native dropdown on mouseup before the user
-           * can choose. The custom dropdown uses onMouseDown on each option
-           * with e.preventDefault() to avoid this.
-           */}
           <Row label="Family">
             <FontDropdown
               value={attrs.fontFamily}
@@ -505,8 +483,6 @@ const TextPanel = memo(
               onCommit={(v) => onCommit({ fontFamily: v })}
             />
           </Row>
-
-          {/* Font size — slider + number input */}
           <SliderNumber
             label="Size"
             value={attrs.fontSize}
@@ -517,8 +493,6 @@ const TextPanel = memo(
             onLive={(v) => onLive({ fontSize: v })}
             onCommit={(v) => onCommit({ fontSize: v })}
           />
-
-          {/* Style toggles — discrete clicks, commit immediately */}
           <Row label="Style">
             <IconBtn
               icon={Bold}
@@ -553,8 +527,6 @@ const TextPanel = memo(
               onClick={() => onCommit({ linethrough: !attrs.linethrough })}
             />
           </Row>
-
-          {/* Alignment — discrete clicks */}
           <Row label="Align">
             <IconBtn
               icon={AlignLeft}
@@ -581,35 +553,27 @@ const TextPanel = memo(
               onClick={() => onCommit({ textAlign: "justify" })}
             />
           </Row>
-
-          {/* Transform — discrete clicks */}
           <Row label="Transform">
             <div className="flex items-center gap-1">
-              {[
-                { value: "none" as const, label: "Aa" },
-                { value: "uppercase" as const, label: "AA" },
-                { value: "lowercase" as const, label: "aa" },
-              ].map(({ value, label }) => (
+              {(["none", "uppercase", "lowercase"] as const).map((val) => (
                 <button
-                  key={value}
-                  title={value}
-                  onClick={() => onCommit({ textTransform: value })}
+                  key={val}
+                  title={val}
+                  onClick={() => onCommit({ textTransform: val })}
                   className={`px-2 py-1 rounded text-[10px] font-semibold transition-colors ${
-                    attrs.textTransform === value
+                    attrs.textTransform === val
                       ? "bg-accent text-foreground"
                       : "text-muted-foreground hover:bg-accent/50"
                   }`}
                 >
-                  {label}
+                  {val === "none" ? "Aa" : val === "uppercase" ? "AA" : "aa"}
                 </button>
               ))}
             </div>
           </Row>
         </Section>
 
-        {/* ── Spacing ── */}
         <Section title="Spacing">
-          {/* Line height — slider + number */}
           <SliderNumber
             label="Line Height"
             value={attrs.lineHeight}
@@ -619,8 +583,6 @@ const TextPanel = memo(
             onLive={(v) => onLive({ lineHeight: v })}
             onCommit={(v) => onCommit({ lineHeight: v })}
           />
-
-          {/* Letter spacing — slider + number */}
           <SliderNumber
             label="Letter Spacing"
             value={attrs.charSpacing}
@@ -632,7 +594,6 @@ const TextPanel = memo(
           />
         </Section>
 
-        {/* ── Color ── */}
         <Section title="Color">
           <ColorRow
             label="Text Color"
@@ -648,7 +609,6 @@ const TextPanel = memo(
           />
         </Section>
 
-        {/* ── Text Shadow ── */}
         <Section title="Text Shadow">
           <ColorRow
             label="Shadow Color"
@@ -674,10 +634,8 @@ const TextPanel = memo(
               })
             }
           />
-
           {attrs.shadowColor && (
             <>
-              {/* Shadow blur — slider + number */}
               <SliderNumber
                 label="Blur"
                 value={attrs.shadowBlur}
@@ -706,8 +664,6 @@ const TextPanel = memo(
                   })
                 }
               />
-
-              {/* Shadow offset X / Y — two SliderNumbers */}
               <SliderNumber
                 label="Offset X"
                 value={attrs.shadowOffsetX}
@@ -772,7 +728,9 @@ const TextPanel = memo(
   },
 );
 
-// ─── ShapePanel ───────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// ShapePanel
+// ─────────────────────────────────────────────────────────────────────────────
 
 const ShapePanel = memo(
   ({
@@ -802,7 +760,6 @@ const ShapePanel = memo(
             onCommit({ stroke: v, strokeWidth: attrs.strokeWidth || 2 })
           }
         />
-        {/* Stroke width — slider + number */}
         <SliderNumber
           label="Stroke Width"
           value={attrs.strokeWidth}
@@ -830,7 +787,9 @@ const ShapePanel = memo(
   ),
 );
 
-// ─── MixedPanel ───────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// MixedPanel
+// ─────────────────────────────────────────────────────────────────────────────
 
 const MixedPanel = memo(
   ({
@@ -875,7 +834,9 @@ const MixedPanel = memo(
   ),
 );
 
-// ─── ImagePanel ───────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// ImagePanel
+// ─────────────────────────────────────────────────────────────────────────────
 
 const ImagePanel = memo(
   ({
@@ -883,11 +844,13 @@ const ImagePanel = memo(
     canvas,
     saveStateRef,
     forceUpdate,
+    tick, // 👈 added to break memo bailout
   }: {
     obj: FabricImage;
     canvas: any;
     saveStateRef: React.RefObject<(() => void) | null>;
     forceUpdate: () => void;
+    tick: number;
   }) => (
     <Section title="Image">
       <div className="mb-3 flex flex-col gap-1.5">
@@ -928,7 +891,6 @@ const ImagePanel = memo(
           Reset Crop
         </button>
       </div>
-
       <span className="mb-1.5 block text-xs text-muted-foreground">
         Filters
       </span>
@@ -975,12 +937,243 @@ const ImagePanel = memo(
   ),
 );
 
-// ─── Main sidebar ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// RichLinePanel
+// ─────────────────────────────────────────────────────────────────────────────
+
+const LINE_STYLES: { value: LineStyle; label: string; preview: string }[] = [
+  { value: "solid", label: "Solid", preview: "──────" },
+  { value: "dashed", label: "Dashed", preview: "── ── ──" },
+  { value: "dotted", label: "Dotted", preview: "·  ·  ·  ·" },
+];
+
+const ARROW_TYPES: { value: ArrowType; label: string; symbol: string }[] = [
+  { value: "none", label: "None", symbol: "○" },
+  { value: "arrow", label: "Arrow", symbol: "▶" },
+  { value: "open", label: "Open", symbol: "›" },
+  { value: "circle", label: "Circle", symbol: "●" },
+  { value: "square", label: "Square", symbol: "■" },
+  { value: "diamond", label: "Diamond", symbol: "◆" },
+];
+
+const RichLinePanel = memo(
+  ({
+    obj,
+    canvas,
+    saveStateRef,
+    forceUpdate,
+    tick, // 👈 added to break memo bailout
+  }: {
+    obj: RichLine;
+    canvas: any;
+    saveStateRef: React.RefObject<(() => void) | null>;
+    forceUpdate: () => void;
+    tick: number;
+  }) => {
+    // Now re-reads fresh config on every tick change
+    const cfg = obj.getConfig();
+
+    const commit = () => {
+      canvas?.renderAll();
+      saveStateRef.current?.();
+      forceUpdate();
+    };
+
+    return (
+      <>
+        {/* ── Line style ── */}
+        <Section title="Line Style">
+          <div className="flex flex-col gap-1">
+            {LINE_STYLES.map(({ value, label, preview }) => (
+              <button
+                key={value}
+                onClick={() => {
+                  obj.setLineStyle(value);
+                  commit();
+                }}
+                className={`flex items-center justify-between rounded-md px-3 py-2 text-xs transition-colors ${
+                  cfg.lineStyle === value
+                    ? "bg-accent text-foreground font-medium"
+                    : "text-muted-foreground hover:bg-accent/50"
+                }`}
+              >
+                <span>{label}</span>
+                <span className="font-mono text-[11px] tracking-widest opacity-60">
+                  {preview}
+                </span>
+              </button>
+            ))}
+          </div>
+        </Section>
+
+        {/* ── Source arrowhead ── */}
+        <Section title="Start Endpoint">
+          <div className="grid grid-cols-3 gap-1.5">
+            {ARROW_TYPES.map(({ value, label, symbol }) => (
+              <button
+                key={value}
+                onClick={() => {
+                  obj.setSrcArrow(value);
+                  commit();
+                }}
+                title={label}
+                className={`flex flex-col items-center gap-1 rounded-lg py-2.5 text-xs transition-colors ${
+                  cfg.srcArrow === value
+                    ? "bg-accent text-foreground ring-1 ring-primary/40"
+                    : "bg-accent/30 text-muted-foreground hover:bg-accent/60"
+                }`}
+              >
+                <span className="text-sm leading-none">{symbol}</span>
+                <span className="text-[9px]">{label}</span>
+              </button>
+            ))}
+          </div>
+        </Section>
+
+        {/* ── Destination arrowhead ── */}
+        <Section title="End Endpoint">
+          <div className="grid grid-cols-3 gap-1.5">
+            {ARROW_TYPES.map(({ value, label, symbol }) => (
+              <button
+                key={value}
+                onClick={() => {
+                  obj.setDstArrow(value);
+                  commit();
+                }}
+                title={label}
+                className={`flex flex-col items-center gap-1 rounded-lg py-2.5 text-xs transition-colors ${
+                  cfg.dstArrow === value
+                    ? "bg-accent text-foreground ring-1 ring-primary/40"
+                    : "bg-accent/30 text-muted-foreground hover:bg-accent/60"
+                }`}
+              >
+                <span className="text-sm leading-none">{symbol}</span>
+                <span className="text-[9px]">{label}</span>
+              </button>
+            ))}
+          </div>
+        </Section>
+
+        {/* ── Color ── */}
+        <Section title="Color">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <input
+              type="color"
+              value={cfg.stroke || "#000000"}
+              onChange={(e) => {
+                obj.setRichStroke(e.target.value);
+                canvas?.renderAll();
+                forceUpdate();
+              }}
+              onBlur={(e) => {
+                obj.setRichStroke(e.target.value);
+                commit();
+              }}
+              className="h-7 w-7 cursor-pointer rounded border border-border"
+            />
+            {PRESET_COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => {
+                  obj.setRichStroke(c);
+                  commit();
+                }}
+                className={`h-5 w-5 rounded-full border-2 transition-transform shrink-0 ${
+                  cfg.stroke === c
+                    ? "border-primary scale-125"
+                    : "border-transparent"
+                }`}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+        </Section>
+
+        {/* ── Stroke width ── */}
+        <Section title="Stroke Width">
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={1}
+              max={20}
+              step={1}
+              value={cfg.strokeWidth ?? 2}
+              onChange={(e) => {
+                obj.setRichStrokeWidth(Number(e.target.value));
+                canvas?.renderAll();
+                forceUpdate();
+              }}
+              onMouseUp={(e) => {
+                obj.setRichStrokeWidth(
+                  Number((e.target as HTMLInputElement).value),
+                );
+                commit();
+              }}
+              className="flex-1 accent-primary h-1.5"
+            />
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={cfg.strokeWidth ?? 2}
+              onChange={(e) => {
+                obj.setRichStrokeWidth(Number(e.target.value));
+                canvas?.renderAll();
+                forceUpdate();
+              }}
+              onBlur={(e) => {
+                obj.setRichStrokeWidth(Number(e.target.value));
+                commit();
+              }}
+              className="w-14 rounded border border-border bg-background px-1.5 py-1 text-xs outline-none focus:ring-1 focus:ring-primary/40 text-right"
+            />
+            <span className="text-[10px] text-muted-foreground/60 shrink-0">
+              px
+            </span>
+          </div>
+        </Section>
+
+        {/* ── Endpoint coords (read-only) ── */}
+        <Section title="Endpoints">
+          <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+            <div className="rounded bg-accent/30 px-2 py-1.5">
+              <span className="block text-[9px] uppercase tracking-wider mb-0.5 opacity-60">
+                Start
+              </span>
+              <span>
+                x: {Math.round(cfg.x1)} y: {Math.round(cfg.y1)}
+              </span>
+            </div>
+            <div className="rounded bg-accent/30 px-2 py-1.5">
+              <span className="block text-[9px] uppercase tracking-wider mb-0.5 opacity-60">
+                End
+              </span>
+              <span>
+                x: {Math.round(cfg.x2)} y: {Math.round(cfg.y2)}
+              </span>
+            </div>
+          </div>
+          <p className="mt-2 text-[10px] text-muted-foreground/50 leading-relaxed">
+            Drag the{" "}
+            <span className="text-primary font-medium">purple handles</span> on
+            the canvas to reposition endpoints.
+          </p>
+        </Section>
+      </>
+    );
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CanvasRightSidebar  (main export)
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function CanvasRightSidebar() {
   const { canvas, selectedObjects, saveStateRef, isSidebarInteracting } =
     useCanvasContext();
-  const [, setTick] = useState(0);
+
+  // 👇 tick is now exposed so it can be passed down to memo'd panels
+  const [tick, setTick] = useState(0);
   const forceUpdate = useCallback(() => setTick((n) => n + 1), []);
 
   const obj = selectedObjects.length === 1 ? selectedObjects[0] : null;
@@ -1004,19 +1197,21 @@ export default function CanvasRightSidebar() {
   }, [canvas, forceUpdate]);
 
   useEffect(() => {
-    const onMouseUp = () => {
+    const onUp = () => {
       isSidebarInteracting.current = false;
     };
-    window.addEventListener("mouseup", onMouseUp);
-    return () => window.removeEventListener("mouseup", onMouseUp);
+    window.addEventListener("mouseup", onUp);
+    return () => window.removeEventListener("mouseup", onUp);
   }, [isSidebarInteracting]);
 
-  // ── Type helpers ───────────────────────────────────────────────────────────
+  // ── Type helpers ──────────────────────────────────────────────────────────
+
   const isText =
     obj &&
     (obj.type === "i-text" || obj.type === "text" || obj.type === "textbox");
   const isImage = obj && obj.type === "image";
-  const isShape = obj && !isText && !isImage;
+  const isRichLine = obj instanceof RichLine;
+  const isShape = obj && !isText && !isImage && !isRichLine;
 
   const isMulti = selectedObjects.length > 1;
   const isGroup =
@@ -1052,15 +1247,11 @@ export default function CanvasRightSidebar() {
       ? "text"
       : isImage
       ? "image"
+      : isRichLine
+      ? "richLine"
       : "shape";
 
-  // ── Update primitives ──────────────────────────────────────────────────────
-  //
-  // THE RULE:
-  //   applyLive / applyAllLive    →  mutate canvas only, NEVER call saveStateRef
-  //   applyCommit / applyAllCommit →  mutate canvas THEN call saveStateRef
-  //
-  // Prevents Tiptap's save from blurring the Fabric canvas mid-interaction.
+  // ── Update primitives ─────────────────────────────────────────────────────
 
   const applyLive = useCallback(
     (props: Record<string, any>) => {
@@ -1115,7 +1306,8 @@ export default function CanvasRightSidebar() {
     ],
   );
 
-  // ── Attr snapshots ─────────────────────────────────────────────────────────
+  // ── Attr snapshots ────────────────────────────────────────────────────────
+
   const shadowObj = isText ? (obj as any).shadow : null;
 
   const textAttrs: TextAttrs = isText
@@ -1229,6 +1421,8 @@ export default function CanvasRightSidebar() {
     ? Math.round((firstActive.opacity ?? 1) * 100)
     : 100;
 
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <div
       className="flex h-full flex-col border-l border-border bg-editor-surface"
@@ -1236,7 +1430,7 @@ export default function CanvasRightSidebar() {
         isSidebarInteracting.current = true;
       }}
     >
-      {/* ── Sticky header ── */}
+      {/* Sticky header */}
       <div className="sticky top-0 z-10 border-b border-border/50 bg-editor-surface px-4 py-3">
         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
           Properties
@@ -1250,24 +1444,27 @@ export default function CanvasRightSidebar() {
         </p>
       </div>
 
-      {/* ── Scrollable panel ── */}
+      {/* Scrollable panel */}
       <div className="flex-1 overflow-y-auto p-4">
         {mode === "none" && <NonePanel />}
 
         {/* ── Single object ── */}
         {obj && mode !== "multi" && (
           <>
-            <Section title="Opacity">
-              <SliderRow
-                label="Opacity"
-                value={opacity}
-                min={0}
-                max={100}
-                display={`${opacity}%`}
-                onChange={(v) => applyLive({ opacity: v / 100 })}
-                onCommit={() => saveStateRef.current?.()}
-              />
-            </Section>
+            {/* Opacity — not shown for RichLine (it has its own stroke controls) */}
+            {mode !== "richLine" && (
+              <Section title="Opacity">
+                <SliderRow
+                  label="Opacity"
+                  value={opacity}
+                  min={0}
+                  max={100}
+                  display={`${opacity}%`}
+                  onChange={(v) => applyLive({ opacity: v / 100 })}
+                  onCommit={() => saveStateRef.current?.()}
+                />
+              </Section>
+            )}
 
             <LayerSection
               bringForward={bringForward}
@@ -1294,6 +1491,16 @@ export default function CanvasRightSidebar() {
                 canvas={canvas}
                 saveStateRef={saveStateRef}
                 forceUpdate={forceUpdate}
+                tick={tick} // 👈 passed down
+              />
+            )}
+            {isRichLine && (
+              <RichLinePanel
+                obj={obj as RichLine}
+                canvas={canvas}
+                saveStateRef={saveStateRef}
+                forceUpdate={forceUpdate}
+                tick={tick} // 👈 passed down
               />
             )}
           </>

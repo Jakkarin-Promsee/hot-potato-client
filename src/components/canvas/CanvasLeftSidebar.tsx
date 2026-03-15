@@ -10,9 +10,11 @@ import {
   Circle as LucideCircle,
   Triangle,
   Star,
-  Minus,
   Diamond,
+  Minus,
   ArrowRight,
+  ArrowLeftRight,
+  Spline,
   Heading1,
   Heading2,
   AlignLeft,
@@ -26,7 +28,7 @@ import {
   Shadow,
   Textbox,
 } from "fabric";
-import { useFabric } from "@/hooks/useFabric";
+import { useFabric, type LineStyle, type ArrowType } from "@/hooks/useFabric";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -47,9 +49,82 @@ const SHAPES = [
   { type: "circle", icon: LucideCircle, label: "Circle" },
   { type: "triangle", icon: Triangle, label: "Triangle" },
   { type: "star", icon: Star, label: "Star" },
-  { type: "line", icon: Minus, label: "Line" },
-  { type: "arrow", icon: ArrowRight, label: "Arrow" },
   { type: "diamond", icon: Diamond, label: "Diamond" },
+];
+
+// Line preset cards shown in the Connectors subsection
+interface ConnectorPreset {
+  label: string;
+  icon: React.ElementType;
+  lineStyle: LineStyle;
+  srcArrow: ArrowType;
+  dstArrow: ArrowType;
+}
+
+const CONNECTOR_PRESETS: ConnectorPreset[] = [
+  {
+    label: "Line",
+    icon: Minus,
+    lineStyle: "solid",
+    srcArrow: "none",
+    dstArrow: "none",
+  },
+  {
+    label: "Arrow",
+    icon: ArrowRight,
+    lineStyle: "solid",
+    srcArrow: "none",
+    dstArrow: "arrow",
+  },
+  {
+    label: "Double",
+    icon: ArrowLeftRight,
+    lineStyle: "solid",
+    srcArrow: "arrow",
+    dstArrow: "arrow",
+  },
+  {
+    label: "Dashed",
+    icon: Spline,
+    lineStyle: "dashed",
+    srcArrow: "none",
+    dstArrow: "arrow",
+  },
+  {
+    label: "Dotted",
+    icon: Spline,
+    lineStyle: "dotted",
+    srcArrow: "none",
+    dstArrow: "arrow",
+  },
+  {
+    label: "Open Arrow",
+    icon: ArrowRight,
+    lineStyle: "solid",
+    srcArrow: "none",
+    dstArrow: "open",
+  },
+  {
+    label: "Circle End",
+    icon: ArrowRight,
+    lineStyle: "solid",
+    srcArrow: "none",
+    dstArrow: "circle",
+  },
+  {
+    label: "Diamond End",
+    icon: ArrowRight,
+    lineStyle: "solid",
+    srcArrow: "none",
+    dstArrow: "diamond",
+  },
+  {
+    label: "Square End",
+    icon: ArrowRight,
+    lineStyle: "solid",
+    srcArrow: "none",
+    dstArrow: "square",
+  },
 ];
 
 const BRUSH_COLORS = [
@@ -200,7 +275,7 @@ const TEMPLATES = [
       {
         type: "rect",
         left: 0,
-        top: 0,
+        top: -50,
         width: 800,
         height: 600,
         fill: "#0984e3",
@@ -313,6 +388,98 @@ const ToolBtn = memo(
   ),
 );
 
+// ─── ConnectorPreviewLine ─────────────────────────────────────────────────────
+// Small SVG that renders a live preview of the connector style/arrowheads.
+
+const ConnectorPreview = memo(
+  ({
+    lineStyle,
+    srcArrow,
+    dstArrow,
+  }: Pick<ConnectorPreset, "lineStyle" | "srcArrow" | "dstArrow">) => {
+    const dash =
+      lineStyle === "dashed"
+        ? "5,3"
+        : lineStyle === "dotted"
+        ? "1.5,3"
+        : undefined;
+
+    const arrowHead = (type: ArrowType, flip: boolean) => {
+      if (type === "none") return null;
+      const transform = flip ? "scale(-1,1) translate(-28,0)" : "";
+      switch (type) {
+        case "arrow":
+          return (
+            <polygon
+              points="28,5 20,2 22,5 20,8"
+              fill="currentColor"
+              transform={transform}
+            />
+          );
+        case "open":
+          return (
+            <polyline
+              points="26,2 28,5 26,8"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              transform={transform}
+            />
+          );
+        case "circle":
+          return (
+            <circle
+              cx="26"
+              cy="5"
+              r="2.5"
+              fill="currentColor"
+              transform={transform}
+            />
+          );
+        case "square":
+          return (
+            <rect
+              x="24"
+              y="3"
+              width="4"
+              height="4"
+              fill="currentColor"
+              transform={transform}
+            />
+          );
+        case "diamond":
+          return (
+            <polygon
+              points="28,5 25,3 22,5 25,7"
+              fill="currentColor"
+              transform={transform}
+            />
+          );
+        default:
+          return null;
+      }
+    };
+
+    return (
+      <svg viewBox="0 0 56 10" className="w-full h-4 text-muted-foreground">
+        <line
+          x1={srcArrow !== "none" ? 6 : 2}
+          y1="5"
+          x2={dstArrow !== "none" ? 50 : 54}
+          y2="5"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeDasharray={dash}
+          strokeLinecap="round"
+        />
+        {arrowHead(dstArrow, false)}
+        {/* src arrow: drawn at left (x=0), flip so it points left */}
+        <g transform="translate(0,0)">{arrowHead(srcArrow, true)}</g>
+      </svg>
+    );
+  },
+);
+
 // ─── Panels ───────────────────────────────────────────────────────────────────
 
 const TemplatesPanel = memo(
@@ -346,28 +513,72 @@ const TemplatesPanel = memo(
 );
 
 const ElementsPanel = memo(
-  ({ search, onAdd }: { search: string; onAdd: (type: string) => void }) => {
-    const filtered = SHAPES.filter((s) =>
+  ({
+    search,
+    onAddShape,
+    onAddConnector,
+  }: {
+    search: string;
+    onAddShape: (type: string) => void;
+    onAddConnector: (preset: ConnectorPreset) => void;
+  }) => {
+    const filteredShapes = SHAPES.filter((s) =>
       s.label.toLowerCase().includes(search.toLowerCase()),
     );
+    const filteredConnectors = CONNECTOR_PRESETS.filter((c) =>
+      c.label.toLowerCase().includes(search.toLowerCase()),
+    );
+
     return (
       <div className="flex flex-col gap-1">
-        <PanelLabel>Shapes</PanelLabel>
-        <div className="grid grid-cols-3 gap-1.5 px-1">
-          {filtered.map(({ type, icon: Icon, label }) => (
-            <button
-              key={type}
-              onClick={() => onAdd(type)}
-              className="bg-accent/40 rounded-lg p-3 flex flex-col items-center gap-1.5 hover:bg-accent transition-colors group"
-            >
-              <Icon
-                size={22}
-                className="text-muted-foreground group-hover:text-foreground"
-              />
-              <span className="text-[10px] text-muted-foreground">{label}</span>
-            </button>
-          ))}
-        </div>
+        {/* Shapes */}
+        {filteredShapes.length > 0 && (
+          <>
+            <PanelLabel>Shapes</PanelLabel>
+            <div className="grid grid-cols-3 gap-1.5 px-1">
+              {filteredShapes.map(({ type, icon: Icon, label }) => (
+                <button
+                  key={type}
+                  onClick={() => onAddShape(type)}
+                  className="bg-accent/40 rounded-lg p-3 flex flex-col items-center gap-1.5 hover:bg-accent transition-colors group"
+                >
+                  <Icon
+                    size={22}
+                    className="text-muted-foreground group-hover:text-foreground"
+                  />
+                  <span className="text-[10px] text-muted-foreground">
+                    {label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Connectors */}
+        {filteredConnectors.length > 0 && (
+          <>
+            <PanelLabel>Connectors</PanelLabel>
+            <div className="grid grid-cols-2 gap-1.5 px-1">
+              {filteredConnectors.map((preset) => (
+                <button
+                  key={preset.label}
+                  onClick={() => onAddConnector(preset)}
+                  className="bg-accent/40 rounded-lg px-3 py-2.5 flex flex-col gap-2 hover:bg-accent transition-colors group text-left"
+                >
+                  <ConnectorPreview
+                    lineStyle={preset.lineStyle}
+                    srcArrow={preset.srcArrow}
+                    dstArrow={preset.dstArrow}
+                  />
+                  <span className="text-[10px] text-muted-foreground group-hover:text-foreground leading-none">
+                    {preset.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     );
   },
@@ -503,6 +714,7 @@ export default function CanvasLeftSidebar() {
 
   const {
     addShape,
+    addRichLine,
     addImage,
     addText,
     toggleDrawing,
@@ -510,8 +722,9 @@ export default function CanvasLeftSidebar() {
     setBrushColor,
   } = useFabric();
 
-  // Default to first category if none selected
   const activeCategory = selectedCategory ?? "templates";
+
+  // ── Template apply ────────────────────────────────────────────────────────
 
   const applyTemplate = (template: (typeof TEMPLATES)[0]) => {
     if (!canvas) return;
@@ -536,6 +749,18 @@ export default function CanvasLeftSidebar() {
     canvas.renderAll();
   };
 
+  // ── Connector ─────────────────────────────────────────────────────────────
+
+  const handleAddConnector = (preset: ConnectorPreset) => {
+    addRichLine({
+      lineStyle: preset.lineStyle,
+      srcArrow: preset.srcArrow,
+      dstArrow: preset.dstArrow,
+    });
+  };
+
+  // ── Upload ────────────────────────────────────────────────────────────────
+
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -545,6 +770,8 @@ export default function CanvasLeftSidebar() {
     };
     reader.readAsDataURL(file);
   };
+
+  // ── Draw mode ─────────────────────────────────────────────────────────────
 
   const toggleDraw = () => {
     const next = !isDrawing;
@@ -556,17 +783,26 @@ export default function CanvasLeftSidebar() {
     setBrushSizeLocal(size);
     setBrushSize(size);
   };
+
   const handleBrushColor = (color: string) => {
     setBrushColorLocal(color);
     setBrushColor(color);
   };
+
+  // ── Panel renderer ────────────────────────────────────────────────────────
 
   const renderPanel = () => {
     switch (activeCategory) {
       case "templates":
         return <TemplatesPanel search={search} onApply={applyTemplate} />;
       case "elements":
-        return <ElementsPanel search={search} onAdd={addShape} />;
+        return (
+          <ElementsPanel
+            search={search}
+            onAddShape={addShape}
+            onAddConnector={handleAddConnector}
+          />
+        );
       case "text":
         return <TextPanel onAdd={addText} />;
       case "uploads":
