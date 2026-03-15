@@ -172,8 +172,9 @@ function useFabricSetup({
         console.error("load error:", e); // check what error comes out!
       }
     };
-
-    loadCanvas();
+    setTimeout(() => {
+      loadCanvas();
+    }, 1); // prevent race condition
   }, [canvasData]);
 
   //   useEffect(() => {

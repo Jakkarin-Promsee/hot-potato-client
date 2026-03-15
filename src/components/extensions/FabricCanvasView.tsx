@@ -31,9 +31,8 @@ const FabricCanvasView = ({
     setTimeout(() => {
       setSaveState(onSaveState);
       canvasSelectPrevref.current = true;
+      registerCanvas(idRef.current, canvasRef.current as Canvas, onSaveState);
     }, 0);
-
-    registerCanvas(idRef.current, canvasRef.current as Canvas, onSaveState);
 
     return () => {
       unregisterCanvas(idRef.current);
@@ -93,7 +92,6 @@ const FabricCanvasView = ({
         selection.setCoords();
       }
 
-      console.log("save");
       canvas.requestRenderAll();
       isSidebarInteracting.current = false;
     });
