@@ -134,6 +134,9 @@ const TipTapEditor = () => {
     content: "",
   });
 
+  // ── Focus at the end of editor ──────────────────────────────────────────────
+  // use at main div, if users click outside editor
+  // but still be in the main edge, the cursor will move to the end of editor
   const handleEditorClick = useCallback(() => {
     if (editor && !editor.isFocused) {
       editor.commands.focus("end");
@@ -185,8 +188,10 @@ const TipTapEditor = () => {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  // Get <Canvas> for toolbars
   const { canvas } = useCanvasContext();
 
+  //───────────────────────────────────────────────────────────────────────────
   return (
     <div className="editor-layout">
       {/* ── TOP HEADER ── */}
@@ -214,6 +219,7 @@ const TipTapEditor = () => {
         onMouseDown={(e) => editor.chain().focus()} // Remove focus to UI
         onMouseUp={(e) => editor.chain().focus()} // Get forcus back
       >
+        {/* Tiptap original Editor */}
         {!canvas && editor && (
           <EditorLeftSidebar
             editor={editor}
@@ -222,11 +228,14 @@ const TipTapEditor = () => {
             onCategoryChange={setSidebarCategory}
           />
         )}
+
+        {/* Fabric Editor (override) */}
         {canvas && <CanvasLeftSidebar />}
       </aside>
 
       {/* ── CENTER EDITOR ── */}
       <main ref={mainRef} className="editor-main" onClick={handleEditorClick}>
+        {/* Page Range (px <-> editor <-> px) */}
         <div
           className="w-fit mx-auto px-10 editor-card shadow-sm"
           style={{
@@ -235,6 +244,7 @@ const TipTapEditor = () => {
             marginBottom: `calc((${zoom} - 1) * 100%)`,
           }}
         >
+          {/* Editor (default 600px) */}
           <div
             className="tiptap-editor mx-auto pt-16 pb-40"
             style={{ width: "600px" }}
@@ -251,9 +261,12 @@ const TipTapEditor = () => {
         onMouseDown={(e) => editor.chain().focus()} // Remove focus to UI
         onMouseUp={(e) => editor.chain().focus()} // Get forcus back
       >
+        {/* Tiptap original Editor */}
         {!canvas && (
           <EditorRightSidebar editor={editor} dynamicUpdate={dynamicUpdate} />
         )}
+
+        {/* Tiptap original Editor */}
         {canvas && <CanvasRightSidebar />}
       </aside>
     </div>

@@ -29,8 +29,8 @@ function useFabricSetup({
     saveStateRef,
   } = useCanvasContext();
 
+  // Call onForcus Prop
   const onFocusRef = useRef<() => void>(null);
-
   useEffect(() => {
     if (onFocus) {
       onFocusRef.current = onFocus;
@@ -41,6 +41,7 @@ function useFabricSetup({
   useEffect(() => {
     if (!canvasElRef.current) return;
 
+    // Create canvas
     const c = new Canvas(canvasElRef.current, {
       width: width,
       height: height,
@@ -53,6 +54,7 @@ function useFabricSetup({
     canvasRef.current = c;
     setCanvasSync(canvasRef.current);
 
+    // When user click it, set the canvas to context
     c.on("mouse:down", () => {
       if (canvasContextRef.current !== canvasRef.current) {
         setTimeout(() => {
@@ -72,6 +74,7 @@ function useFabricSetup({
       guidelines.length = 0;
     };
 
+    // Add guidline
     const addGuideline = (points: number[]) => {
       const line = new Line(points as [number, number, number, number], {
         stroke: "#1F1F1F",
@@ -174,44 +177,8 @@ function useFabricSetup({
     };
     setTimeout(() => {
       loadCanvas();
-    }, 1); // prevent race condition
+    }, 1); // prevent race condition from create useState
   }, [canvasData]);
-
-  //   useEffect(() => {
-  //     // Keyboard shortcuts
-  //     const handleKeyDown = (e: KeyboardEvent) => {
-  //       if (
-  //         e.target instanceof HTMLInputElement ||
-  //         e.target instanceof HTMLTextAreaElement
-  //       )
-  //         return;
-  //       if (
-  //         (e.metaKey || e.ctrlKey) &&
-  //         e.shiftKey &&
-  //         e.key.toLowerCase() === "z"
-  //       ) {
-  //         e.preventDefault();
-  //         redo();
-  //         return;
-  //       }
-  //       if ((e.metaKey || e.ctrlKey) && e.key === "z") {
-  //         e.preventDefault();
-  //         console.log("undo");
-  //         undo();
-  //       }
-  //       if ((e.metaKey || e.ctrlKey) && e.key === "y") {
-  //         e.preventDefault();
-  //         console.log("redo");
-  //         redo();
-  //       }
-  //     };
-  //     document.addEventListener("keydown", handleKeyDown);
-
-  //     return () => {
-  //       document.removeEventListener("keydown", handleKeyDown);
-  //     };
-  //   }, [undo, redo]);
-
   return {
     canvasRef,
     canvasElRef,

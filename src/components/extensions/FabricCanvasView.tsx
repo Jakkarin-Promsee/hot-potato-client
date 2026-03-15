@@ -17,6 +17,7 @@ const FabricCanvasView = ({
   const { width, height, canvasData } = node.attrs;
   const backgroundColor = "#fafafa";
 
+  // Pull context setup function
   const {
     setCanvasSync,
     setSaveState,
@@ -25,21 +26,26 @@ const FabricCanvasView = ({
     isSidebarInteracting,
   } = useCanvasContext();
 
+  // Use to check current selection (every moseclick will trigger the tiptap select)
+  // If the select ins't change, we won't do anything
   const canvasSelectPrevref = useRef(false);
 
+  // Set saveState function, the current selection, and regist the canvas
   useEffect(() => {
     setTimeout(() => {
       setSaveState(onSaveState);
       canvasSelectPrevref.current = true;
       registerCanvas(idRef.current, canvasRef.current as Canvas, onSaveState);
-    }, 0);
+    }, 0); // Prevent reace condition, let instance ready to use
 
     return () => {
       unregisterCanvas(idRef.current);
     };
   }, []);
 
+  // Set canvas context part
   useEffect(() => {
+    // If tiptap select didn't change, do nothing
     if (selected) {
       canvasSelectPrevref.current = true;
       return;
@@ -59,11 +65,15 @@ const FabricCanvasView = ({
     }
   }, [selected]);
 
+  // Save State function that work between tiptap and canvas
+  // Conflict: every time tiptap save, it will kick us out from node
+  // Resolve: We can't resisit that kick, so after that kick we just set active again
   const canvasDataPrevRef = useRef("");
   const onSaveState = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // if data didn't change, didn't save
     const json = JSON.stringify(canvas.toJSON());
     if (json === canvasDataPrevRef.current) return;
     canvasDataPrevRef.current = json;
@@ -73,6 +83,7 @@ const FabricCanvasView = ({
     const activeObjects = canvas.getActiveObjects();
     const activeIndices = activeObjects.map((o) => allObjects.indexOf(o));
 
+    // Set cut all sidebar interact and save
     isSidebarInteracting.current = true;
     updateAttributes({ canvasData: json });
 
@@ -92,11 +103,14 @@ const FabricCanvasView = ({
         selection.setCoords();
       }
 
+      // render all again and set isSidebarInteracting to default
       canvas.requestRenderAll();
       isSidebarInteracting.current = false;
     });
   }, []);
 
+  // onFocus, set save state
+  // (the fabic itself will directly hold setCanvas)
   const onFocus = useCallback(() => {
     setSaveState(onSaveState);
     if (typeof getPos === "function") {
