@@ -1184,17 +1184,17 @@ export default function CanvasRightSidebar() {
     ungroupSelected: ungroupSelection,
   } = useFabric();
 
-  useEffect(() => {
-    if (!canvas) return;
-    canvas.on("object:modified", forceUpdate);
-    canvas.on("selection:created", forceUpdate);
-    canvas.on("selection:updated", forceUpdate);
-    return () => {
-      canvas.off("object:modified", forceUpdate);
-      canvas.off("selection:created", forceUpdate);
-      canvas.off("selection:updated", forceUpdate);
-    };
-  }, [canvas, forceUpdate]);
+  // useEffect(() => {
+  //   if (!canvas) return;
+  //   canvas.on("object:modified", forceUpdate);
+  //   canvas.on("selection:created", forceUpdate);
+  //   canvas.on("selection:updated", forceUpdate);
+  //   return () => {
+  //     canvas.off("object:modified", forceUpdate);
+  //     canvas.off("selection:created", forceUpdate);
+  //     canvas.off("selection:updated", forceUpdate);
+  //   };
+  // }, [canvas, forceUpdate]);
 
   useEffect(() => {
     const onUp = () => {

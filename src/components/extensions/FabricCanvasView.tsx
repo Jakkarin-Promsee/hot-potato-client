@@ -87,7 +87,7 @@ const FabricCanvasView = ({
     isSidebarInteracting.current = true;
     updateAttributes({ canvasData: json });
 
-    requestAnimationFrame(() => {
+    setTimeout(() => {
       const objects = canvas.getObjects();
 
       const targets = activeIndices
@@ -106,7 +106,7 @@ const FabricCanvasView = ({
       // render all again and set isSidebarInteracting to default
       canvas.requestRenderAll();
       isSidebarInteracting.current = false;
-    });
+    }, 10); // Race condition with useFabricSetup:load()
   }, []);
 
   // onFocus, set save state

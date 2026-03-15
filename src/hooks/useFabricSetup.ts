@@ -121,6 +121,7 @@ function useFabricSetup({
     });
     canvasRef.current?.on("selection:updated", (e) => {
       setSelectedObjects(e.selected || []);
+      console.log("modifield");
     });
     canvasRef.current?.on("selection:cleared", () => {
       setSelectedObjects([]);
@@ -177,7 +178,7 @@ function useFabricSetup({
     };
     setTimeout(() => {
       loadCanvas();
-    }, 1); // prevent race condition from create useState
+    }, 0); // prevent race condition from create useState
   }, [canvasData]);
   return {
     canvasRef,
