@@ -344,13 +344,15 @@ const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
       icon={HelpCircle}
       label="Q&A Card"
       onClick={() =>
-        editor.chain().focus().insertContent({ type: "questionAnswer" }).run()
+        editor.chain().focus().insertContent({ type: "QuestionChoice" }).run()
       }
     />
     <ToolBtn
       icon={Columns}
       label="Layout"
-      onClick={() => alert("Layout coming soon")}
+      onClick={() =>
+        editor.chain().focus().insertContent({ type: "mcq" }).run()
+      }
     />
   </div>
 ));

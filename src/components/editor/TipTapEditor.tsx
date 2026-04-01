@@ -20,7 +20,6 @@ import { SearchHighlightExtension } from "../extensions/SearchHighlight";
 
 import EditorHeader from "./EditorHeader";
 import { FabricCanvasNode } from "../extensions/FabricCanvasNode";
-import { QuestionAnswerNode } from "../extensions/QuestionAnswerNode";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCanvasContext } from "@/contexts/CanvasContext";
 // import CanvasSidebar from "../design/CanvasSidebar";
@@ -29,6 +28,8 @@ import EditorLeftSidebar from "./EditorLeftSidebar";
 import EditorRightSidebar from "./EditorRightSidebar";
 import CanvasLeftSidebar from "../canvas/CanvasLeftSidebar";
 import CanvasRightSidebar from "../canvas/CanvasRightSidebar";
+import { QuestionChoiceNode } from "../extensions/QuestionChoiceNode";
+import { stopEvent } from "node_modules/fabric/dist/src/util/dom_event";
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.0;
@@ -84,7 +85,7 @@ const TipTapEditor = () => {
       TaskItem.configure({ nested: true }),
       SearchHighlightExtension,
       FabricCanvasNode,
-      QuestionAnswerNode,
+      QuestionChoiceNode,
     ],
     editorProps: {
       attributes: {
@@ -137,11 +138,18 @@ const TipTapEditor = () => {
   // ── Focus at the end of editor ──────────────────────────────────────────────
   // use at main div, if users click outside editor
   // but still be in the main edge, the cursor will move to the end of editor
-  const handleEditorClick = useCallback(() => {
-    if (editor && !editor.isFocused) {
+  const handleEditorClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (!editor || editor.isFocused) return;
+
+      // Don't steal focus if the click was inside a custom block (NodeView)
+      const target = e.target as HTMLElement;
+      if (target.closest("[data-node-view-wrapper]")) return;
+
       editor.commands.focus("end");
-    }
-  }, [editor]);
+    },
+    [editor],
+  );
 
   // ── Ctrl+Scroll zoom ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -198,7 +206,10 @@ const TipTapEditor = () => {
       <header
         className="editor-header"
         // To get back focus to editor content
-        onMouseDown={(e) => editor.chain().focus()} // Remove focus to UI
+        onMouseDown={(e) => {
+          editor.chain().focus();
+          console.log("header mouse down");
+        }} // Remove focus to UI
         onMouseUp={(e) => editor.chain().focus()} // Get forcus back
       >
         <EditorHeader
@@ -216,7 +227,10 @@ const TipTapEditor = () => {
       <aside
         className="editor-sidebar-left flex"
         // To get back focus to editor content
-        onMouseDown={(e) => editor.chain().focus()} // Remove focus to UI
+        onMouseDown={(e) => {
+          editor.chain().focus();
+          console.log("left mouse down");
+        }} // Remove focus to UI
         onMouseUp={(e) => editor.chain().focus()} // Get forcus back
       >
         {/* Tiptap original Editor */}
@@ -258,7 +272,10 @@ const TipTapEditor = () => {
       <aside
         className="editor-sidebar-right"
         // To get back focus to editor content
-        onMouseDown={(e) => editor.chain().focus()} // Remove focus to UI
+        onMouseDown={(e) => {
+          editor.chain().focus();
+          console.log("right mouse down");
+        }} // Remove focus to UI
         onMouseUp={(e) => editor.chain().focus()} // Get forcus back
       >
         {/* Tiptap original Editor */}
