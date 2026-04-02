@@ -1,12 +1,13 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
-import QuestionChoiceView from "./QuestionChoiceView";
+import QuestionChoiceView, { type Choice } from "./QuestionChoiceView";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface QuestionChoiceAttrs {
   question: string;
-  choices: string[];
+  choices: Choice[];
+  answerType: "single" | "multi";
 }
 
 // ─── Node Definition ──────────────────────────────────────────────────────────
@@ -14,24 +15,12 @@ export interface QuestionChoiceAttrs {
 export const QuestionChoiceNode = Node.create({
   name: "QuestionChoice",
 
-  // Sits in the document flow like a paragraph, not inline
   group: "block",
-
-  // Treated as one indivisible unit — no cursor can enter it from ProseMirror's
-  // perspective. This is the key flag that stops the "whole block gets replaced
-  // when you type" problem.
   atom: true,
-
-  // Prevent ProseMirror from drawing a blue selection box around the whole node
-  // when the user clicks on it.
   selectable: true,
-
-  // Keep false — draggable:true is known to break input focus on Safari.
   draggable: false,
 
   // ─── Attributes ────────────────────────────────────────────────────────────
-  // Everything stored here survives getHTML() / setContent() / collaboration.
-  // Avoid nesting plain objects as attribute values — serialize arrays to JSON.
 
   addAttributes() {
     return {
@@ -42,11 +31,15 @@ export const QuestionChoiceNode = Node.create({
       },
 
       choices: {
-        default: ["Option 1", "Option 2"],
-        // Arrays must be serialised to a string to round-trip through HTML
+        default: [
+          { text: "Option 1", correct: false },
+          { text: "Option 2", correct: false },
+        ] satisfies Choice[],
         parseHTML: (el) => {
           try {
-            return JSON.parse(el.getAttribute("data-choices") ?? "[]");
+            return JSON.parse(
+              el.getAttribute("data-choices") ?? "[]",
+            ) as Choice[];
           } catch {
             return [];
           }
@@ -55,14 +48,19 @@ export const QuestionChoiceNode = Node.create({
           "data-choices": JSON.stringify(attrs.choices),
         }),
       },
+
+      answerType: {
+        default: "single" as const,
+        parseHTML: (el) =>
+          (el.getAttribute("data-answer-type") ?? "single") as
+            | "single"
+            | "multi",
+        renderHTML: (attrs) => ({ "data-answer-type": attrs.answerType }),
+      },
     };
   },
 
   // ─── HTML serialisation ────────────────────────────────────────────────────
-  // renderHTML controls what editor.getHTML() outputs.
-  // parseHTML controls what setContent(html) reads back in.
-  // The React NodeView is completely separate from this — it's only for the
-  // in-editor visual. The HTML below is what gets saved / sent to the server.
 
   parseHTML() {
     return [{ tag: 'div[data-type="choice-question"]' }];
@@ -76,14 +74,12 @@ export const QuestionChoiceNode = Node.create({
   },
 
   // ─── Node View ─────────────────────────────────────────────────────────────
-  // Hand off rendering to the React component.
 
   addNodeView() {
     return ReactNodeViewRenderer(QuestionChoiceView);
   },
 
   // ─── Commands ──────────────────────────────────────────────────────────────
-  // Call editor.commands.insertQuestionChoice() from your toolbar / slash menu.
 
   addCommands() {
     return {
@@ -94,7 +90,11 @@ export const QuestionChoiceNode = Node.create({
             type: this.name,
             attrs: {
               question: "",
-              choices: ["Option A", "Option B"],
+              choices: [
+                { text: "Option 1", correct: false },
+                { text: "Option 2", correct: false },
+              ],
+              answerType: "single",
             } satisfies QuestionChoiceAttrs,
           });
         },
@@ -102,7 +102,6 @@ export const QuestionChoiceNode = Node.create({
   },
 });
 
-// Extend Tiptap's command types so TypeScript knows about our custom command
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     QuestionChoice: {
