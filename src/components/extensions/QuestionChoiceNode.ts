@@ -24,7 +24,7 @@ export const QuestionChoiceNode = Node.create({
 
   // Prevent ProseMirror from drawing a blue selection box around the whole node
   // when the user clicks on it.
-  selectable: false,
+  selectable: true,
 
   // Keep false — draggable:true is known to break input focus on Safari.
   draggable: false,
@@ -42,7 +42,7 @@ export const QuestionChoiceNode = Node.create({
       },
 
       choices: {
-        default: ["Option A", "Option B"],
+        default: ["Option 1", "Option 2"],
         // Arrays must be serialised to a string to round-trip through HTML
         parseHTML: (el) => {
           try {
@@ -79,9 +79,7 @@ export const QuestionChoiceNode = Node.create({
   // Hand off rendering to the React component.
 
   addNodeView() {
-    return ReactNodeViewRenderer(QuestionChoiceView, {
-      stopEvent: () => true, // ProseMirror hands ALL events to you, touches nothing
-    });
+    return ReactNodeViewRenderer(QuestionChoiceView);
   },
 
   // ─── Commands ──────────────────────────────────────────────────────────────

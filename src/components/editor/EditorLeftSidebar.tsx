@@ -343,9 +343,7 @@ const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
     <ToolBtn
       icon={HelpCircle}
       label="Q&A Card"
-      onClick={() =>
-        editor.chain().focus().insertContent({ type: "QuestionChoice" }).run()
-      }
+      onClick={() => editor.chain().focus().insertQuestionChoice().run()}
     />
     <ToolBtn
       icon={Columns}

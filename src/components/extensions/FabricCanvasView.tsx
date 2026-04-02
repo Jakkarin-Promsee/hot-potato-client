@@ -188,7 +188,7 @@ const FabricCanvasView = ({
     <NodeViewWrapper className="my-6">
       <div
         className={`mx-auto relative group w-fit rounded-lg border overflow-visible transition-shadow duration-200 ${
-          selected ? "border-accent-foreground shadow-md" : ""
+          selected ? "" : "border-accent-foreground shadow-md"
         }`}
       >
         <canvas ref={canvasElRef} className="block w-full" />
