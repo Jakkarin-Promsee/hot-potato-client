@@ -1,12 +1,7 @@
-import TipTapEditor from "@/components/editor/TipTapEditor";
-import { CanvasProvider } from "@/contexts/CanvasContext";
+import React from "react";
 
-const Index = () => {
-  return (
-    <CanvasProvider>
-      <TipTapEditor />
-    </CanvasProvider>
-  );
-};
+function Index() {
+  return <div>Index</div>;
+}
 
 export default Index;

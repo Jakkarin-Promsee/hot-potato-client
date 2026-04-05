@@ -4,10 +4,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import Index from "./pages/Index";
+import ProtectedRoute from "./components/ProtectedRoute";
+import PublicRoute from "./components/PublicRoute";
+
+import TipTapCanvas from "./pages/TipTapCanvas";
 import NotFound from "./pages/NotFound";
-import Test from "./pages/Test";
 import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import Index from "./pages/Index";
 
 const queryClient = new QueryClient();
 
@@ -20,9 +24,24 @@ const App = () => (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Index />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/test" element={<Test />} />
-        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/tiptapcanvas" element={<TipTapCanvas />} />
+
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
