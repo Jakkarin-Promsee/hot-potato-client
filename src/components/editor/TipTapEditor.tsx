@@ -29,7 +29,7 @@ import EditorRightSidebar from "./EditorRightSidebar";
 import CanvasLeftSidebar from "../canvas/CanvasLeftSidebar";
 import CanvasRightSidebar from "../canvas/CanvasRightSidebar";
 import { QuestionChoiceNode } from "../extensions/QuestionChoiceNode";
-import { stopEvent } from "node_modules/fabric/dist/src/util/dom_event";
+import { useCanvasStore } from "@/stores/canvas.store";
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.0;
@@ -43,6 +43,8 @@ const TipTapEditor = () => {
   >("text");
   const [zoom, setZoom] = useState(1.0);
   const mainRef = useRef<HTMLDivElement>(null);
+
+  const { tiptapJson, setTiptapJson, saveContent, isDirty } = useCanvasStore();
 
   const editor = useEditor({
     extensions: [
@@ -133,7 +135,40 @@ const TipTapEditor = () => {
       },
     },
     content: "",
+    onUpdate: ({ editor }) => {
+      setTiptapJson(JSON.stringify(editor.getJSON()));
+    },
   });
+
+  // Set content once editor + data are ready
+  useEffect(() => {
+    if (editor && tiptapJson && tiptapJson !== "{}") {
+      editor.commands.setContent(JSON.parse(tiptapJson));
+    }
+  }, [editor, tiptapJson]);
+
+  // Auto save
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isDirty) saveContent();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [isDirty]);
+
+  // Ctrl+S manual save
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        e.stopPropagation();
+        saveContent();
+      }
+    };
+    // 👇 capture phase — fires BEFORE browser handles it
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    return () =>
+      window.removeEventListener("keydown", onKeyDown, { capture: true });
+  }, []);
 
   // ── Focus at the end of editor ──────────────────────────────────────────────
   // use at main div, if users click outside editor

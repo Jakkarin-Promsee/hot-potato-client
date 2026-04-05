@@ -11,6 +11,7 @@ import {
   Zap,
   ZapOff,
 } from "lucide-react";
+import { useCanvasStore } from "@/stores/canvas.store";
 
 const IconBtn = memo(
   ({
@@ -60,7 +61,6 @@ const EditorHeader = memo(
     dynamicUpdate,
     onDynamicUpdateChange,
   }: EditorHeaderProps) => {
-    const [title, setTitle] = useState("Untitled");
     const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">(
       "idle",
     );
@@ -72,6 +72,25 @@ const EditorHeader = memo(
     );
     const inputRef = useRef<HTMLInputElement>(null);
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const title = useCanvasStore((s) => s.title);
+    const isSaving = useCanvasStore((s) => s.isSaving);
+    const isDirty = useCanvasStore((s) => s.isDirty);
+    const setTitle = useCanvasStore((s) => s.setTitle);
+    const saveContent = useCanvasStore((s) => s.saveContent);
+
+    // Replace triggerSave with real save
+    const handleTitleChange = useCallback(
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        setTitle(e.target.value); // ✅ goes to store now
+      },
+      [setTitle],
+    );
+
+    // Wire real save to save button
+    const handleSave = useCallback(() => {
+      saveContent(); // ✅ was empty before
+    }, [saveContent]);
 
     useEffect(() => {
       if (!zoomInputFocused) setZoomInputValue(String(Math.round(zoom * 100)));
@@ -85,14 +104,6 @@ const EditorHeader = memo(
         setTimeout(() => setSaveState("idle"), 2000);
       }, 1200);
     }, []);
-
-    const handleTitleChange = useCallback(
-      (e: React.ChangeEvent<HTMLInputElement>) => {
-        setTitle(e.target.value);
-        triggerSave();
-      },
-      [triggerSave],
-    );
 
     // Undo/redo — always live (only 2 cheap checks, not worth gating)
     useEffect(() => {
@@ -183,6 +194,11 @@ const EditorHeader = memo(
       [dynamicUpdate, onDynamicUpdateChange],
     );
 
+    const handlePublic = useCallback(async () => {
+      await saveContent(); // save first
+      console.log(editor?.getJSON());
+    }, [editor]);
+
     return (
       <div className="editor-header-inner">
         {/* ── LEFT ── */}
@@ -197,26 +213,26 @@ const EditorHeader = memo(
           />
           <div className="mx-1 h-4 w-px bg-border" />
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60">
-            {saveState === "saving" && (
+            {isSaving && (
               <>
                 <Loader2 size={12} className="animate-spin" />
                 <span>Saving…</span>
               </>
             )}
-            {saveState === "saved" && (
+            {!isSaving && !isDirty && (
               <>
                 <Save size={12} />
                 <span>Saved</span>
               </>
             )}
-            {saveState === "idle" && (
+            {!isSaving && isDirty && (
               <button
-                onClick={triggerSave}
+                onClick={handleSave}
                 title="Save"
-                className="flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors hover:bg-accent hover:text-foreground"
+                className="flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors hover:bg-accent text-muted-foreground"
               >
                 <Save size={12} />
-                <span>Save</span>
+                <span>Save?</span>
               </button>
             )}
           </div>
@@ -334,7 +350,10 @@ const EditorHeader = memo(
               : "Open on Ctrl+Click"}
           </button>
           <div className="mx-1.5 h-4 w-px bg-border" />
-          <button className="rounded-full bg-editor-highlight px-4 py-1.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90">
+          <button
+            className="rounded-full bg-editor-highlight px-4 py-1.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            onClick={handlePublic}
+          >
             Publish
           </button>
         </div>

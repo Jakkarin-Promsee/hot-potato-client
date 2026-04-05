@@ -25,7 +25,7 @@ const App = () => (
       <Routes>
         <Route path="/" element={<Index />} />
         <Route
-          path="/login"
+          path="/login/"
           element={
             <PublicRoute>
               <Login />
@@ -40,7 +40,14 @@ const App = () => (
             </ProtectedRoute>
           }
         />
-        <Route path="/tiptapcanvas" element={<TipTapCanvas />} />
+        <Route
+          path="/canvas/:id"
+          element={
+            <ProtectedRoute>
+              <TipTapCanvas />
+            </ProtectedRoute>
+          }
+        />
 
         <Route path="*" element={<NotFound />} />
       </Routes>
