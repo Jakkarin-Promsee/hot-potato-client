@@ -12,6 +12,7 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Index from "./pages/Index";
+import TiptapView from "./pages/TiptapView";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,15 @@ const App = () => (
           element={
             <ProtectedRoute>
               <TipTapCanvas />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/view/:id"
+          element={
+            <ProtectedRoute>
+              <TiptapView />
             </ProtectedRoute>
           }
         />

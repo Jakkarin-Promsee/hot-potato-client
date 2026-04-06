@@ -53,7 +53,7 @@
 
   /* The writing surface — stays light for readability */
   --editor-surface: hsl(0 0% 100%);
-  --editor-canvas: hsl(220 14% 92%);
+  --editor-canvas: hsl(230 25% 12%);
 
   /* Sidebar shell — mid-level dark, lighter than header, darker than canvas */
   --editor-sidebar-bg: hsl(230 22% 13%);

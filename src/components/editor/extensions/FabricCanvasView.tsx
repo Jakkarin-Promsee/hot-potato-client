@@ -5,6 +5,7 @@ import useFabricSetup from "@/hooks/useFabricSetup";
 import { useCanvasContext } from "@/contexts/CanvasContext";
 import { v4 as uuidv4 } from "uuid";
 import { ChevronDown } from "lucide-react";
+import FabricCanvasReadOnly from "../FabricCanvasReadOnly";
 
 const FabricCanvasView = ({
   node,
@@ -16,6 +17,18 @@ const FabricCanvasView = ({
   // Setup data
   const { width, height, canvasData } = node.attrs;
   const backgroundColor = "#fafafa";
+
+  if (!editor.isEditable) {
+    return (
+      <NodeViewWrapper className="my-6">
+        <FabricCanvasReadOnly
+          width={width}
+          height={height}
+          canvasData={canvasData}
+        />
+      </NodeViewWrapper>
+    );
+  }
 
   // Pull context setup function
   const {

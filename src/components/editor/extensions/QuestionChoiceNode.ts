@@ -17,7 +17,7 @@ export const QuestionChoiceNode = Node.create({
 
   group: "block",
   atom: true,
-  selectable: true,
+  selectable: false,
   draggable: false,
 
   // ─── Attributes ────────────────────────────────────────────────────────────

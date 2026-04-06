@@ -16,20 +16,21 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { Markdown } from "tiptap-markdown";
 import Link from "@tiptap/extension-link";
-import { SearchHighlightExtension } from "../extensions/SearchHighlight";
+import { SearchHighlightExtension } from "./extensions/SearchHighlight";
 
 import EditorHeader from "./EditorHeader";
-import { FabricCanvasNode } from "../extensions/FabricCanvasNode";
+import { FabricCanvasNode } from "./extensions/FabricCanvasNode";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCanvasContext } from "@/contexts/CanvasContext";
 // import CanvasSidebar from "../design/CanvasSidebar";
 
 import EditorLeftSidebar from "./EditorLeftSidebar";
 import EditorRightSidebar from "./EditorRightSidebar";
-import CanvasLeftSidebar from "../canvas/CanvasLeftSidebar";
-import CanvasRightSidebar from "../canvas/CanvasRightSidebar";
-import { QuestionChoiceNode } from "../extensions/QuestionChoiceNode";
+import CanvasLeftSidebar from "./canvas/CanvasLeftSidebar";
+import CanvasRightSidebar from "./canvas/CanvasRightSidebar";
+import { QuestionChoiceNode } from "./extensions/QuestionChoiceNode";
 import { useCanvasStore } from "@/stores/canvas.store";
+import { createEditorExtensions } from "./config/editorExtensions";
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.0;
@@ -47,48 +48,9 @@ const TipTapEditor = () => {
   const { tiptapJson, setTiptapJson, saveContent, isDirty } = useCanvasStore();
 
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        codeBlock: false,
-        heading: { levels: [1, 2, 3] },
-      }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: "cursor-text",
-        },
-      }),
-      Markdown.configure({
-        html: true,
-        tightLists: true,
-      }),
-      TextAlign.configure({
-        types: ["heading", "paragraph"],
-      }),
-      Underline,
-      TextStyle,
-      Color,
-      Highlight.configure({ multicolor: true }),
-      Placeholder.configure({
-        placeholder: "Tell your story...",
-      }),
-      Image.configure({
-        allowBase64: true,
-        HTMLAttributes: { class: "editor-image" },
-      }),
-      Youtube.configure({ width: 560, height: 315 }),
-      Table.configure({
-        resizable: true,
-      }),
-      TableRow,
-      TableHeader,
-      TableCell,
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      SearchHighlightExtension,
-      FabricCanvasNode,
-      QuestionChoiceNode,
-    ],
+    extensions: createEditorExtensions(true),
+    editable: true,
+
     editorProps: {
       attributes: {
         class: "focus:outline-none",

@@ -62,6 +62,20 @@
   border-radius: 4px;
 }
 
+/* Viewer override — collapses the sidebar columns */
+.editor-layout--viewer {
+  grid-template-columns: 1fr;
+}
+
+.editor-layout--viewer .editor-main {
+  grid-column: 1;
+}
+
+.editor-layout--viewer .editor-main {
+  width: 100vw;
+  overflow-x: hidden;
+}
+
 /* ─────────────────────────────────────────
    HEADER
 ───────────────────────────────────────── */
