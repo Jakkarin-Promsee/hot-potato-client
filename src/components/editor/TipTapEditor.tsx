@@ -28,7 +28,6 @@ import EditorLeftSidebar from "./EditorLeftSidebar";
 import EditorRightSidebar from "./EditorRightSidebar";
 import CanvasLeftSidebar from "./canvas/CanvasLeftSidebar";
 import CanvasRightSidebar from "./canvas/CanvasRightSidebar";
-import { QuestionChoiceNode } from "./extensions/QuestionChoiceNode";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { createEditorExtensions } from "./config/editorExtensions";
 
@@ -108,14 +107,6 @@ const TipTapEditor = () => {
       editor.commands.setContent(JSON.parse(tiptapJson));
     }
   }, [editor, tiptapJson]);
-
-  // Auto save
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (isDirty) saveContent();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [isDirty]);
 
   // Ctrl+S manual save
   useEffect(() => {

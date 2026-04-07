@@ -5,6 +5,7 @@ import QuestionChoiceView, { type Choice } from "./QuestionChoiceView";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface QuestionChoiceAttrs {
+  id: string;
   question: string;
   choices: Choice[];
   answerType: "single" | "multi";
@@ -24,6 +25,12 @@ export const QuestionChoiceNode = Node.create({
 
   addAttributes() {
     return {
+      id: {
+        default: null,
+        parseHTML: (el) => el.getAttribute("data-id"),
+        renderHTML: (attrs) => ({ "data-id": attrs.id }),
+      },
+
       question: {
         default: "",
         parseHTML: (el) => el.getAttribute("data-question") ?? "",
@@ -89,6 +96,7 @@ export const QuestionChoiceNode = Node.create({
           return commands.insertContent({
             type: this.name,
             attrs: {
+              id: crypto.randomUUID(),
               question: "",
               choices: [
                 { text: "Option 1", correct: false },

@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
+import { useAnswerStore } from "@/stores/content-answer.store";
+
 import {
   Minus,
   Plus,
@@ -284,41 +286,73 @@ interface ViewerViewProps {
   attrs: QuestionChoiceAttrs;
 }
 
+// Each block answer shape
+interface BlockAnswer {
+  selected: number[]; // chosen indices
+  submitted: boolean; // has user submitted?
+}
+
 function ViewerView({ attrs }: ViewerViewProps) {
   const { question, choices, answerType } = attrs;
+  const blockId = (attrs as any).id as string;
 
-  const [selectedSingle, setSelectedSingle] = useState<number | null>(null);
-  const [selectedMulti, setSelectedMulti] = useState<Set<number>>(new Set());
-  const [submitted, setSubmitted] = useState(false);
+  // ── Store ──────────────────────────────────────────────────────
+  const answers = useAnswerStore((s) => s.answers);
+  const setAnswer = useAnswerStore((s) => s.setAnswer);
 
-  const isSelected = (i: number) =>
-    answerType === "single" ? selectedSingle === i : selectedMulti.has(i);
+  // Restore from store or default
+  const savedAnswer = answers[blockId] as BlockAnswer | undefined;
+  const [selectedIndices, setSelectedIndices] = useState<number[]>(
+    savedAnswer?.selected ?? [],
+  );
+  const [submitted, setSubmitted] = useState<boolean>(
+    savedAnswer?.submitted ?? false,
+  );
 
-  const hasSelection =
-    answerType === "single" ? selectedSingle !== null : selectedMulti.size > 0;
+  // ── Sync from store on load (when answers load after component mounts) ──
+  useEffect(() => {
+    if (savedAnswer) {
+      setSelectedIndices(savedAnswer.selected ?? []);
+      setSubmitted(savedAnswer.submitted ?? false);
+    }
+  }, [answers[blockId]]); // re-sync when this block's answer changes
+
+  // ── Helpers ────────────────────────────────────────────────────
+  const isSelected = (i: number) => selectedIndices.includes(i);
+  const hasSelection = selectedIndices.length > 0;
 
   const handleSelect = (i: number) => {
     if (submitted) return;
-    if (answerType === "single") {
-      setSelectedSingle(i);
-    } else {
-      setSelectedMulti((prev) => {
-        const next = new Set(prev);
-        next.has(i) ? next.delete(i) : next.add(i);
-        return next;
-      });
-    }
+
+    const next =
+      answerType === "single"
+        ? [i]
+        : isSelected(i)
+        ? selectedIndices.filter((s) => s !== i)
+        : [...selectedIndices, i];
+
+    setSelectedIndices(next);
+
+    // Save selection instantly (not submitted yet)
+    setAnswer(blockId, { selected: next, submitted: false });
+  };
+
+  const handleSubmit = () => {
+    setSubmitted(true);
+    // Save with submitted: true — this triggers 30s sync to DB
+    setAnswer(blockId, { selected: selectedIndices, submitted: true });
   };
 
   const handleReset = () => {
-    setSelectedSingle(null);
-    setSelectedMulti(new Set());
+    setSelectedIndices([]);
     setSubmitted(false);
+    setAnswer(blockId, { selected: [], submitted: false });
   };
 
   const isFullyCorrect =
     submitted && choices.every((c, i) => c.correct === isSelected(i));
 
+  // ── Rest of your existing JSX — just replace state references ──
   return (
     <div className="flex flex-col gap-3">
       {/* Question */}
@@ -337,7 +371,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
         </p>
       )}
 
-      {/* Choices */}
+      {/* Choices — same as your existing JSX, uses isSelected() */}
       <div className="flex flex-col gap-2">
         {choices.map((choice, i) => {
           const sel = isSelected(i);
@@ -379,7 +413,6 @@ function ViewerView({ attrs }: ViewerViewProps) {
                 submitted ? "cursor-default" : "cursor-pointer",
               ].join(" ")}
             >
-              {/* Indicator */}
               <span
                 className={[
                   "flex h-4 w-4 shrink-0 items-center justify-center border-2 transition",
@@ -404,7 +437,6 @@ function ViewerView({ attrs }: ViewerViewProps) {
 
               {choice.text}
 
-              {/* Result badge */}
               {submitted && (
                 <span className="ml-auto text-xs font-medium">
                   {sel && isCorrectChoice && (
@@ -428,7 +460,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
         {!submitted ? (
           <button
             type="button"
-            onClick={() => setSubmitted(true)}
+            onClick={handleSubmit} // 👈 updated
             disabled={!hasSelection}
             className="rounded-lg bg-violet-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -448,7 +480,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
             </span>
             <button
               type="button"
-              onClick={handleReset}
+              onClick={handleReset} // 👈 also resets store
               className="ml-auto text-xs text-gray-400 underline transition hover:text-gray-600"
             >
               Try again

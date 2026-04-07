@@ -6,12 +6,27 @@ import { useCanvasStore } from "@/stores/canvas.store";
 
 const TipTapCanvas = () => {
   const { id } = useParams<{ id: string }>();
-  const { loadContent, isLoading } = useCanvasStore();
+  const { loadContent, saveContent, isLoading, isDirty } = useCanvasStore();
 
   useEffect(() => {
     if (id) loadContent(id);
     console.log("id:" + id);
   }, [id]);
+
+  // Auto save
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isDirty) saveContent();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [isDirty]);
+
+  // Save on page leave
+  useEffect(() => {
+    const handleLeave = () => saveContent();
+    window.addEventListener("beforeunload", handleLeave);
+    return () => window.removeEventListener("beforeunload", handleLeave);
+  }, []);
 
   if (isLoading)
     return (
