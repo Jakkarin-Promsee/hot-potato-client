@@ -46,6 +46,11 @@ const TipTapEditor = () => {
 
   const { tiptapJson, setTiptapJson, saveContent, isDirty } = useCanvasStore();
 
+  const conflict = useCanvasStore((s) => s.conflict);
+  const forceSave = useCanvasStore((s) => s.forceSave);
+  const loadContent = useCanvasStore((s) => s.loadContent);
+  const contentId = useCanvasStore((s) => s.contentId);
+
   const editor = useEditor({
     extensions: createEditorExtensions(true),
     editable: true,
@@ -189,92 +194,118 @@ const TipTapEditor = () => {
 
   //───────────────────────────────────────────────────────────────────────────
   return (
-    <div className="editor-layout">
-      {/* ── TOP HEADER ── */}
-      <header
-        className="editor-header"
-        // To get back focus to editor content
-        onMouseDown={(e) => {
-          editor.chain().focus();
-          console.log("header mouse down");
-        }} // Remove focus to UI
-        onMouseUp={(e) => editor.chain().focus()} // Get forcus back
-      >
-        <EditorHeader
-          editor={editor}
-          dynamicUpdate={dynamicUpdate}
-          onDynamicUpdateChange={setDynamicUpdate}
-          linkClickMode={linkClickMode}
-          onLinkClickModeChange={setLinkClickMode}
-          zoom={zoom}
-          onZoomChange={setZoom}
-        />
-      </header>
+    <>
+      {conflict && (
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-yellow-100 border border-yellow-300 text-yellow-800 text-xs">
+          <span>⚠️ A newer version exists!</span>
 
-      {/* ── LEFT SIDEBAR ── */}
-      <aside
-        className="editor-sidebar-left flex"
-        // To get back focus to editor content
-        onMouseDown={(e) => {
-          editor.chain().focus();
-          console.log("left mouse down");
-        }} // Remove focus to UI
-        onMouseUp={(e) => editor.chain().focus()} // Get forcus back
-      >
-        {/* Tiptap original Editor */}
-        {!canvas && editor && (
-          <EditorLeftSidebar
+          {/* Option 1 — load latest, discard local changes */}
+          <button
+            onClick={() => {
+              loadContent(contentId!); // reloads fresh from DB, clears conflict
+            }}
+            className="px-2 py-0.5 rounded bg-yellow-200 hover:bg-yellow-300 font-medium transition"
+          >
+            Load latest
+          </button>
+
+          {/* Option 2 — override server with local version */}
+          <button
+            onClick={forceSave}
+            className="px-2 py-0.5 rounded bg-red-100 hover:bg-red-200 text-red-700 font-medium transition"
+          >
+            Override with mine
+          </button>
+        </div>
+      )}
+
+      <div className="editor-layout">
+        {/* ── TOP HEADER ── */}
+        <header
+          className="editor-header"
+          // To get back focus to editor content
+          onMouseDown={(e) => {
+            editor.chain().focus();
+            console.log("header mouse down");
+          }} // Remove focus to UI
+          onMouseUp={(e) => editor.chain().focus()} // Get forcus back
+        >
+          <EditorHeader
             editor={editor}
             dynamicUpdate={dynamicUpdate}
-            activeCategory={sidebarCategory}
-            onCategoryChange={setSidebarCategory}
+            onDynamicUpdateChange={setDynamicUpdate}
+            linkClickMode={linkClickMode}
+            onLinkClickModeChange={setLinkClickMode}
+            zoom={zoom}
+            onZoomChange={setZoom}
           />
-        )}
+        </header>
 
-        {/* Fabric Editor (override) */}
-        {canvas && <CanvasLeftSidebar />}
-      </aside>
-
-      {/* ── CENTER EDITOR ── */}
-      <main ref={mainRef} className="editor-main" onClick={handleEditorClick}>
-        {/* Page Range (px <-> editor <-> px) */}
-        <div
-          className="w-fit mx-auto px-10 editor-card shadow-sm"
-          style={{
-            transform: `scale(${zoom})`,
-            transformOrigin: "top center",
-            marginBottom: `calc((${zoom} - 1) * 100%)`,
-          }}
+        {/* ── LEFT SIDEBAR ── */}
+        <aside
+          className="editor-sidebar-left flex"
+          // To get back focus to editor content
+          onMouseDown={(e) => {
+            editor.chain().focus();
+            console.log("left mouse down");
+          }} // Remove focus to UI
+          onMouseUp={(e) => editor.chain().focus()} // Get forcus back
         >
-          {/* Editor (default 600px) */}
+          {/* Tiptap original Editor */}
+          {!canvas && editor && (
+            <EditorLeftSidebar
+              editor={editor}
+              dynamicUpdate={dynamicUpdate}
+              activeCategory={sidebarCategory}
+              onCategoryChange={setSidebarCategory}
+            />
+          )}
+
+          {/* Fabric Editor (override) */}
+          {canvas && <CanvasLeftSidebar />}
+        </aside>
+
+        {/* ── CENTER EDITOR ── */}
+        <main ref={mainRef} className="editor-main" onClick={handleEditorClick}>
+          {/* Page Range (px <-> editor <-> px) */}
           <div
-            className="tiptap-editor mx-auto pt-16 pb-40"
-            style={{ width: "600px" }}
+            className="w-fit mx-auto px-10 editor-card shadow-sm"
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: "top center",
+              marginBottom: `calc((${zoom} - 1) * 100%)`,
+            }}
           >
-            <EditorContent editor={editor} />
+            {/* Editor (default 600px) */}
+            <div
+              className="tiptap-editor mx-auto pt-16 pb-40"
+              style={{ width: "600px" }}
+            >
+              <EditorContent editor={editor} />
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
 
-      {/* ── RIGHT SIDEBAR ── */}
-      <aside
-        className="editor-sidebar-right"
-        // To get back focus to editor content
-        onMouseDown={(e) => {
-          editor.chain().focus();
-          console.log("right mouse down");
-        }} // Remove focus to UI
-        onMouseUp={(e) => editor.chain().focus()} // Get forcus back
-      >
-        {/* Tiptap original Editor */}
-        {!canvas && (
-          <EditorRightSidebar editor={editor} dynamicUpdate={dynamicUpdate} />
-        )}
+        {/* ── RIGHT SIDEBAR ── */}
+        <aside
+          className="editor-sidebar-right"
+          // To get back focus to editor content
+          onMouseDown={(e) => {
+            editor.chain().focus();
+            console.log("right mouse down");
+          }} // Remove focus to UI
+          onMouseUp={(e) => editor.chain().focus()} // Get forcus back
+        >
+          {/* Tiptap original Editor */}
+          {!canvas && (
+            <EditorRightSidebar editor={editor} dynamicUpdate={dynamicUpdate} />
+          )}
 
-        {/* Tiptap original Editor */}
-        {canvas && <CanvasRightSidebar />}
-      </aside>
-    </div>
+          {/* Tiptap original Editor */}
+          {canvas && <CanvasRightSidebar />}
+        </aside>
+      </div>
+    </>
   );
 };
 

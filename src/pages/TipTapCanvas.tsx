@@ -6,11 +6,11 @@ import { useCanvasStore } from "@/stores/canvas.store";
 
 const TipTapCanvas = () => {
   const { id } = useParams<{ id: string }>();
-  const { loadContent, saveContent, isLoading, isDirty } = useCanvasStore();
+  const { loadContent, saveContent, isLoading, isDirty, conflict } =
+    useCanvasStore();
 
   useEffect(() => {
     if (id) loadContent(id);
-    console.log("id:" + id);
   }, [id]);
 
   // Auto save
@@ -27,6 +27,37 @@ const TipTapCanvas = () => {
     window.addEventListener("beforeunload", handleLeave);
     return () => window.removeEventListener("beforeunload", handleLeave);
   }, []);
+
+  // On canvas load, check if another tab has this content open
+  const STALE_THRESHOLD = 60 * 1000; // 1 minute
+  useEffect(() => {
+    let hiddenAt: number | null = null;
+
+    const handleVisibilityChange = async () => {
+      if (document.hidden) {
+        hiddenAt = Date.now(); // record when tab was hidden
+        return;
+      }
+
+      // Tab became visible
+      if (!hiddenAt) return;
+
+      const awayMs = Date.now() - hiddenAt;
+      hiddenAt = null;
+
+      // Only re-sync if away for more than 1 minute
+      if (awayMs > STALE_THRESHOLD) {
+        await saveContent();
+        // Read fresh state directly from store after save
+        const { conflict } = useCanvasStore.getState();
+        if (!conflict) loadContent(id!);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [id]);
 
   if (isLoading)
     return (
