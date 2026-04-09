@@ -13,6 +13,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Index from "./pages/Index";
 import TiptapView from "./pages/TiptapView";
+import Status from "./pages/Status";
 
 const queryClient = new QueryClient();
 
@@ -25,8 +26,11 @@ const App = () => (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Index />} />
+
+        <Route path="/status" element={<Status />} />
+
         <Route
-          path="/login/"
+          path="/login"
           element={
             <PublicRoute>
               <Login />
