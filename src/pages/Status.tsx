@@ -93,6 +93,9 @@ function MetaRow({
 // ─── Cards ────────────────────────────────────────────────────────────────────
 
 function ServerCard({ data }: { data: ServerCheck }) {
+  // If data is somehow undefined here, the component won't crash
+  if (!data) return null;
+
   return (
     <div className="rounded-xl border border-[--color-border] bg-[--color-card] p-5 flex flex-col gap-4">
       <div className="flex items-start justify-between">
@@ -350,6 +353,10 @@ export default function Status() {
     };
   }, [fetch]);
 
+  // Logic to determine if the error is a connection failure
+  const isNetworkError =
+    error?.toLowerCase().includes("no response") ||
+    error?.toLowerCase().includes("network");
   const overallStatus = data?.status ?? (error ? "error" : "ok");
 
   const overallStyle = {
@@ -361,11 +368,14 @@ export default function Status() {
       bar: "bg-amber-400",
       glow: "shadow-[0_0_24px_hsl(38_92%_50%/0.15)]",
     },
-    error: { bar: "bg-red-500", glow: "shadow-[0_0_24px_hsl(0_72%_51%/0.15)]" },
+    error: {
+      bar: "bg-red-500",
+      glow: "shadow-[0_0_24px_hsl(0_72%_51%/0.15)]",
+    },
   }[overallStatus] ?? { bar: "bg-red-500", glow: "" };
 
   return (
-    <div className="min-h-screen bg-[--color-background] px-4 py-10">
+    <div className="min-h-screen bg-[--color-background] px-4 py-10 transition-colors duration-500">
       <div className="max-w-5xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -380,8 +390,8 @@ export default function Status() {
 
           <div className="flex items-center gap-3">
             {lastFetched && (
-              <span className="text-[10px] font-mono text-[--color-muted-foreground]">
-                Updated {lastFetched.toLocaleTimeString()}
+              <span className="text-[10px] font-mono text-[--color-muted-foreground] bg-[--color-muted] px-2 py-1 rounded">
+                Last Check: {lastFetched.toLocaleTimeString()}
               </span>
             )}
             <button
@@ -390,8 +400,7 @@ export default function Status() {
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium
                 border border-[--color-border] bg-[--color-secondary] text-[--color-secondary-foreground]
                 hover:bg-[--color-accent] hover:text-[--color-accent-foreground]
-                disabled:opacity-40 disabled:cursor-not-allowed
-                transition-colors duration-150"
+                disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
             >
               <svg
                 className={`w-3 h-3 ${loading ? "animate-spin" : ""}`}
@@ -399,18 +408,69 @@ export default function Status() {
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
               >
                 <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
                 <path d="M21 3v5h-5" />
               </svg>
-              Refresh
+              {loading ? "Checking..." : "Refresh Now"}
             </button>
           </div>
         </div>
 
-        {/* Overall status banner */}
+        {/* Error Alert - Specific to "No Response" */}
+        {error && (
+          <div
+            className={`rounded-xl border ${
+              isNetworkError
+                ? "border-amber-500/50 bg-amber-500/5"
+                : "border-red-500/20 bg-red-500/5"
+            } px-5 py-4 flex items-center gap-4 transition-all`}
+          >
+            <div
+              className={`p-2 rounded-full ${
+                isNetworkError ? "bg-amber-500/10" : "bg-red-500/10"
+              }`}
+            >
+              <svg
+                className={`w-5 h-5 ${
+                  isNetworkError ? "text-amber-500" : "text-red-400"
+                }`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p
+                className={`text-sm font-semibold ${
+                  isNetworkError ? "text-amber-500" : "text-red-400"
+                }`}
+              >
+                {isNetworkError
+                  ? "API Unreachable"
+                  : "System Communication Error"}
+              </p>
+              <p className="text-xs opacity-70 font-mono mt-0.5 uppercase tracking-tight">
+                {error}
+              </p>
+            </div>
+            <button
+              onClick={fetch}
+              className="text-xs font-bold uppercase tracking-widest hover:underline"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Summary Banner (Only if we have data) */}
         {data && (
           <div
             className={`rounded-xl border border-[--color-border] bg-[--color-card] px-5 py-4 flex items-center justify-between ${overallStyle.glow}`}
@@ -426,7 +486,7 @@ export default function Status() {
                     : "System error detected"}
                 </p>
                 <p className="text-[11px] text-[--color-muted-foreground] font-mono mt-0.5">
-                  {new Date(data.timestamp).toLocaleString()}
+                  Server Timestamp: {new Date(data.timestamp).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -434,54 +494,35 @@ export default function Status() {
           </div>
         )}
 
-        {/* Error state */}
-        {error && !loading && (
-          <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-5 py-4 flex items-center gap-3">
-            <svg
-              className="w-4 h-4 text-red-400 shrink-0"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <div>
-              <p className="text-sm font-medium text-red-400">
-                Failed to fetch status
-              </p>
-              <p className="text-xs text-red-400/70 font-mono mt-0.5">
-                {error}
-              </p>
-            </div>
-            <button
-              onClick={fetch}
-              className="ml-auto text-xs text-red-400 underline underline-offset-2 hover:text-red-300"
-            >
-              Retry
-            </button>
-          </div>
-        )}
-
-        {/* Cards */}
+        {/* Replace your current logic with this safer version */}
         {loading && !data ? (
           <Skeleton />
-        ) : data ? (
+        ) : data && data.checks ? ( // Check for both data AND the nested checks object
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <ServerCard data={data.checks.server} />
             <DatabaseCard data={data.checks.database} />
             <EnvCard data={data.checks.env} />
           </div>
-        ) : null}
+        ) : (
+          !loading && (
+            <div className="py-20 text-center rounded-xl border border-dashed border-[--color-border]">
+              <p className="text-[--color-muted-foreground] text-sm font-mono">
+                {error
+                  ? "Connection lost. Reconnecting..."
+                  : "No status data available."}
+              </p>
+            </div>
+          )
+        )}
 
         {/* Footer */}
-        <p className="text-center text-[10px] font-mono text-[--color-muted-foreground]">
-          Auto-refreshes every 30 seconds
-        </p>
+        <div className="flex items-center justify-center gap-4">
+          <div className="h-px flex-1 bg-[--color-border]" />
+          <p className="text-[10px] font-mono text-[--color-muted-foreground] whitespace-nowrap">
+            Polling every 30s • Real-time Monitoring
+          </p>
+          <div className="h-px flex-1 bg-[--color-border]" />
+        </div>
       </div>
     </div>
   );
