@@ -31,6 +31,7 @@
     "@tiptap/react": "^3.20.0",
     "@tiptap/starter-kit": "^3.20.0",
     "axios": "^1.14.0",
+    "cloudinary": "^2.9.0",
     "fabric": "^7.2.0",
     "lowlight": "^3.3.0",
     "lucide-react": "^0.575.0",
@@ -39,7 +40,7 @@
     "react-router-dom": "^7.14.0",
     "sonner": "^2.0.7",
     "tailwindcss": "^4.2.0",
-    "tiptap": "^1.32.2",
+    "tiptap": "^0.15.0",
     "tiptap-markdown": "^0.9.0",
     "uuid": "^13.0.0",
     "zustand": "^5.0.12"
