@@ -20,6 +20,13 @@ import {
   Quote,
   Text,
   Link,
+  RotateCcw,
+  RotateCw,
+  FlipHorizontal,
+  FlipVertical,
+  Crop,
+  Maximize2,
+  Square,
 } from "lucide-react";
 
 import {
@@ -34,8 +41,6 @@ type PanelMode = keyof typeof MODE_LABELS;
 type SectionKey = "document" | "outline" | "search" | "text";
 type TextAlign = "left" | "center" | "right" | "justify";
 
-// All reactive isActive / getAttributes reads — computed once per transaction
-// in EditorRightSidebar and passed down as plain props for memo to diff
 interface ActiveFormats {
   paragraph: boolean;
   h1: boolean;
@@ -53,8 +58,13 @@ interface ActiveFormats {
 }
 
 interface ImageAttrs {
+  src: string;
   alt: string;
   align: string;
+  width: string;
+  borderRadius: string;
+  border: string;
+  opacity: number;
 }
 
 interface CodeAttrs {
@@ -133,6 +143,53 @@ const DEFAULT_ACTIVE_FORMATS: ActiveFormats = {
   textColor: "",
   highlightColor: "",
 };
+
+const DEFAULT_IMAGE_ATTRS: ImageAttrs = {
+  src: "",
+  alt: "",
+  align: "left",
+  width: "100%",
+  borderRadius: "0",
+  border: "none",
+  opacity: 100,
+};
+
+// Cloudinary transform helpers
+function applyCloudinaryTransform(src: string, params: string): string {
+  if (!src.includes("cloudinary.com")) return src;
+  return src.replace("/upload/", `/upload/${params}/`);
+}
+
+const CROP_PRESETS = [
+  { label: "Free", params: null },
+  { label: "Square", params: "w_800,h_800,c_fill" },
+  { label: "16:9", params: "w_800,h_450,c_fill" },
+  { label: "4:3", params: "w_800,h_600,c_fill" },
+  { label: "3:2", params: "w_900,h_600,c_fill" },
+] as const;
+
+const BORDER_PRESETS = [
+  { label: "None", value: "none" },
+  { label: "Thin", value: "1px solid currentColor" },
+  { label: "Medium", value: "2px solid currentColor" },
+  { label: "Thick", value: "4px solid currentColor" },
+  { label: "Dashed", value: "2px dashed currentColor" },
+] as const;
+
+const RADIUS_PRESETS = [
+  { label: "None", value: "0" },
+  { label: "SM", value: "4px" },
+  { label: "MD", value: "8px" },
+  { label: "LG", value: "16px" },
+  { label: "Full", value: "999px" },
+] as const;
+
+const WIDTH_PRESETS = [
+  { label: "25%", value: "25%" },
+  { label: "50%", value: "50%" },
+  { label: "75%", value: "75%" },
+  { label: "100%", value: "100%" },
+] as const;
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
@@ -244,9 +301,273 @@ const IconBtn = memo(
   ),
 );
 
-// ─── Panel components ─────────────────────────────────────────────────────────
+// Pill group — single select from a list of short options
+const PillGroup = memo(
+  ({
+    options,
+    value,
+    onChange,
+  }: {
+    options: readonly { label: string; value: string }[];
+    value: string;
+    onChange: (v: string) => void;
+  }) => (
+    <div className="flex flex-wrap gap-1">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          onClick={() => onChange(opt.value)}
+          className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${
+            value === opt.value
+              ? "border-primary bg-primary/10 text-primary font-medium"
+              : "border-border text-muted-foreground hover:border-muted-foreground"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  ),
+);
 
-// ✅ No editor.isActive() calls — all active states come from props
+// ─── Image Panel ──────────────────────────────────────────────────────────────
+
+const ImagePanel = memo(
+  ({ editor, imageAttrs }: { editor: Editor; imageAttrs: ImageAttrs }) => {
+    const [cropPreset, setCropPreset] = useState<string | null>(null);
+    const isCloudinary = imageAttrs.src.includes("cloudinary.com");
+
+    const updateAttr = useCallback(
+      (key: string, val: string | number) => {
+        editor
+          .chain()
+          .focus()
+          .updateAttributes("image", { [key]: val })
+          .run();
+      },
+      [editor],
+    );
+
+    const applyTransform = useCallback(
+      (params: string) => {
+        const newSrc = applyCloudinaryTransform(imageAttrs.src, params);
+        editor.chain().focus().updateAttributes("image", { src: newSrc }).run();
+      },
+      [editor, imageAttrs.src],
+    );
+
+    const handleCropPreset = (params: string | null) => {
+      setCropPreset(params);
+      if (params) applyTransform(params);
+    };
+
+    return (
+      <>
+        {/* ── Alignment ──────────────────────────────────────────────── */}
+        <Section title="Alignment">
+          <Row label="Position">
+            <div className="flex gap-0.5">
+              {IMAGE_ALIGNS.map(({ Icon, align }) => (
+                <IconBtn
+                  key={align}
+                  icon={Icon}
+                  title={align}
+                  active={imageAttrs.align === align}
+                  onClick={() => updateAttr("data-align", align)}
+                />
+              ))}
+            </div>
+          </Row>
+        </Section>
+
+        {/* ── Size ───────────────────────────────────────────────────── */}
+        <Section title="Size">
+          <div className="mb-2">
+            <span className="text-[10px] text-muted-foreground/60 mb-1 block">
+              Width
+            </span>
+            <PillGroup
+              options={WIDTH_PRESETS}
+              value={imageAttrs.width}
+              onChange={(v) => updateAttr("width", v)}
+            />
+          </div>
+          <Row label="Custom width">
+            <input
+              type="text"
+              defaultValue={imageAttrs.width}
+              placeholder="e.g. 320px"
+              onBlur={(e) => updateAttr("width", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter")
+                  updateAttr("width", (e.target as HTMLInputElement).value);
+              }}
+              className="w-24 rounded border border-border bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary/40 text-right"
+            />
+          </Row>
+        </Section>
+
+        {/* ── Style ──────────────────────────────────────────────────── */}
+        <Section title="Style">
+          <div className="mb-3">
+            <span className="text-[10px] text-muted-foreground/60 mb-1 block">
+              Corner radius
+            </span>
+            <PillGroup
+              options={RADIUS_PRESETS}
+              value={imageAttrs.borderRadius}
+              onChange={(v) => updateAttr("style", `border-radius:${v}`)}
+            />
+          </div>
+          <div className="mb-3">
+            <span className="text-[10px] text-muted-foreground/60 mb-1 block">
+              Border
+            </span>
+            <PillGroup
+              options={BORDER_PRESETS}
+              value={imageAttrs.border}
+              onChange={(v) => updateAttr("border", v)}
+            />
+          </div>
+          <Row label={`Opacity ${imageAttrs.opacity}%`}>
+            <input
+              type="range"
+              min={10}
+              max={100}
+              step={5}
+              value={imageAttrs.opacity}
+              onChange={(e) =>
+                updateAttr("opacity", Number(e.target.value) / 100)
+              }
+              className="w-28 accent-primary"
+            />
+          </Row>
+        </Section>
+
+        {/* ── Alt text ───────────────────────────────────────────────── */}
+        <Section title="Accessibility">
+          <label className="mb-1 block text-xs text-muted-foreground">
+            Alt text
+          </label>
+          <input
+            defaultValue={imageAttrs.alt}
+            placeholder="Describe the image…"
+            className="w-full rounded border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/40"
+            onChange={(e) => updateAttr("alt", e.target.value)}
+          />
+        </Section>
+
+        {/* ── Crop & Rotate (Cloudinary only) ────────────────────────── */}
+        {isCloudinary ? (
+          <Section title="Crop & Rotate">
+            <p className="text-[10px] text-muted-foreground/50 mb-2 leading-relaxed">
+              Generates a new transformed URL. Original is preserved.
+            </p>
+
+            {/* Rotate / flip row */}
+            <div className="mb-3">
+              <span className="text-[10px] text-muted-foreground/60 mb-1.5 block">
+                Rotate &amp; flip
+              </span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => applyTransform("a_90")}
+                  title="Rotate 90° CW"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border py-1.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                >
+                  <RotateCw size={12} strokeWidth={2} /> 90°
+                </button>
+                <button
+                  onClick={() => applyTransform("a_270")}
+                  title="Rotate 90° CCW"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border py-1.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                >
+                  <RotateCcw size={12} strokeWidth={2} /> 90°
+                </button>
+                <button
+                  onClick={() => applyTransform("a_180")}
+                  title="Rotate 180°"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border py-1.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                >
+                  <RotateCw size={12} strokeWidth={2} /> 180°
+                </button>
+                <button
+                  onClick={() => applyTransform("a_hflip")}
+                  title="Flip horizontal"
+                  className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                >
+                  <FlipHorizontal size={13} strokeWidth={1.8} />
+                </button>
+                <button
+                  onClick={() => applyTransform("a_vflip")}
+                  title="Flip vertical"
+                  className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                >
+                  <FlipVertical size={13} strokeWidth={1.8} />
+                </button>
+              </div>
+            </div>
+
+            {/* Crop presets */}
+            <div className="mb-2">
+              <span className="text-[10px] text-muted-foreground/60 mb-1.5 block">
+                Crop ratio
+              </span>
+              <div className="grid grid-cols-3 gap-1">
+                {CROP_PRESETS.filter((c) => c.params !== null).map((preset) => (
+                  <button
+                    key={preset.label}
+                    onClick={() => handleCropPreset(preset.params)}
+                    className={`flex items-center justify-center gap-1 rounded-md border py-1.5 text-[11px] transition-colors ${
+                      cropPreset === preset.params
+                        ? "border-primary bg-primary/10 text-primary font-medium"
+                        : "border-border text-muted-foreground hover:bg-accent hover:text-foreground"
+                    }`}
+                  >
+                    <Crop size={10} strokeWidth={2} />
+                    {preset.label}
+                  </button>
+                ))}
+                {/* Fill full width */}
+                <button
+                  onClick={() => applyTransform("c_fill,w_800")}
+                  className="flex items-center justify-center gap-1 rounded-md border border-border py-1.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                >
+                  <Maximize2 size={10} strokeWidth={2} />
+                  Fill
+                </button>
+                <button
+                  onClick={() => applyTransform("c_pad,w_800,b_auto")}
+                  className="flex items-center justify-center gap-1 rounded-md border border-border py-1.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                >
+                  <Square size={10} strokeWidth={2} />
+                  Pad
+                </button>
+              </div>
+            </div>
+          </Section>
+        ) : (
+          <Section title="Crop & Rotate">
+            <p className="text-[10px] text-muted-foreground/40 leading-relaxed">
+              Crop and rotate are available for Cloudinary-hosted images only.
+            </p>
+          </Section>
+        )}
+
+        {/* ── Danger ─────────────────────────────────────────────────── */}
+        <button
+          onClick={() => editor.chain().focus().deleteSelection().run()}
+          className="mt-1 flex w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+        >
+          <Trash2 size={12} /> Remove image
+        </button>
+      </>
+    );
+  },
+);
+
+// ─── Document Panel ───────────────────────────────────────────────────────────
+
 const DocumentPanel = memo(
   ({ wordCount, readTime }: { wordCount: number; readTime: number }) => (
     <Section title="Document">
@@ -260,7 +581,8 @@ const DocumentPanel = memo(
   ),
 );
 
-// ✅ active states from props — memo diffs primitives correctly
+// ─── Text Panel ───────────────────────────────────────────────────────────────
+
 const TextPanel = memo(
   ({ editor, active }: { editor: Editor; active: ActiveFormats }) => {
     const setColor = useCallback(
@@ -424,14 +746,12 @@ const TextPanel = memo(
   },
 );
 
-// ✅ openSections is local UI state — fine inside memo, doesn't relate to editor state
 const TextTogglePanel = memo(
   ({ editor, active }: { editor: Editor; active: ActiveFormats }) => {
     const [openSections, setOpenSections] = useState({
       search: false,
       text: true,
     });
-
     const toggle = useCallback(
       (key: "search" | "text") =>
         setOpenSections((prev) => ({ ...prev, [key]: !prev[key] })),
@@ -452,7 +772,6 @@ const TextTogglePanel = memo(
             <SearchPanel editor={editor} />
           </div>
         )}
-
         <SectionHeader
           sectionKey="text"
           icon={Text}
@@ -466,7 +785,8 @@ const TextTogglePanel = memo(
   },
 );
 
-// ✅ linkUrl, linkNewTab come from props (lifted to sidebar) — memo diffs them correctly
+// ─── Link Panel ───────────────────────────────────────────────────────────────
+
 const LinkPanel = memo(
   ({
     editor,
@@ -514,14 +834,10 @@ const LinkPanel = memo(
         <Row label="New tab">
           <button
             onClick={toggleNewTab}
-            className={`relative h-5 w-9 rounded-full transition-colors ${
-              linkNewTab ? "bg-primary" : "bg-muted"
-            }`}
+            className={`relative h-5 w-9 rounded-full transition-colors ${linkNewTab ? "bg-primary" : "bg-muted"}`}
           >
             <span
-              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                linkNewTab ? "translate-x-4" : "translate-x-0.5"
-              }`}
+              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${linkNewTab ? "translate-x-4" : "translate-x-0.5"}`}
             />
           </button>
         </Row>
@@ -536,51 +852,8 @@ const LinkPanel = memo(
   },
 );
 
-// ✅ imageAttrs from props — no editor.getAttributes() inside memo
-const ImagePanel = memo(
-  ({ editor, imageAttrs }: { editor: Editor; imageAttrs: ImageAttrs }) => (
-    <Section title="Image">
-      <div className="mb-2">
-        <label className="mb-1 block text-xs text-muted-foreground">
-          Alt Text
-        </label>
-        <input
-          defaultValue={imageAttrs.alt}
-          placeholder="Describe the image…"
-          className="w-full rounded border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/40"
-          onChange={(e) =>
-            editor
-              .chain()
-              .focus()
-              .updateAttributes("image", { alt: e.target.value })
-              .run()
-          }
-        />
-      </div>
-      <Row label="Align">
-        <div className="flex gap-0.5">
-          {IMAGE_ALIGNS.map(({ Icon, align }) => (
-            <IconBtn
-              key={align}
-              icon={Icon}
-              title={align}
-              active={imageAttrs.align === align}
-              onClick={() =>
-                editor
-                  .chain()
-                  .focus()
-                  .updateAttributes("image", { "data-align": align })
-                  .run()
-              }
-            />
-          ))}
-        </div>
-      </Row>
-    </Section>
-  ),
-);
+// ─── Table Panel ──────────────────────────────────────────────────────────────
 
-// ✅ No reactive reads inside — TablePanel is pure commands, always safe with memo
 const TablePanel = memo(({ editor }: { editor: Editor }) => (
   <Section title="Table">
     <div className="grid grid-cols-2 gap-1.5">
@@ -603,7 +876,8 @@ const TablePanel = memo(({ editor }: { editor: Editor }) => (
   </Section>
 ));
 
-// ✅ codeAttrs.language from props — no editor.getAttributes() inside memo
+// ─── Code Panel ───────────────────────────────────────────────────────────────
+
 const CodePanel = memo(
   ({ editor, codeAttrs }: { editor: Editor; codeAttrs: CodeAttrs }) => (
     <Section title="Code Block">
@@ -631,7 +905,8 @@ const CodePanel = memo(
   ),
 );
 
-// ✅ SearchPanel manages its own isolated state — no isActive reads, memo is fine as-is
+// ─── Search Panel ─────────────────────────────────────────────────────────────
+
 const SearchPanel = memo(({ editor }: { editor: Editor }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [replaceQuery, setReplaceQuery] = useState("");
@@ -689,7 +964,6 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
       pushPluginState(searchQuery, 0, []);
       return;
     }
-
     const cursorPos = editor.state.selection.from;
     const closest = found.reduce(
       (best, r, i) =>
@@ -867,7 +1141,7 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
   );
 });
 
-// ─── Main sidebar — single transaction listener, all reactive reads here ──────
+// ─── Main sidebar ─────────────────────────────────────────────────────────────
 
 const EditorRightSidebar = ({
   editor,
@@ -882,15 +1156,11 @@ const EditorRightSidebar = ({
   const [activeFormats, setActiveFormats] = useState<ActiveFormats>(
     DEFAULT_ACTIVE_FORMATS,
   );
-  const [imageAttrs, setImageAttrs] = useState<ImageAttrs>({
-    alt: "",
-    align: "left",
-  });
+  const [imageAttrs, setImageAttrs] = useState<ImageAttrs>(DEFAULT_IMAGE_ATTRS);
   const [codeAttrs, setCodeAttrs] = useState<CodeAttrs>({
     language: "plaintext",
   });
 
-  // Word count / read time derived from doc — stable via useMemo
   const { wordCount, readTime } = useMemo(() => {
     if (!editor) return { wordCount: 0, readTime: 1 };
     const words = editor.state.doc.textContent
@@ -903,12 +1173,16 @@ const EditorRightSidebar = ({
     if (!editor) return;
 
     const update = () => {
-      // ── Mode ──────────────────────────────────────────────────────────────
       if (editor.isActive("image")) {
         const attrs = editor.getAttributes("image");
         setImageAttrs({
+          src: attrs.src ?? "",
           alt: attrs.alt ?? "",
           align: attrs["data-align"] ?? "left",
+          width: attrs.width ?? "100%",
+          borderRadius: attrs.borderRadius ?? "0",
+          border: attrs.border ?? "none",
+          opacity: Math.round((attrs.opacity ?? 1) * 100),
         });
         setMode("image");
       } else if (editor.isActive("link")) {
@@ -930,8 +1204,7 @@ const EditorRightSidebar = ({
         );
       }
 
-      // ── Active formats — all reads in ONE place ───────────────────────────
-      if (!dynamicUpdate) return; // ← skip attaching listener entirely
+      if (!dynamicUpdate) return;
 
       setActiveFormats({
         textColor: editor.getAttributes("textStyle").color ?? "#000000",
@@ -951,7 +1224,7 @@ const EditorRightSidebar = ({
       });
     };
 
-    update(); // run once on mount
+    update();
     editor.on("selectionUpdate", update);
     editor.on("transaction", update);
     return () => {
@@ -963,8 +1236,7 @@ const EditorRightSidebar = ({
   if (!editor) return null;
 
   return (
-    <div className="editor-sidebar-left flex h-full  flex-col overflow-y-auto border-l border-border bg-editor-surface">
-      {/* Header */}
+    <div className="editor-sidebar-left flex h-full flex-col overflow-y-auto border-l border-border bg-editor-surface">
       <div className="sticky top-0 z-10 border-b border-border/50 bg-editor-surface px-4 py-3">
         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
           Properties
@@ -974,7 +1246,7 @@ const EditorRightSidebar = ({
         </p>
       </div>
 
-      <div className="editor-sidebar-left flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4">
         {mode === "document" && (
           <DocumentPanel wordCount={wordCount} readTime={readTime} />
         )}

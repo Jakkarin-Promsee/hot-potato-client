@@ -14,6 +14,7 @@ interface UploadState {
 
   fetchHistory: () => Promise<void>;
   upload: (file: File, category_id?: string | null) => Promise<void>;
+  uploadFromUrl: (url: string, category_id?: string | null) => Promise<void>;
   assignCategory: (
     public_id: string,
     category_id: string | null,
@@ -74,6 +75,31 @@ export const useUploadStore = create<UploadState>((set, get) => ({
         error: err instanceof Error ? err.message : "Upload failed.",
         isUploading: false,
         progress: 0,
+        previewUrl: null,
+      });
+    }
+  },
+
+  uploadFromUrl: async (url, category_id = null) => {
+    if (!url.trim()) return;
+
+    set({ isUploading: true, error: null, previewUrl: url }); // use the url itself as preview
+
+    try {
+      const { data: saved } = await api.post<UploadedImage>("/images/url", {
+        url,
+        category_id,
+      });
+
+      set((state) => ({ history: [saved, ...state.history] }));
+
+      setTimeout(() => {
+        set({ isUploading: false, previewUrl: null });
+      }, 600);
+    } catch (err: any) {
+      set({
+        error: err.response?.data?.message ?? "Failed to save image from URL.",
+        isUploading: false,
         previewUrl: null,
       });
     }

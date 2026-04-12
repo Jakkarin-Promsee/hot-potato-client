@@ -1,6 +1,6 @@
 import type {
-  CloudinaryUploadResponse,
   UploadedImage,
+  CloudinaryUploadResponse,
 } from "../types/cloudinary.types";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -37,7 +37,7 @@ export interface UploadOptions {
 export async function uploadImage(
   file: File,
   options: UploadOptions = {},
-): Promise<UploadedImage> {
+): Promise<CloudinaryUploadResponse> {
   const { cloudName, uploadPreset } = CLOUDINARY_CONFIG;
   const { onProgress } = options;
 

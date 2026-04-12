@@ -123,7 +123,7 @@ export default function CloudinaryUpload() {
       style={{ fontFamily: "'DM Mono', 'Fira Code', monospace" }}
     >
       {/* Top bar */}
-      <header className="h-12 border-b border-white/6 flex items-center px-5 gap-4 sticky top-0 z-30 bg-[#0e0e10]/90 backdrop-blur-sm">
+      {/* <header className="h-12 border-b border-white/[0.06] flex items-center px-5 gap-4 sticky top-0 z-30 bg-[#0e0e10]/90 backdrop-blur-sm">
         <div className="w-5 h-5 rounded bg-violet-500 flex items-center justify-center shrink-0">
           <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
             <path
@@ -140,7 +140,7 @@ export default function CloudinaryUpload() {
           <span>·</span>
           <span>{categories.length} groups</span>
         </div>
-      </header>
+      </header> */}
 
       <div className="flex h-[calc(100vh-48px)]">
         {/* Sidebar */}
