@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useUploadStore } from "@/stores/cloudinary.store";
 import {
   isConfigured,
@@ -21,11 +21,16 @@ export default function CloudinaryUpload() {
     selectImage,
     deleteImage,
     clearHistory,
+    fetchHistory,
   } = useUploadStore();
 
   const [isDragging, setIsDragging] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
 
   // ── handlers ──────────────────────────────────────────────────────────────
 

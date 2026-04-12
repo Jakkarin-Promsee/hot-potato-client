@@ -1,49 +1,19 @@
-/**
- * useUploadStore
- *
- * Central state for the Cloudinary upload workflow.
- * Uses Zustand for simple, boilerplate-free state management.
- *
- * Install if not already present:
- *   npm install zustand
- */
-
 import { create } from "zustand";
-import { uploadImage } from "../lib/cloudinary";
-import type { UploadedImage } from "../types/cloudinary.types";
-
-// ─── localStorage persistence helpers ────────────────────────────────────────
-
-const STORAGE_KEY = "cloudinary_upload_history";
-
-function loadHistory(): UploadedImage[] {
-  try {
-    return JSON.parse(
-      localStorage.getItem(STORAGE_KEY) ?? "[]",
-    ) as UploadedImage[];
-  } catch {
-    return [];
-  }
-}
-
-function persistHistory(images: UploadedImage[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(images));
-}
-
-// ─── Store shape ──────────────────────────────────────────────────────────────
+import { uploadImage } from "@/lib/cloudinary";
+import type { UploadedImage } from "@/types/cloudinary.types";
+import api from "@/lib/axios";
 
 interface UploadState {
-  // Upload status
   isUploading: boolean;
+  isFetching: boolean;
   progress: number;
   error: string | null;
-  previewUrl: string | null; // object URL of the file being uploaded
-
-  // History (latest first)
+  previewUrl: string | null;
   history: UploadedImage[];
   selectedImage: UploadedImage | null;
 
   // Actions
+  fetchHistory: () => Promise<void>;
   upload: (file: File) => Promise<void>;
   selectImage: (img: UploadedImage | null) => void;
   deleteImage: (public_id: string) => void;
@@ -51,18 +21,31 @@ interface UploadState {
   clearError: () => void;
 }
 
-// ─── Store ────────────────────────────────────────────────────────────────────
-
 export const useUploadStore = create<UploadState>((set, get) => ({
   isUploading: false,
+  isFetching: false,
   progress: 0,
   error: null,
   previewUrl: null,
-  history: loadHistory(),
+  history: [],
   selectedImage: null,
 
-  // ── upload ────────────────────────────────────────────────────────────────
+  // ── fetch history from server ─────────────────────────────────────────────
+  fetchHistory: async () => {
+    set({ isFetching: true, error: null });
+    try {
+      const { data } = await api.get<UploadedImage[]>("/images");
+      set({ history: data });
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : "Failed to load images.",
+      });
+    } finally {
+      set({ isFetching: false });
+    }
+  },
 
+  // ── upload ────────────────────────────────────────────────────────────────
   upload: async (file: File) => {
     if (!file.type.startsWith("image/")) {
       set({ error: "Only image files are supported." });
@@ -73,15 +56,19 @@ export const useUploadStore = create<UploadState>((set, get) => ({
     set({ isUploading: true, progress: 0, error: null, previewUrl });
 
     try {
+      // 1. Upload to Cloudinary
       const uploaded = await uploadImage(file, {
         onProgress: (pct) => set({ progress: pct }),
       });
 
-      const next = [uploaded, ...get().history];
-      persistHistory(next);
-      set({ history: next });
+      // 2. Persist the returned URL/metadata to your Node API
+      const { data: saved } = await api.post<UploadedImage>(
+        "/images",
+        uploaded,
+      );
 
-      // Brief pause at 100 % before resetting
+      set((state) => ({ history: [saved, ...state.history] }));
+
       setTimeout(() => {
         set({ isUploading: false, progress: 0, previewUrl: null });
       }, 600);
@@ -96,24 +83,35 @@ export const useUploadStore = create<UploadState>((set, get) => ({
   },
 
   // ── history actions ───────────────────────────────────────────────────────
-
   selectImage: (img) => set({ selectedImage: img }),
 
-  deleteImage: (public_id) => {
-    const next = get().history.filter((img) => img.public_id !== public_id);
-    persistHistory(next);
-    set({
-      history: next,
+  deleteImage: async (public_id: string) => {
+    // Optimistic update — remove locally first
+    const previous = get().history;
+    set((state) => ({
+      history: state.history.filter((img) => img.public_id !== public_id),
       selectedImage:
-        get().selectedImage?.public_id === public_id
+        state.selectedImage?.public_id === public_id
           ? null
-          : get().selectedImage,
-    });
+          : state.selectedImage,
+    }));
+
+    try {
+      await api.delete(`/images/${public_id}`);
+    } catch (err) {
+      // Roll back on failure
+      set({ history: previous, error: "Failed to delete image." });
+    }
   },
 
-  clearHistory: () => {
-    persistHistory([]);
+  clearHistory: async () => {
+    const previous = get().history;
     set({ history: [], selectedImage: null });
+    try {
+      await api.delete("/images");
+    } catch (err) {
+      set({ history: previous, error: "Failed to clear history." });
+    }
   },
 
   clearError: () => set({ error: null }),
