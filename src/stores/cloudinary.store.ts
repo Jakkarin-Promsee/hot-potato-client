@@ -12,12 +12,15 @@ interface UploadState {
   history: UploadedImage[];
   selectedImage: UploadedImage | null;
 
-  // Actions
   fetchHistory: () => Promise<void>;
-  upload: (file: File) => Promise<void>;
+  upload: (file: File, category_id?: string | null) => Promise<void>;
+  assignCategory: (
+    public_id: string,
+    category_id: string | null,
+  ) => Promise<void>;
   selectImage: (img: UploadedImage | null) => void;
-  deleteImage: (public_id: string) => void;
-  clearHistory: () => void;
+  deleteImage: (public_id: string) => Promise<void>;
+  clearHistory: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -30,23 +33,19 @@ export const useUploadStore = create<UploadState>((set, get) => ({
   history: [],
   selectedImage: null,
 
-  // ── fetch history from server ─────────────────────────────────────────────
   fetchHistory: async () => {
     set({ isFetching: true, error: null });
     try {
       const { data } = await api.get<UploadedImage[]>("/images");
       set({ history: data });
-    } catch (err) {
-      set({
-        error: err instanceof Error ? err.message : "Failed to load images.",
-      });
+    } catch {
+      set({ error: "Failed to load images." });
     } finally {
       set({ isFetching: false });
     }
   },
 
-  // ── upload ────────────────────────────────────────────────────────────────
-  upload: async (file: File) => {
+  upload: async (file, category_id = null) => {
     if (!file.type.startsWith("image/")) {
       set({ error: "Only image files are supported." });
       return;
@@ -56,16 +55,14 @@ export const useUploadStore = create<UploadState>((set, get) => ({
     set({ isUploading: true, progress: 0, error: null, previewUrl });
 
     try {
-      // 1. Upload to Cloudinary
       const uploaded = await uploadImage(file, {
         onProgress: (pct) => set({ progress: pct }),
       });
 
-      // 2. Persist the returned URL/metadata to your Node API
-      const { data: saved } = await api.post<UploadedImage>(
-        "/images",
-        uploaded,
-      );
+      const { data: saved } = await api.post<UploadedImage>("/images", {
+        ...uploaded,
+        category_id, // ← pass category at upload time if known
+      });
 
       set((state) => ({ history: [saved, ...state.history] }));
 
@@ -82,11 +79,33 @@ export const useUploadStore = create<UploadState>((set, get) => ({
     }
   },
 
-  // ── history actions ───────────────────────────────────────────────────────
+  // Assign or remove a category from an already-uploaded image
+  assignCategory: async (public_id, category_id) => {
+    const previous = get().history;
+    // Optimistic update
+    set((state) => ({
+      history: state.history.map((img) =>
+        img.public_id === public_id ? { ...img, category_id } : img,
+      ),
+    }));
+    try {
+      const { data } = await api.patch<UploadedImage>(
+        `/images/${encodeURIComponent(public_id)}/category`,
+        { category_id },
+      );
+      set((state) => ({
+        history: state.history.map((img) =>
+          img.public_id === public_id ? data : img,
+        ),
+      }));
+    } catch {
+      set({ history: previous, error: "Failed to assign category." });
+    }
+  },
+
   selectImage: (img) => set({ selectedImage: img }),
 
-  deleteImage: async (public_id: string) => {
-    // Optimistic update — remove locally first
+  deleteImage: async (public_id) => {
     const previous = get().history;
     set((state) => ({
       history: state.history.filter((img) => img.public_id !== public_id),
@@ -95,11 +114,9 @@ export const useUploadStore = create<UploadState>((set, get) => ({
           ? null
           : state.selectedImage,
     }));
-
     try {
-      await api.delete(`/images/${public_id}`);
-    } catch (err) {
-      // Roll back on failure
+      await api.delete(`/images/${encodeURIComponent(public_id)}`);
+    } catch {
       set({ history: previous, error: "Failed to delete image." });
     }
   },
@@ -109,7 +126,7 @@ export const useUploadStore = create<UploadState>((set, get) => ({
     set({ history: [], selectedImage: null });
     try {
       await api.delete("/images");
-    } catch (err) {
+    } catch {
       set({ history: previous, error: "Failed to clear history." });
     }
   },
