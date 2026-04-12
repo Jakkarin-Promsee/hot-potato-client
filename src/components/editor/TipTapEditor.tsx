@@ -1,28 +1,9 @@
 import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
-import TextAlign from "@tiptap/extension-text-align";
-import Image from "@tiptap/extension-image";
-import Youtube from "@tiptap/extension-youtube";
-import { Table } from "@tiptap/extension-table";
-import { TableRow } from "@tiptap/extension-table-row";
-import { TableCell } from "@tiptap/extension-table-cell";
-import { TableHeader } from "@tiptap/extension-table-header";
-import { Color } from "@tiptap/extension-color";
-import { TextStyle } from "@tiptap/extension-text-style";
-import { Highlight } from "@tiptap/extension-highlight";
-import Underline from "@tiptap/extension-underline";
-import TaskList from "@tiptap/extension-task-list";
-import TaskItem from "@tiptap/extension-task-item";
-import { Markdown } from "tiptap-markdown";
-import Link from "@tiptap/extension-link";
-import { SearchHighlightExtension } from "./extensions/SearchHighlight";
 
 import EditorHeader from "./EditorHeader";
 import { FabricCanvasNode } from "./extensions/FabricCanvasNode";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCanvasContext } from "@/contexts/CanvasContext";
-// import CanvasSidebar from "../design/CanvasSidebar";
 
 import EditorLeftSidebar from "./EditorLeftSidebar";
 import EditorRightSidebar from "./EditorRightSidebar";
@@ -39,7 +20,7 @@ const TipTapEditor = () => {
   const [dynamicUpdate, setDynamicUpdate] = useState(true);
   const [linkClickMode, setLinkClickMode] = useState<"ctrl" | "direct">("ctrl");
   const [sidebarCategory, setSidebarCategory] = useState<
-    "text" | "image" | "video" | "other" | "special"
+    "text" | "media" | "other" | "special"
   >("text");
   const [zoom, setZoom] = useState(1.0);
   const mainRef = useRef<HTMLDivElement>(null);
@@ -106,10 +87,17 @@ const TipTapEditor = () => {
     },
   });
 
-  // Set content once editor + data are ready
+  // Set content only when the editor is empty or when contentId changes
   useEffect(() => {
-    if (editor && tiptapJson && tiptapJson !== "{}") {
+    if (!editor || !tiptapJson || tiptapJson === "{}") return;
+
+    // Check if the current editor content is already the same as tiptapJson
+    // to avoid unnecessary re-renders that reset the cursor
+    const currentJson = JSON.stringify(editor.getJSON());
+
+    if (currentJson !== tiptapJson) {
       editor.commands.setContent(JSON.parse(tiptapJson));
+      // The 'false' parameter tells Tiptap not to emit an update event
     }
   }, [editor, tiptapJson]);
 
@@ -190,7 +178,15 @@ const TipTapEditor = () => {
   }, []);
 
   // Get <Canvas> for toolbars
-  const { canvas } = useCanvasContext();
+  const { canvas, setCanvasSync } = useCanvasContext();
+
+  // Quit canvas when load
+  // (The cavas loding method making canvas didn't null, overide the sidebar)
+  useEffect(() => {
+    setTimeout(() => {
+      setCanvasSync(null);
+    }, 0);
+  }, []);
 
   //───────────────────────────────────────────────────────────────────────────
   return (
@@ -224,11 +220,11 @@ const TipTapEditor = () => {
         <header
           className="editor-header"
           // To get back focus to editor content
-          onMouseDown={(e) => {
-            editor.chain().focus();
-            console.log("header mouse down");
-          }} // Remove focus to UI
-          onMouseUp={(e) => editor.chain().focus()} // Get forcus back
+          // onMouseDown={(e) => {
+          //   editor.chain().focus();
+          //   console.log("header mouse down");
+          // }} // Remove focus to UI
+          // onMouseUp={(e) => editor.chain().focus()} // Get forcus back
         >
           <EditorHeader
             editor={editor}
@@ -245,11 +241,11 @@ const TipTapEditor = () => {
         <aside
           className="editor-sidebar-left flex"
           // To get back focus to editor content
-          onMouseDown={(e) => {
-            editor.chain().focus();
-            console.log("left mouse down");
-          }} // Remove focus to UI
-          onMouseUp={(e) => editor.chain().focus()} // Get forcus back
+          // onMouseDown={(e) => {
+          //   editor.chain().focus();
+          //   console.log("left mouse down");
+          // }} // Remove focus to UI
+          // onMouseUp={(e) => editor.chain().focus()} // Get forcus back
         >
           {/* Tiptap original Editor */}
           {!canvas && editor && (
@@ -290,11 +286,11 @@ const TipTapEditor = () => {
         <aside
           className="editor-sidebar-right"
           // To get back focus to editor content
-          onMouseDown={(e) => {
-            editor.chain().focus();
-            console.log("right mouse down");
-          }} // Remove focus to UI
-          onMouseUp={(e) => editor.chain().focus()} // Get forcus back
+          // onMouseDown={(e) => {
+          //   editor.chain().focus();
+          //   console.log("right mouse down");
+          // }} // Remove focus to UI
+          // onMouseUp={(e) => editor.chain().focus()} // Get forcus back
         >
           {/* Tiptap original Editor */}
           {!canvas && (
