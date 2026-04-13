@@ -134,9 +134,13 @@ function useFabricSetup({
         e.target instanceof HTMLTextAreaElement
       )
         return;
-      if (e.key === "Delete" || e.key === "Backspace") {
+      if (e.key === "Delete" || e.key === "Backspace" || e.key === "a") {
         const active = c.getActiveObjects();
         if (active.length) {
+          console.log("test");
+          e.preventDefault();
+          e.stopImmediatePropagation();
+
           saveStateRef.current?.();
           active.forEach((obj) => c.remove(obj));
           c.discardActiveObject();
@@ -144,7 +148,7 @@ function useFabricSetup({
         }
       }
     };
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown, true);
 
     // Force save state before useContext update
     setTimeout(() => {

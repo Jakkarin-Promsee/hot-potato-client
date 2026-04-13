@@ -44,9 +44,16 @@ export const createEditorExtensions = (editable = true) => [
   ...(editable
     ? [Placeholder.configure({ placeholder: "Tell your story..." })]
     : []),
-  Image.configure({
-    allowBase64: true,
-    HTMLAttributes: { class: "editor-image" },
+  Image.configure({}).extend({
+    addAttributes() {
+      return {
+        ...this.parent?.(),
+        "data-align": { default: "left" },
+        "data-href": { default: null },
+        width: { default: null },
+        height: { default: null },
+      };
+    },
   }),
   Youtube.configure({ width: 560, height: 315 }),
   Table.configure({ resizable: editable }),

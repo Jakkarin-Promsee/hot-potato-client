@@ -6,6 +6,7 @@ export const FabricCanvasNode = Node.create({
   name: "fabricCanvas",
   group: "block",
   atom: true,
+  selectable: false,
 
   addAttributes() {
     return {

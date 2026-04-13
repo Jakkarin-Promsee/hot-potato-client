@@ -31,6 +31,8 @@ import {
   type LineStyle,
 } from "@/hooks/useFabric";
 
+import { CanvasImagePanel } from "./CanvasImagePanel";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type PanelMode = "none" | "text" | "shape" | "image" | "richLine" | "multi";
@@ -1223,8 +1225,8 @@ export default function CanvasRightSidebar() {
   const activeObjects = isMulti
     ? selectedObjects
     : isGroup
-    ? groupChildren
-    : [];
+      ? groupChildren
+      : [];
 
   const isTextType = (o: any) =>
     o.type === "i-text" || o.type === "text" || o.type === "textbox";
@@ -1242,14 +1244,14 @@ export default function CanvasRightSidebar() {
     isMulti || isGroup
       ? "multi"
       : !obj
-      ? "none"
-      : isText
-      ? "text"
-      : isImage
-      ? "image"
-      : isRichLine
-      ? "richLine"
-      : "shape";
+        ? "none"
+        : isText
+          ? "text"
+          : isImage
+            ? "image"
+            : isRichLine
+              ? "richLine"
+              : "shape";
 
   // ── Update primitives ─────────────────────────────────────────────────────
 
@@ -1439,8 +1441,8 @@ export default function CanvasRightSidebar() {
           {mode === "multi" && isMulti
             ? `${selectedObjects.length} items selected`
             : mode === "multi" && isGroup
-            ? `Group (${groupChildren.length} items)`
-            : MODE_LABELS[mode]}
+              ? `Group (${groupChildren.length} items)`
+              : MODE_LABELS[mode]}
         </p>
       </div>
 
@@ -1486,12 +1488,12 @@ export default function CanvasRightSidebar() {
               />
             )}
             {isImage && (
-              <ImagePanel
+              <CanvasImagePanel
                 obj={obj as FabricImage}
                 canvas={canvas}
                 saveStateRef={saveStateRef}
                 forceUpdate={forceUpdate}
-                tick={tick} // 👈 passed down
+                tick={tick}
               />
             )}
             {isRichLine && (

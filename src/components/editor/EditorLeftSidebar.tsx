@@ -220,7 +220,14 @@ const MediaPanel = memo(({ editor }: { editor: Editor }) => {
     : history;
 
   const insertImage = useCallback(
-    (src: string) => editor.chain().focus().setImage({ src }).run(),
+    (src: string) => {
+      editor.chain().focus().setImage({ src }).run();
+      editor
+        .chain()
+        .focus()
+        .updateAttributes("image", { "data-align": "center" })
+        .run();
+    },
     [editor],
   );
 

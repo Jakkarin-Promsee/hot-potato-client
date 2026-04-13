@@ -1,4 +1,4 @@
-import { useState, useRef, memo } from "react";
+import { useState, useRef, memo, useEffect, useCallback } from "react";
 import {
   LayoutTemplate,
   Shapes,
@@ -19,6 +19,9 @@ import {
   Heading2,
   AlignLeft,
   Brush,
+  Link2,
+  ExternalLink,
+  X,
 } from "lucide-react";
 import { useCanvasContext, SelectedCategory } from "@/contexts/CanvasContext";
 import {
@@ -29,6 +32,9 @@ import {
   Textbox,
 } from "fabric";
 import { useFabric, type LineStyle, type ArrowType } from "@/hooks/useFabric";
+import { useUploadStore } from "@/stores/cloudinary.store";
+import { useCategoryStore } from "@/stores/category.store";
+import CloudinaryUpload from "@/components/CloudinaryUpload";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -52,7 +58,6 @@ const SHAPES = [
   { type: "diamond", icon: Diamond, label: "Diamond" },
 ];
 
-// Line preset cards shown in the Connectors subsection
 interface ConnectorPreset {
   label: string;
   icon: React.ElementType;
@@ -388,8 +393,254 @@ const ToolBtn = memo(
   ),
 );
 
-// ─── ConnectorPreviewLine ─────────────────────────────────────────────────────
-// Small SVG that renders a live preview of the connector style/arrowheads.
+// ─── Gallery Modal ────────────────────────────────────────────────────────────
+
+const GalleryModal = memo(({ onClose }: { onClose: () => void }) => (
+  <div
+    className="fixed inset-0 z-50 flex items-center justify-center"
+    onClick={(e) => {
+      if (e.target === e.currentTarget) onClose();
+    }}
+  >
+    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+    <div className="relative z-10 w-[90vw] max-w-5xl h-[85vh] rounded-2xl border border-border bg-background shadow-2xl overflow-hidden flex flex-col">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
+        <span className="text-sm font-semibold text-foreground">
+          Image Vault
+        </span>
+        <button
+          onClick={onClose}
+          className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+        >
+          <X size={15} />
+        </button>
+      </div>
+      <div className="flex-1 overflow-hidden">
+        <CloudinaryUpload />
+      </div>
+    </div>
+  </div>
+));
+
+// ─── Canvas Media Panel ───────────────────────────────────────────────────────
+// Same as editor's MediaPanel but calls `addImage` from useFabric instead of
+// editor.chain().setImage(). The vault grid, upload buttons, URL input, category
+// filter pills, and gallery modal are all identical.
+
+const CanvasMediaPanel = memo(
+  ({ onInsertImage }: { onInsertImage: (src: string) => void }) => {
+    const {
+      history,
+      fetchHistory,
+      isFetching,
+      upload,
+      uploadFromUrl,
+      isUploading,
+      progress,
+    } = useUploadStore();
+    const { categories, fetchCategories } = useCategoryStore();
+
+    const [urlInput, setUrlInput] = useState("");
+    const [showUrlBox, setShowUrlBox] = useState(false);
+    const [activeCatId, setActiveCatId] = useState<string | null>(null);
+    const [showGallery, setShowGallery] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+      fetchHistory();
+      fetchCategories();
+    }, []);
+
+    const uploadCategoryId = activeCatId;
+
+    const filtered = activeCatId
+      ? history.filter((img) => img.category_id === activeCatId)
+      : history;
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) upload(file, uploadCategoryId);
+      e.target.value = "";
+    };
+
+    const handleUrlInsert = () => {
+      if (!urlInput.trim()) return;
+      uploadFromUrl(urlInput.trim(), uploadCategoryId);
+      setUrlInput("");
+      setShowUrlBox(false);
+    };
+
+    return (
+      <div className="flex flex-col gap-1">
+        {/* ── Upload buttons ── */}
+        <PanelLabel>Upload</PanelLabel>
+
+        <div className="px-2 flex flex-col gap-2">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="flex items-center justify-center gap-2 w-full rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 hover:border-primary/70 px-3 py-3 text-sm font-medium text-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Upload size={15} strokeWidth={2} />
+            {isUploading ? `Uploading… ${progress}%` : "Upload from device"}
+          </button>
+
+          <button
+            onClick={() => setShowUrlBox((v) => !v)}
+            className={`flex items-center justify-center gap-2 w-full rounded-lg border-2 px-3 py-3 text-sm font-medium transition-all ${
+              showUrlBox
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-background hover:bg-accent hover:border-border text-foreground"
+            }`}
+          >
+            <Link2 size={15} strokeWidth={2} />
+            Upload from URL
+          </button>
+
+          {showUrlBox && (
+            <div className="flex gap-1.5">
+              <input
+                autoFocus
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleUrlInsert();
+                  if (e.key === "Escape") setShowUrlBox(false);
+                }}
+                placeholder="https://…"
+                className="flex-1 min-w-0 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/40"
+              />
+              <button
+                onClick={handleUrlInsert}
+                disabled={!urlInput.trim() || isUploading}
+                className="shrink-0 rounded-md bg-primary px-2.5 py-1.5 text-xs text-primary-foreground disabled:opacity-40 transition-colors hover:bg-primary/90"
+              >
+                Save
+              </button>
+            </div>
+          )}
+
+          {isUploading && (
+            <div className="h-1 rounded-full bg-border overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* ── Manage gallery ── */}
+        <div className="px-2 pt-1">
+          <button
+            onClick={() => setShowGallery(true)}
+            className="flex items-center justify-center gap-2 w-full rounded-lg border border-border bg-background hover:bg-accent px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ExternalLink size={12} strokeWidth={1.8} />
+            Manage gallery
+          </button>
+        </div>
+
+        {/* ── Category filter pills ── */}
+        <PanelLabel>
+          Filter
+          {activeCatId
+            ? " — uploading to this group"
+            : " — uploading uncategorized"}
+        </PanelLabel>
+        <div className="px-2 flex flex-wrap gap-1 pb-1">
+          <button
+            onClick={() => setActiveCatId(null)}
+            className={`px-2 py-0.5 rounded-full text-[10px] border transition-colors ${
+              activeCatId === null
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:border-muted-foreground"
+            }`}
+          >
+            All
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat._id}
+              onClick={() =>
+                setActiveCatId(activeCatId === cat._id ? null : cat._id)
+              }
+              className={`px-2 py-0.5 rounded-full text-[10px] border transition-colors truncate max-w-20 ${
+                activeCatId === cat._id
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground hover:border-muted-foreground"
+              }`}
+            >
+              {cat.name}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Image grid ── */}
+        <PanelLabel>Vault ({filtered.length})</PanelLabel>
+
+        {isFetching ? (
+          <div className="grid grid-cols-2 gap-1.5 px-2 pb-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="aspect-square rounded-md bg-accent animate-pulse"
+              />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <p className="px-3 py-6 text-center text-[11px] text-muted-foreground/40">
+            No images yet
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-1.5 px-2 pb-2">
+            {filtered.map((img) => (
+              <button
+                key={img.public_id}
+                onClick={() => onInsertImage(img.secure_url)}
+                title={img.original_filename}
+                className="group relative aspect-square overflow-hidden rounded-md border border-border hover:border-primary transition-all"
+              >
+                <img
+                  src={img.secure_url}
+                  alt={img.original_filename}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <span className="text-white text-[10px] font-medium">
+                    Insert
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+
+        {/* Gallery modal */}
+        {showGallery && (
+          <GalleryModal
+            onClose={() => {
+              setShowGallery(false);
+              fetchHistory();
+            }}
+          />
+        )}
+      </div>
+    );
+  },
+);
+
+// ─── ConnectorPreview ─────────────────────────────────────────────────────────
 
 const ConnectorPreview = memo(
   ({
@@ -401,9 +652,8 @@ const ConnectorPreview = memo(
       lineStyle === "dashed"
         ? "5,3"
         : lineStyle === "dotted"
-        ? "1.5,3"
-        : undefined;
-
+          ? "1.5,3"
+          : undefined;
     const arrowHead = (type: ArrowType, flip: boolean) => {
       if (type === "none") return null;
       const transform = flip ? "scale(-1,1) translate(-28,0)" : "";
@@ -459,7 +709,6 @@ const ConnectorPreview = memo(
           return null;
       }
     };
-
     return (
       <svg viewBox="0 0 56 10" className="w-full h-4 text-muted-foreground">
         <line
@@ -473,7 +722,6 @@ const ConnectorPreview = memo(
           strokeLinecap="round"
         />
         {arrowHead(dstArrow, false)}
-        {/* src arrow: drawn at left (x=0), flip so it points left */}
         <g transform="translate(0,0)">{arrowHead(srcArrow, true)}</g>
       </svg>
     );
@@ -528,10 +776,8 @@ const ElementsPanel = memo(
     const filteredConnectors = CONNECTOR_PRESETS.filter((c) =>
       c.label.toLowerCase().includes(search.toLowerCase()),
     );
-
     return (
       <div className="flex flex-col gap-1">
-        {/* Shapes */}
         {filteredShapes.length > 0 && (
           <>
             <PanelLabel>Shapes</PanelLabel>
@@ -554,8 +800,6 @@ const ElementsPanel = memo(
             </div>
           </>
         )}
-
-        {/* Connectors */}
         {filteredConnectors.length > 0 && (
           <>
             <PanelLabel>Connectors</PanelLabel>
@@ -611,35 +855,6 @@ const TextPanel = memo(
   ),
 );
 
-const UploadsPanel = memo(
-  ({
-    onUpload,
-  }: {
-    onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  }) => {
-    const ref = useRef<HTMLInputElement>(null);
-    return (
-      <div className="flex flex-col gap-1">
-        <PanelLabel>Upload</PanelLabel>
-        <button
-          onClick={() => ref.current?.click()}
-          className="mx-1 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg py-8 text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-        >
-          <Upload size={22} />
-          <span className="text-xs font-medium">Upload image</span>
-        </button>
-        <input
-          ref={ref}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={onUpload}
-        />
-      </div>
-    );
-  },
-);
-
 const DrawPanel = memo(
   ({
     isDrawing,
@@ -669,7 +884,6 @@ const DrawPanel = memo(
         <Brush size={16} />
         {isDrawing ? "Stop Drawing" : "Start Drawing"}
       </button>
-
       <div>
         <PanelLabel>Brush Size: {brushSize}px</PanelLabel>
         <input
@@ -681,7 +895,6 @@ const DrawPanel = memo(
           className="w-full accent-primary mt-1"
         />
       </div>
-
       <div>
         <PanelLabel>Color</PanelLabel>
         <div className="flex flex-wrap gap-2 pt-1">
@@ -689,11 +902,7 @@ const DrawPanel = memo(
             <button
               key={c}
               onClick={() => onBrushColor(c)}
-              className={`w-6 h-6 rounded-full border-2 transition-transform ${
-                brushColor === c
-                  ? "border-primary scale-110"
-                  : "border-transparent"
-              }`}
+              className={`w-6 h-6 rounded-full border-2 transition-transform ${brushColor === c ? "border-primary scale-110" : "border-transparent"}`}
               style={{ backgroundColor: c }}
             />
           ))}
@@ -724,7 +933,7 @@ export default function CanvasLeftSidebar() {
 
   const activeCategory = selectedCategory ?? "templates";
 
-  // ── Template apply ────────────────────────────────────────────────────────
+  // ── Template apply ──────────────────────────────────────────────────────────
 
   const applyTemplate = (template: (typeof TEMPLATES)[0]) => {
     if (!canvas) return;
@@ -749,7 +958,7 @@ export default function CanvasLeftSidebar() {
     canvas.renderAll();
   };
 
-  // ── Connector ─────────────────────────────────────────────────────────────
+  // ── Connector ───────────────────────────────────────────────────────────────
 
   const handleAddConnector = (preset: ConnectorPreset) => {
     addRichLine({
@@ -759,19 +968,16 @@ export default function CanvasLeftSidebar() {
     });
   };
 
-  // ── Upload ────────────────────────────────────────────────────────────────
+  // ── Insert image from vault into canvas ─────────────────────────────────────
 
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      if (ev.target?.result) addImage(ev.target.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
+  const handleInsertImage = useCallback(
+    (src: string) => {
+      addImage(src);
+    },
+    [addImage],
+  );
 
-  // ── Draw mode ─────────────────────────────────────────────────────────────
+  // ── Draw mode ───────────────────────────────────────────────────────────────
 
   const toggleDraw = () => {
     const next = !isDrawing;
@@ -789,7 +995,7 @@ export default function CanvasLeftSidebar() {
     setBrushColor(color);
   };
 
-  // ── Panel renderer ────────────────────────────────────────────────────────
+  // ── Panel renderer ──────────────────────────────────────────────────────────
 
   const renderPanel = () => {
     switch (activeCategory) {
@@ -806,7 +1012,7 @@ export default function CanvasLeftSidebar() {
       case "text":
         return <TextPanel onAdd={addText} />;
       case "uploads":
-        return <UploadsPanel onUpload={handleUpload} />;
+        return <CanvasMediaPanel onInsertImage={handleInsertImage} />;
       case "draw":
         return (
           <DrawPanel

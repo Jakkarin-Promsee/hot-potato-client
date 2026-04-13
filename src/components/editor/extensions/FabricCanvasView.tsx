@@ -1,4 +1,10 @@
-import { useRef, useEffect, useCallback, useState, RefObject } from "react";
+import React, {
+  useRef,
+  useEffect,
+  useCallback,
+  useState,
+  RefObject,
+} from "react";
 import { NodeViewWrapper } from "@tiptap/react";
 import { ActiveSelection, Canvas, FabricObject } from "fabric";
 import useFabricSetup from "@/hooks/useFabricSetup";
@@ -58,13 +64,14 @@ const FabricCanvasView = ({
 
   // Set canvas context part
   useEffect(() => {
+    console.log(selected);
     // If tiptap select didn't change, do nothing
     if (selected) {
       canvasSelectPrevref.current = true;
       return;
     }
 
-    if (canvasSelectPrevref.current) {
+    if (canvasSelectPrevref.current || true) {
       canvasSelectPrevref.current = false;
       const canvas = canvasRef.current;
       if (!canvas) return;
