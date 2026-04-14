@@ -1,6 +1,7 @@
 import { useCanvasContext } from "@/contexts/CanvasContext";
 import { Canvas, Line } from "fabric";
 import { useEffect, useRef } from "react";
+import { rehydrateRichLines } from "./useFabric";
 
 type useFabricSetupOptions = {
   onFocus?: () => void;
@@ -173,9 +174,12 @@ function useFabricSetup({
 
     const loadCanvas = async () => {
       try {
+        if (!canvasRef.current) return;
+
         lastLoadedRef.current = canvasData;
         await canvasRef.current?.loadFromJSON(JSON.parse(canvasData));
-        canvasRef.current?.renderAll();
+        rehydrateRichLines(canvasRef.current, saveStateRef.current);
+        canvasRef.current?.requestRenderAll();
       } catch (e) {
         console.error("load error:", e); // check what error comes out!
       }
