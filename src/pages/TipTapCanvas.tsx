@@ -61,17 +61,19 @@ const TipTapCanvas = () => {
 
   if (isLoading)
     return (
-      <div className="flex h-screen items-center justify-center">
-        <span className="text-muted-foreground text-sm animate-pulse">
+      <div className="flex h-screen items-center justify-center bg-background text-foreground">
+        <span className="animate-pulse text-sm text-muted-foreground">
           Loading content...
         </span>
       </div>
     );
 
   return (
-    <CanvasProvider>
-      <TipTapEditor />
-    </CanvasProvider>
+    <div className="min-h-screen bg-background text-foreground">
+      <CanvasProvider>
+        <TipTapEditor />
+      </CanvasProvider>
+    </div>
   );
 };
 

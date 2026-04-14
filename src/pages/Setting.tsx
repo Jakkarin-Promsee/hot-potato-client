@@ -8,7 +8,8 @@ import {
   LogOut,
   ChevronRight,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { useThemeStore } from "@/stores/theme.store";
 
 interface SettingRow {
   icon: React.ElementType;
@@ -69,6 +70,8 @@ const sections: { heading: string; items: SettingRow[] }[] = [
 ];
 
 export default function Settings() {
+  const { theme } = useThemeStore();
+
   return (
     <div className="container max-w-lg px-4 pb-12 pt-6">
       <h1 className="font-serif text-2xl font-bold">Settings</h1>
@@ -77,6 +80,21 @@ export default function Settings() {
       </p>
 
       <div className="mt-6 space-y-6">
+        <div>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Theme
+          </h2>
+          <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-foreground">Appearance</p>
+              <p className="text-xs text-muted-foreground">
+                Current mode: {theme === "dark" ? "Dark" : "Light"}
+              </p>
+            </div>
+            <ThemeToggle />
+          </div>
+        </div>
+
         {sections.map((section) => (
           <div key={section.heading}>
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">

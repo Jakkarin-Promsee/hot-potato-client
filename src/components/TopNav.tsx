@@ -15,10 +15,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
   { to: "/explore", icon: Compass, label: "Explore" },
@@ -42,23 +42,27 @@ export function TopNav() {
           Intuita
         </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden items-center gap-1 md:flex">
-          {navItems.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-              activeClassName="bg-accent text-foreground"
-            >
-              <Icon className="h-4 w-4" />
-              <span>{label}</span>
-            </NavLink>
-          ))}
-        </nav>
+        <div className="hidden items-center gap-2 md:flex">
+          {/* Desktop nav */}
+          <nav className="flex items-center gap-1">
+            {navItems.map(({ to, icon: Icon, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                activeClassName="bg-accent text-foreground"
+              >
+                <Icon className="h-4 w-4" />
+                <span>{label}</span>
+              </NavLink>
+            ))}
+          </nav>
+          <ThemeToggle compact />
+        </div>
 
-        {/* Mobile dropdown */}
-        <div className="md:hidden">
+        {/* Mobile controls */}
+        <div className="flex items-center gap-1 md:hidden">
+          <ThemeToggle compact />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

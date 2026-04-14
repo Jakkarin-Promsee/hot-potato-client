@@ -11,8 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { useThemeStore } from "@/stores/theme.store";
 
 export default function Profile() {
+  const { theme } = useThemeStore();
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -46,6 +49,16 @@ export default function Profile() {
 
       {/* Form */}
       <div className="mt-8 space-y-5">
+        <div className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2.5">
+          <div>
+            <p className="text-sm font-medium text-foreground">Theme</p>
+            <p className="text-xs text-muted-foreground">
+              Using {theme === "dark" ? "dark" : "light"} mode
+            </p>
+          </div>
+          <ThemeToggle />
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label
