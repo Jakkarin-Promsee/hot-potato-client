@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
+import { useAnswerStore } from "@/stores/content-answer.store";
 import {
   Bot,
   SendHorizontal,
@@ -15,6 +16,11 @@ export interface ChatMessage {
   question: string;
   answer: string;
   createdAt: string;
+}
+
+interface BlockAnswer {
+  chatHistory: ChatMessage[];
+  collapsed: boolean;
 }
 
 function useAutoGrow(value: string) {
@@ -55,18 +61,30 @@ export default function QuestionAgentView({
 }: NodeViewProps) {
   const attrs = node.attrs as QuestionAgentAttrs;
   const isEditable = editor.isEditable;
+  const blockId = attrs.id as string;
+
+  const answers = useAnswerStore((s) => s.answers);
+  const setAnswer = useAnswerStore((s) => s.setAnswer);
+  const savedAnswer = answers[blockId] as BlockAnswer | undefined;
 
   const [title, setTitle] = useState(attrs.title ?? "Ask AI");
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(attrs.chatHistory ?? []);
-  const [collapsed, setCollapsed] = useState<boolean>(attrs.collapsed ?? true);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(
+    savedAnswer?.chatHistory ?? attrs.chatHistory ?? [],
+  );
+  const [collapsed, setCollapsed] = useState<boolean>(
+    savedAnswer?.collapsed ?? attrs.collapsed ?? true,
+  );
   const [questionInput, setQuestionInput] = useState("");
   const [isAsking, setIsAsking] = useState(false);
   const inputRef = useAutoGrow(questionInput);
   const hasAsked = chatHistory.length > 0;
 
   useEffect(() => setTitle(attrs.title ?? "Ask AI"), [attrs.title]);
-  useEffect(() => setChatHistory(attrs.chatHistory ?? []), [attrs.chatHistory]);
-  useEffect(() => setCollapsed(attrs.collapsed ?? true), [attrs.collapsed]);
+  useEffect(() => {
+    if (!savedAnswer) return;
+    setChatHistory(savedAnswer.chatHistory ?? []);
+    setCollapsed(savedAnswer.collapsed ?? true);
+  }, [answers[blockId]]);
 
   const latestMessage = useMemo(
     () => (chatHistory.length ? chatHistory[chatHistory.length - 1] : null),
@@ -103,7 +121,7 @@ export default function QuestionAgentView({
       setQuestionInput("");
       // Enter special mode automatically after first question.
       setCollapsed(false);
-      commit({ chatHistory: nextHistory, collapsed: false });
+      setAnswer(blockId, { chatHistory: nextHistory, collapsed: false });
     } finally {
       setIsAsking(false);
     }
@@ -112,13 +130,13 @@ export default function QuestionAgentView({
   const toggleCollapsed = () => {
     const next = !collapsed;
     setCollapsed(next);
-    commit({ collapsed: next });
+    setAnswer(blockId, { chatHistory, collapsed: next });
   };
 
   const clearHistory = () => {
     setChatHistory([]);
     setCollapsed(true);
-    commit({ chatHistory: [], collapsed: true });
+    setAnswer(blockId, { chatHistory: [], collapsed: true });
   };
 
   return (
