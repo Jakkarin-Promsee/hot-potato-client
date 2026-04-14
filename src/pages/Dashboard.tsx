@@ -76,28 +76,30 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="h-16 border-b border-border bg-card/80 backdrop-blur-xl sticky top-0 z-50 flex items-center justify-between px-8">
-        <div className="flex items-center gap-2 font-semibold text-primary">
-          <LayoutDashboard size={20} />
-          <span>Workspace</span>
-        </div>
+      <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
+        <div className="container flex h-14 items-center justify-between px-4">
+          <div className="flex items-center gap-2 font-semibold text-primary">
+            <LayoutDashboard size={18} />
+            <span>Workspace</span>
+          </div>
 
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-muted-foreground hidden sm:block">
-            {user?.email}
-          </span>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-destructive text-destructive-foreground hover:opacity-90 transition-opacity text-sm font-medium"
-          >
-            <LogOut size={16} />
-            Logout
-          </button>
+          <div className="flex items-center gap-3">
+            <span className="hidden text-sm text-muted-foreground sm:block">
+              {user?.email}
+            </span>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 rounded-md bg-destructive px-3 py-1.5 text-sm font-medium text-destructive-foreground transition-opacity hover:opacity-90"
+            >
+              <LogOut size={16} />
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Main */}
-      <main className="mx-auto max-w-6xl px-6 py-10">
+      <main className="container px-4 py-8 md:py-10">
         {/* Title + Create btn */}
         <div className="flex items-center justify-between mb-8">
           <div>

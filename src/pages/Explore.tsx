@@ -1,48 +1,10 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, ChevronRight } from "lucide-react";
 import { ContentCard } from "@/components/ContentCard";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useContentStore } from "@/stores/content.store";
 
 const TABS = ["All", "Bookmarked", "Recent"] as const;
-
-const mockContent = [
-  {
-    id: "1",
-    title: "Understanding Derivatives Intuitively",
-    topics: ["slope", "limit", "differentiation"],
-    author: "Ms. Chen",
-  },
-  {
-    id: "2",
-    title: "How Electricity Really Works",
-    topics: ["current", "voltage", "circuits"],
-    author: "Mr. Park",
-  },
-  {
-    id: "3",
-    title: "The Logic Behind Recursion",
-    topics: ["stack", "base case", "trees"],
-    author: "Dr. Kim",
-  },
-  {
-    id: "4",
-    title: "Gravity: A Visual Journey",
-    topics: ["force", "mass", "spacetime"],
-    author: "Prof. Tanaka",
-  },
-  {
-    id: "5",
-    title: "Why Music Sounds Good",
-    topics: ["harmony", "frequency", "intervals"],
-    author: "Ms. Yamada",
-  },
-  {
-    id: "6",
-    title: "Color Theory for Everyone",
-    topics: ["hue", "contrast", "palette"],
-    author: "Mr. Lee",
-  },
-];
 
 const mockHistory = [
   {
@@ -78,12 +40,35 @@ const mockHistory = [
 ];
 
 export default function Explore() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("All");
   const [search, setSearch] = useState("");
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
+  const { contents, fetchMyContents, searchContents } = useContentStore();
 
-  const filtered = mockContent.filter((c) =>
-    c.title.toLowerCase().includes(search.toLowerCase()),
+  useEffect(() => {
+    fetchMyContents();
+  }, [fetchMyContents]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (search.trim()) {
+        searchContents(search);
+      } else {
+        fetchMyContents();
+      }
+    }, 400);
+
+    return () => clearTimeout(timeout);
+  }, [search, searchContents, fetchMyContents]);
+
+  const validContents = useMemo(
+    () =>
+      contents.filter(
+        (c) =>
+          Boolean(c?._id) && Boolean(c?.title && c.title.trim().length > 0),
+      ),
+    [contents],
   );
 
   const toggleBookmark = (id: string) => {
@@ -96,8 +81,8 @@ export default function Explore() {
 
   const displayed =
     activeTab === "Bookmarked"
-      ? filtered.filter((c) => bookmarks.has(c.id))
-      : filtered;
+      ? validContents.filter((c) => bookmarks.has(c._id))
+      : validContents;
 
   return (
     <div className="container px-4 pb-24 pt-6 md:pb-8">
@@ -121,7 +106,7 @@ export default function Explore() {
         </div>
         <div className="mt-2 flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
           {mockHistory.map((c) => (
-            <div key={c.id} className="w-36 shrink-0">
+            <div key={c.id} className="w-48 shrink-0">
               <ContentCard
                 title={c.title}
                 topics={c.topics}
@@ -165,13 +150,12 @@ export default function Explore() {
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
         {displayed.map((c) => (
           <ContentCard
-            key={c.id}
+            key={c._id}
             title={c.title}
-            topics={c.topics}
-            author={c.author}
-            bookmarked={bookmarks.has(c.id)}
-            onBookmark={() => toggleBookmark(c.id)}
-            onClick={() => {}}
+            coverUrl={c.title_image}
+            bookmarked={bookmarks.has(c._id)}
+            onBookmark={() => toggleBookmark(c._id)}
+            onClick={() => navigate(`/view/${c._id}`)}
           />
         ))}
       </div>

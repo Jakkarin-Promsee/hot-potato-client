@@ -12,7 +12,7 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Index from "./pages/Index";
-import Landing from "./pages/LandingPage";
+import Landing from "./pages/Landing";
 import TiptapView from "./pages/TiptapView";
 import Status from "./pages/Status";
 import CloudinaryUpload from "./pages/Cloudinaryupload";

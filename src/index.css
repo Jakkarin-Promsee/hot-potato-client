@@ -90,6 +90,7 @@
   }
 
   body {
+    margin: 0;
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
@@ -102,6 +103,12 @@
   }
   html {
     @apply font-sans;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 80rem;
+    margin-inline: auto;
   }
 }
 

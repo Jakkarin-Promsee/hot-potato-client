@@ -48,7 +48,7 @@ export default function Landing() {
     <div className="flex min-h-screen flex-col">
       {/* Nav */}
       <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
-        <div className="container flex h-14 items-center justify-between">
+        <div className="container flex h-14 items-center justify-between px-4">
           <span className="font-serif text-lg font-semibold tracking-tight">
             Intuita
           </span>
