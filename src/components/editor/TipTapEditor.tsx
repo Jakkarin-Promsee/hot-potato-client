@@ -184,8 +184,9 @@ const TipTapEditor = () => {
   // (The cavas loding method making canvas didn't null, overide the sidebar)
   useEffect(() => {
     setTimeout(() => {
+      // console.log("t");
       setCanvasSync(null);
-    }, 0);
+    }, 10);
   }, []);
 
   //───────────────────────────────────────────────────────────────────────────

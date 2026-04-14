@@ -64,7 +64,6 @@ const FabricCanvasView = ({
 
   // Set canvas context part
   useEffect(() => {
-    console.log(selected);
     // If tiptap select didn't change, do nothing
     if (selected) {
       canvasSelectPrevref.current = true;
