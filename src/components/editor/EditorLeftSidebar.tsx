@@ -21,6 +21,7 @@ import {
   List,
   X,
   ExternalLink,
+  PenSquare,
 } from "lucide-react";
 import { useUploadStore } from "@/stores/cloudinary.store";
 import { useCategoryStore } from "@/stores/category.store";
@@ -570,6 +571,11 @@ const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
       icon={HelpCircle}
       label="Q&A Card"
       onClick={() => editor.chain().focus().insertQuestionChoice().run()}
+    />
+    <ToolBtn
+      icon={PenSquare}
+      label="Writing Q&A"
+      onClick={() => editor.chain().focus().insertQuestionWrite().run()}
     />
     <ToolBtn
       icon={Columns}
