@@ -19,6 +19,8 @@ import { SearchHighlightExtension } from "../extensions/SearchHighlight";
 import { FabricCanvasNode } from "../extensions/FabricCanvasNode";
 import { QuestionChoiceNode } from "../extensions/QuestionChoiceNode";
 import { QuestionWriteNode } from "../extensions/QuestionWriteNode";
+import { QuestionBlankWriteNode } from "../extensions/QuestionBlankWriteNode";
+import { QuestionBlankChoiceNode } from "../extensions/QuestionBlankChoiceNode";
 
 export const createEditorExtensions = (editable = true) => [
   StarterKit.configure({
@@ -67,4 +69,6 @@ export const createEditorExtensions = (editable = true) => [
   FabricCanvasNode,
   QuestionChoiceNode,
   QuestionWriteNode,
+  QuestionBlankWriteNode,
+  QuestionBlankChoiceNode,
 ];

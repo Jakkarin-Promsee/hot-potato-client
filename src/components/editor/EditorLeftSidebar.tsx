@@ -22,6 +22,7 @@ import {
   X,
   ExternalLink,
   PenSquare,
+  BetweenHorizonalStart,
 } from "lucide-react";
 import { useUploadStore } from "@/stores/cloudinary.store";
 import { useCategoryStore } from "@/stores/category.store";
@@ -576,6 +577,16 @@ const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
       icon={PenSquare}
       label="Writing Q&A"
       onClick={() => editor.chain().focus().insertQuestionWrite().run()}
+    />
+    <ToolBtn
+      icon={BetweenHorizonalStart}
+      label="Fill Blank (Write)"
+      onClick={() => editor.chain().focus().insertQuestionBlankWrite().run()}
+    />
+    <ToolBtn
+      icon={HelpCircle}
+      label="Fill Blank (Choice)"
+      onClick={() => editor.chain().focus().insertQuestionBlankChoice().run()}
     />
     <ToolBtn
       icon={Columns}

@@ -328,8 +328,8 @@ function ViewerView({ attrs }: ViewerViewProps) {
       answerType === "single"
         ? [i]
         : isSelected(i)
-        ? selectedIndices.filter((s) => s !== i)
-        : [...selectedIndices, i];
+          ? selectedIndices.filter((s) => s !== i)
+          : [...selectedIndices, i];
 
     setSelectedIndices(next);
 
@@ -381,25 +381,25 @@ function ViewerView({ attrs }: ViewerViewProps) {
             ? sel && isCorrectChoice
               ? "border-green-400 bg-green-50 text-green-900"
               : sel && !isCorrectChoice
-              ? "border-red-400 bg-red-50 text-red-900"
-              : isCorrectChoice
-              ? "border-green-300 bg-green-50 text-green-800"
-              : "border-gray-200 bg-white text-gray-400"
+                ? "border-red-400 bg-red-50 text-red-900"
+                : isCorrectChoice
+                  ? "border-green-300 bg-green-50 text-green-800"
+                  : "border-gray-200 bg-white text-gray-400"
             : sel
-            ? "border-violet-400 bg-violet-50 text-violet-900"
-            : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50";
+              ? "border-violet-400 bg-violet-50 text-violet-900"
+              : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50";
 
           const indicatorStyle = submitted
             ? sel && isCorrectChoice
               ? "border-green-500 bg-green-500 text-white"
               : sel && !isCorrectChoice
-              ? "border-red-500 bg-red-500 text-white"
-              : isCorrectChoice
-              ? "border-green-400 bg-green-100 text-green-600"
-              : "border-gray-200"
+                ? "border-red-500 bg-red-500 text-white"
+                : isCorrectChoice
+                  ? "border-green-400 bg-green-100 text-green-600"
+                  : "border-gray-200"
             : sel
-            ? "border-violet-500 bg-violet-500 text-white"
-            : "border-gray-300";
+              ? "border-violet-500 bg-violet-500 text-white"
+              : "border-gray-300";
 
           return (
             <button

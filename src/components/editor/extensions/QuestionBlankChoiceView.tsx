@@ -1,0 +1,555 @@
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
+import { NodeSelection } from "@tiptap/pm/state";
+import { useAnswerStore } from "@/stores/content-answer.store";
+import { Check, Eye, EyeOff, HelpCircle, SquareDashedMousePointer, X } from "lucide-react";
+import type { QuestionBlankChoiceAttrs } from "./QuestionBlankChoiceNode";
+
+interface BlockAnswer {
+  placedByBlank: Array<number | null>;
+  submitted: boolean;
+}
+
+const BLANK_TOKEN_REGEX = /\[Q-(\d+)\]|\{\{(\d+)\}\}/g;
+
+function useAutoGrow(value: string) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  const resize = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
+
+  useEffect(resize, [value, resize]);
+  useEffect(() => {
+    const raf = requestAnimationFrame(resize);
+    return () => cancelAnimationFrame(raf);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return ref;
+}
+
+const getBlankIndices = (template: string): number[] => {
+  const unique = new Set<number>();
+  let match: RegExpExecArray | null = null;
+  while ((match = BLANK_TOKEN_REGEX.exec(template)) !== null) {
+    unique.add(Number(match[1] ?? match[2]));
+  }
+  return [...unique].sort((a, b) => a - b);
+};
+
+const renderTemplatePieces = (template: string) => {
+  const pieces: Array<{ text?: string; blank?: number }> = [];
+  let last = 0;
+  let match: RegExpExecArray | null = null;
+  while ((match = BLANK_TOKEN_REGEX.exec(template)) !== null) {
+    if (match.index > last) {
+      pieces.push({ text: template.slice(last, match.index) });
+    }
+    pieces.push({ blank: Number(match[1] ?? match[2]) });
+    last = BLANK_TOKEN_REGEX.lastIndex;
+  }
+  if (last < template.length) {
+    pieces.push({ text: template.slice(last) });
+  }
+  return pieces;
+};
+
+const remapCorrectByBlank = (
+  prevTemplate: string,
+  prevCorrectByBlank: number[],
+  nextTemplate: string,
+) => {
+  const prevIndices = getBlankIndices(prevTemplate);
+  const nextIndices = getBlankIndices(nextTemplate);
+  const byToken = new Map<number, number>();
+  prevIndices.forEach((tokenIdx, i) => {
+    byToken.set(tokenIdx, prevCorrectByBlank[i] ?? -1);
+  });
+  return nextIndices.map((tokenIdx) => byToken.get(tokenIdx) ?? -1);
+};
+
+interface CreatorViewProps {
+  initialTemplate: string;
+  initialChoices: string[];
+  initialCorrectByBlank: number[];
+  onFlush: (
+    template: string,
+    choices: string[],
+    correctByBlank: number[],
+  ) => void;
+}
+
+function CreatorView({
+  initialTemplate,
+  initialChoices,
+  initialCorrectByBlank,
+  onFlush,
+}: CreatorViewProps) {
+  const [template, setTemplate] = useState(initialTemplate);
+  const [choices, setChoices] = useState(initialChoices);
+  const [correctByBlank, setCorrectByBlank] = useState(initialCorrectByBlank);
+  const templateRef = useAutoGrow(template);
+
+  useEffect(() => setTemplate(initialTemplate), [initialTemplate]);
+  useEffect(() => setChoices(initialChoices), [initialChoices]);
+  useEffect(() => setCorrectByBlank(initialCorrectByBlank), [initialCorrectByBlank]);
+
+  const blankIndices = useMemo(() => getBlankIndices(template), [template]);
+  const previewPieces = useMemo(() => renderTemplatePieces(template), [template]);
+
+  const flush = useCallback(
+    (nextTemplate: string, nextChoices: string[], nextCorrect: number[]) => {
+      const safeCorrect = remapCorrectByBlank(template, nextCorrect, nextTemplate).map(
+        (v) => (v >= 0 && v < nextChoices.length ? v : -1),
+      );
+      onFlush(nextTemplate, nextChoices, safeCorrect);
+    },
+    [onFlush, template],
+  );
+
+  const insertTokenAtCursor = (token: string) => {
+    const el = templateRef.current;
+    const start = el?.selectionStart ?? template.length;
+    const end = el?.selectionEnd ?? template.length;
+    const nextTemplate = `${template.slice(0, start)}${token}${template.slice(end)}`;
+    const nextCorrect = remapCorrectByBlank(template, correctByBlank, nextTemplate);
+    setTemplate(nextTemplate);
+    setCorrectByBlank(nextCorrect);
+  };
+
+  const addBlank = () => {
+    const max = blankIndices.length ? Math.max(...blankIndices) : -1;
+    insertTokenAtCursor(`[Q-${max + 1}]`);
+  };
+
+  const addChoice = () => {
+    setChoices((prev) => [...prev, `Choice ${prev.length + 1}`]);
+  };
+
+  const removeChoice = (choiceIdx: number) => {
+    const nextChoices = choices.filter((_, i) => i !== choiceIdx);
+    const nextCorrect = correctByBlank.map((c) =>
+      c === choiceIdx ? -1 : c > choiceIdx ? c - 1 : c,
+    );
+    setChoices(nextChoices);
+    setCorrectByBlank(nextCorrect);
+    onFlush(template, nextChoices, nextCorrect);
+  };
+
+  return (
+    <div className="flex flex-col gap-3" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={addBlank}
+          className="rounded-md border border-violet-300 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 transition hover:border-violet-400 hover:bg-violet-100"
+        >
+          Add blank
+        </button>
+        <span className="text-[11px] text-gray-400">
+          Use [Q-0], [Q-1], ... automatically.
+        </span>
+      </div>
+
+      <textarea
+        ref={templateRef}
+        rows={2}
+        value={template}
+        placeholder="Type sentence and insert blanks."
+        onChange={(e) => {
+          const nextTemplate = e.target.value;
+          const nextCorrect = remapCorrectByBlank(template, correctByBlank, nextTemplate);
+          setTemplate(nextTemplate);
+          setCorrectByBlank(nextCorrect);
+        }}
+        onBlur={() => flush(template, choices, correctByBlank)}
+        className="w-full resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+      />
+
+      <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+          Preview
+        </p>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-900">
+          {previewPieces.map((piece, idx) =>
+            piece.text !== undefined ? (
+              <span key={`t-${idx}`} className="whitespace-pre-wrap">
+                {piece.text}
+              </span>
+            ) : (
+              <span
+                key={`b-${idx}`}
+                className="rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-700"
+              >
+                [Q-{piece.blank}]
+              </span>
+            ),
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+          Choice bank
+        </p>
+        <button
+          type="button"
+          onClick={addChoice}
+          className="rounded-md border border-dashed border-violet-300 px-2 py-1 text-xs font-semibold text-violet-600 hover:bg-violet-50"
+        >
+          Add choice
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {choices.map((choice, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={choice}
+              onChange={(e) => {
+                const next = [...choices];
+                next[i] = e.target.value;
+                setChoices(next);
+              }}
+              onBlur={() => flush(template, choices, correctByBlank)}
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+            />
+            {choices.length > 1 && (
+              <button
+                type="button"
+                onClick={() => removeChoice(i)}
+                className="rounded-md px-2 py-1 text-xs text-red-500 hover:bg-red-50"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {blankIndices.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Correct answer mapping
+          </p>
+          {blankIndices.map((blankTokenIdx, pos) => (
+            <label key={blankTokenIdx} className="flex items-center gap-2 text-sm">
+              <span className="w-20 text-gray-600">[Q-{blankTokenIdx}]</span>
+              <select
+                value={correctByBlank[pos] ?? -1}
+                onChange={(e) => {
+                  const next = [...correctByBlank];
+                  next[pos] = Number(e.target.value);
+                  setCorrectByBlank(next);
+                  onFlush(template, choices, next);
+                }}
+                className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-800 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+              >
+                <option value={-1}>Select choice</option>
+                {choices.map((c, i) => (
+                  <option key={`${i}-${c}`} value={i}>
+                    {c || `Choice ${i + 1}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
+  const { id: blockId, template, choices, correctByBlank } = attrs;
+  const answers = useAnswerStore((s) => s.answers);
+  const setAnswer = useAnswerStore((s) => s.setAnswer);
+
+  const blankIndices = useMemo(() => getBlankIndices(template), [template]);
+  const pieces = useMemo(() => renderTemplatePieces(template), [template]);
+  const tokenToPos = useMemo(() => {
+    const map = new Map<number, number>();
+    blankIndices.forEach((token, i) => map.set(token, i));
+    return map;
+  }, [blankIndices]);
+
+  const saved = answers[blockId] as BlockAnswer | undefined;
+  const [placedByBlank, setPlacedByBlank] = useState<Array<number | null>>(
+    saved?.placedByBlank ?? blankIndices.map(() => null),
+  );
+  const [submitted, setSubmitted] = useState<boolean>(saved?.submitted ?? false);
+  const [dragChoiceIdx, setDragChoiceIdx] = useState<number | null>(null);
+
+  useEffect(() => {
+    const next = saved?.placedByBlank ?? blankIndices.map(() => null);
+    setPlacedByBlank(blankIndices.map((_, i) => next[i] ?? null));
+    setSubmitted(saved?.submitted ?? false);
+  }, [answers[blockId], blankIndices]);
+
+  const usedChoiceSet = new Set(placedByBlank.filter((v): v is number => v !== null));
+  const availableChoices = choices
+    .map((text, idx) => ({ text, idx }))
+    .filter((c) => !usedChoiceSet.has(c.idx));
+
+  const isCorrectPerBlank = placedByBlank.map(
+    (placed, i) => submitted && placed !== null && placed === (correctByBlank[i] ?? -1),
+  );
+  const isAllCorrect =
+    submitted &&
+    blankIndices.length > 0 &&
+    placedByBlank.every((placed, i) => placed === (correctByBlank[i] ?? -1));
+
+  const setPlaced = (blankPos: number, choiceIdx: number | null) => {
+    if (submitted) return;
+    setPlacedByBlank((prev) => {
+      const next = [...prev];
+      // Ensure unique usage: remove this choice from any old slot first
+      const prevPos = next.findIndex((v) => v === choiceIdx);
+      if (choiceIdx !== null && prevPos !== -1) next[prevPos] = null;
+      next[blankPos] = choiceIdx;
+      setAnswer(blockId, { placedByBlank: next, submitted: false });
+      return next;
+    });
+  };
+
+  const handleSubmit = () => {
+    setSubmitted(true);
+    setAnswer(blockId, { placedByBlank, submitted: true });
+  };
+
+  const handleReset = () => {
+    const empty = blankIndices.map(() => null);
+    setPlacedByBlank(empty);
+    setSubmitted(false);
+    setAnswer(blockId, { placedByBlank: empty, submitted: false });
+  };
+
+  if (blankIndices.length === 0) {
+    return <p className="text-sm italic text-gray-400">No blanks configured.</p>;
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-900">
+        {pieces.map((piece, idx) =>
+          piece.text !== undefined ? (
+            <span key={`t-${idx}`} className="whitespace-pre-wrap">
+              {piece.text}
+            </span>
+          ) : (
+            (() => {
+              const token = piece.blank ?? 0;
+              const blankPos = tokenToPos.get(token) ?? 0;
+              const placedIdx = placedByBlank[blankPos];
+              const placedText = placedIdx !== null ? choices[placedIdx] : "";
+              const isCorrect = isCorrectPerBlank[blankPos];
+              return (
+                <div
+                  key={`b-${idx}`}
+                  onDragOver={(e) => {
+                    if (!submitted) e.preventDefault();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (submitted) return;
+                    const dropped = Number(e.dataTransfer.getData("text/plain"));
+                    if (Number.isFinite(dropped)) setPlaced(blankPos, dropped);
+                  }}
+                  className={[
+                    "flex min-h-9 min-w-28 items-center gap-2 rounded border px-2 py-1",
+                    submitted
+                      ? isCorrect
+                        ? "border-green-400 bg-green-50"
+                        : "border-red-400 bg-red-50"
+                      : "border-gray-300 bg-white",
+                  ].join(" ")}
+                >
+                  {placedIdx === null ? (
+                    <span className="text-xs text-gray-400">[Q-{token}]</span>
+                  ) : (
+                    <>
+                      <span className="text-sm text-gray-800">{placedText}</span>
+                      {!submitted && (
+                        <button
+                          type="button"
+                          onClick={() => setPlaced(blankPos, null)}
+                          className="ml-auto text-xs text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()
+          ),
+        )}
+      </div>
+
+      <div className="rounded-lg border border-gray-200 bg-white p-2">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          Drag choices
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {availableChoices.map((choice) => (
+            <button
+              key={choice.idx}
+              type="button"
+              draggable={!submitted}
+              onDragStart={(e) => {
+                setDragChoiceIdx(choice.idx);
+                e.dataTransfer.setData("text/plain", String(choice.idx));
+              }}
+              onDragEnd={() => setDragChoiceIdx(null)}
+              disabled={submitted}
+              className={[
+                "rounded-md border px-2.5 py-1 text-sm transition",
+                dragChoiceIdx === choice.idx
+                  ? "border-violet-400 bg-violet-50 text-violet-700"
+                  : "border-gray-300 bg-white text-gray-700 hover:border-violet-300",
+                submitted ? "opacity-50" : "cursor-grab",
+              ].join(" ")}
+            >
+              {choice.text}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        {!submitted ? (
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={placedByBlank.some((v) => v === null)}
+            className="rounded-lg bg-violet-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Submit
+          </button>
+        ) : (
+          <>
+            <span
+              className={[
+                "text-xs font-semibold",
+                isAllCorrect ? "text-green-600" : "text-red-500",
+              ].join(" ")}
+            >
+              {isAllCorrect ? "All blanks are correct." : "Some blanks are not correct."}
+            </span>
+            <button
+              type="button"
+              onClick={handleReset}
+              className="ml-auto text-xs text-gray-400 underline transition hover:text-gray-600"
+            >
+              Try again
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function QuestionBlankChoiceView({
+  node,
+  selected,
+  getPos,
+  updateAttributes,
+  editor,
+}: NodeViewProps) {
+  const isEditable = editor.isEditable;
+  const attrs = node.attrs as QuestionBlankChoiceAttrs;
+  const [previewMode, setPreviewMode] = useState(false);
+
+  const handleFlush = useCallback(
+    (template: string, choices: string[], correctByBlank: number[]) => {
+      updateAttributes({ template, choices, correctByBlank });
+    },
+    [updateAttributes],
+  );
+
+  const selectNode = useCallback(() => {
+    if (typeof getPos !== "function") return;
+    const pos = getPos();
+    const nodeSelection = NodeSelection.create(editor.state.doc, pos as number);
+    editor.view.dispatch(editor.state.tr.setSelection(nodeSelection));
+    editor.view.focus();
+  }, [getPos, editor]);
+
+  return (
+    <NodeViewWrapper>
+      <div
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) selectNode();
+        }}
+        className={`my-3 rounded-xl border bg-gray-50 p-4 ${
+          selected ? "" : "border-accent-foreground shadow-md"
+        }`}
+      >
+        <div className="mb-3 flex items-center gap-2">
+          <span className="flex h-5 w-5 items-center justify-center rounded bg-violet-100">
+            <HelpCircle className="h-3 w-3 text-violet-600" />
+          </span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            {isEditable
+              ? previewMode
+                ? "Fill blank (choice) - preview"
+                : "Fill blank (choice) - creator"
+              : "Fill blank (choice)"}
+          </span>
+
+          {isEditable && (
+            <div className="ml-auto flex items-center gap-1">
+              <button
+                type="button"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => setPreviewMode((v) => !v)}
+                className={[
+                  "flex h-6 w-6 items-center justify-center rounded transition",
+                  previewMode
+                    ? "bg-violet-100 text-violet-600"
+                    : "text-gray-300 hover:bg-violet-100 hover:text-violet-500",
+                ].join(" ")}
+                aria-label={previewMode ? "Switch to creator" : "Preview as viewer"}
+              >
+                {previewMode ? (
+                  <EyeOff className="h-3.5 w-3.5" />
+                ) : (
+                  <Eye className="h-3.5 w-3.5" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  selectNode();
+                }}
+                className="flex h-6 w-6 items-center justify-center rounded text-gray-300 transition hover:bg-violet-100 hover:text-violet-500"
+                aria-label="Select block"
+              >
+                <SquareDashedMousePointer className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {isEditable && !previewMode ? (
+          <CreatorView
+            initialTemplate={attrs.template}
+            initialChoices={attrs.choices}
+            initialCorrectByBlank={attrs.correctByBlank}
+            onFlush={handleFlush}
+          />
+        ) : (
+          <ViewerView attrs={attrs} />
+        )}
+      </div>
+    </NodeViewWrapper>
+  );
+}
