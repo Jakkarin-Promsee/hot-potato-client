@@ -58,14 +58,17 @@ export const QuestionWriteNode = Node.create({
       insertQuestionWrite:
         () =>
         ({ commands }) => {
-          return commands.insertContent({
-            type: this.name,
-            attrs: {
-              id: crypto.randomUUID(),
-              question: "",
-              answer: "",
-            } satisfies QuestionWriteAttrs,
-          });
+          return commands.insertContent([
+            {
+              type: this.name,
+              attrs: {
+                id: crypto.randomUUID(),
+                question: "",
+                answer: "",
+              } satisfies QuestionWriteAttrs,
+            },
+            { type: "paragraph" },
+          ]);
         },
     };
   },

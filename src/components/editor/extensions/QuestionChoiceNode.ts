@@ -93,18 +93,21 @@ export const QuestionChoiceNode = Node.create({
       insertQuestionChoice:
         () =>
         ({ commands }) => {
-          return commands.insertContent({
-            type: this.name,
-            attrs: {
-              id: crypto.randomUUID(),
-              question: "",
-              choices: [
-                { text: "Option 1", correct: false },
-                { text: "Option 2", correct: false },
-              ],
-              answerType: "single",
-            } satisfies QuestionChoiceAttrs,
-          });
+          return commands.insertContent([
+            {
+              type: this.name,
+              attrs: {
+                id: crypto.randomUUID(),
+                question: "",
+                choices: [
+                  { text: "Option 1", correct: false },
+                  { text: "Option 2", correct: false },
+                ],
+                answerType: "single",
+              } satisfies QuestionChoiceAttrs,
+            },
+            { type: "paragraph" },
+          ]);
         },
     };
   },

@@ -80,15 +80,18 @@ export const QuestionBlankChoiceNode = Node.create({
       insertQuestionBlankChoice:
         () =>
         ({ commands }) => {
-          return commands.insertContent({
-            type: this.name,
-            attrs: {
-              id: crypto.randomUUID(),
-              template: "The capital of [Q-0] is [Q-1].",
-              choices: ["France", "Paris", "Japan", "Tokyo"],
-              correctByBlank: [0, 1],
-            } satisfies QuestionBlankChoiceAttrs,
-          });
+          return commands.insertContent([
+            {
+              type: this.name,
+              attrs: {
+                id: crypto.randomUUID(),
+                template: "The capital of [Q-0] is [Q-1].",
+                choices: ["France", "Paris", "Japan", "Tokyo"],
+                correctByBlank: [0, 1],
+              } satisfies QuestionBlankChoiceAttrs,
+            },
+            { type: "paragraph" },
+          ]);
         },
     };
   },

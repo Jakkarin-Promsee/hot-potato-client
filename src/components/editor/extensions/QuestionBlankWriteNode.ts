@@ -66,14 +66,17 @@ export const QuestionBlankWriteNode = Node.create({
       insertQuestionBlankWrite:
         () =>
         ({ commands }) => {
-          return commands.insertContent({
-            type: this.name,
-            attrs: {
-              id: crypto.randomUUID(),
-              template: "The capital of [Q-0] is [Q-1].",
-              blankAnswers: ["", ""],
-            } satisfies QuestionBlankWriteAttrs,
-          });
+          return commands.insertContent([
+            {
+              type: this.name,
+              attrs: {
+                id: crypto.randomUUID(),
+                template: "The capital of [Q-0] is [Q-1].",
+                blankAnswers: ["", ""],
+              } satisfies QuestionBlankWriteAttrs,
+            },
+            { type: "paragraph" },
+          ]);
         },
     };
   },
