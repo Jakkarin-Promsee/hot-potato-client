@@ -17,7 +17,11 @@ function getInitialZoom() {
   return targetWidth / CONTENT_WIDTH;
 }
 
-function TiptapViewer() {
+type TiptapViewerProps = {
+  onScrollDirectionChange?: (direction: "up" | "down") => void;
+};
+
+function TiptapViewer({ onScrollDirectionChange }: TiptapViewerProps) {
   const mainRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(getInitialZoom);
 
@@ -67,6 +71,27 @@ function TiptapViewer() {
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
+  // Detect reading direction on the scroll container itself.
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el || !onScrollDirectionChange) return;
+
+    let lastScrollTop = 0;
+    const MIN_DELTA = 6;
+
+    const onScroll = () => {
+      const current = el.scrollTop;
+      const delta = current - lastScrollTop;
+      if (Math.abs(delta) < MIN_DELTA) return;
+
+      onScrollDirectionChange(delta > 0 ? "down" : "up");
+      lastScrollTop = current;
+    };
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [onScrollDirectionChange]);
+
   // ── Ctrl +/- keyboard shortcuts ───────────────────────────────────────────
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -102,15 +127,12 @@ function TiptapViewer() {
             marginLeft: `calc((100vw - ${
               CONTENT_WIDTH + CARD_PADDING * 2
             }px * ${zoom}) / 2)`,
-            marginBottom: `calc((${zoom} - 1) * ${
-              CONTENT_WIDTH + CARD_PADDING * 2
-            }px)`,
           }}
           className="w-fit mx-auto editor-card shadow-sm"
         >
           <div className="editor-card shadow-sm">
             <div
-              className="tiptap-editor mx-auto pt-16 pb-40"
+              className="tiptap-editor mx-auto py-8"
               style={{ width: "600px" }}
             >
               <EditorContent editor={editor} />

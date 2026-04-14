@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect, useCallback, memo } from "react";
 import { Editor } from "@tiptap/react";
+import { Link } from "react-router-dom";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
+  ChevronLeft,
   Undo2,
   Redo2,
   Save,
@@ -203,6 +206,15 @@ const EditorHeader = memo(
       <div className="editor-header-inner">
         {/* ── LEFT ── */}
         <div className="flex items-center gap-1.5">
+          <Link
+            to="/create"
+            title="Back to create"
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <ChevronLeft size={14} strokeWidth={1.8} />
+            <span>Create</span>
+          </Link>
+          <div className="mx-1 h-4 w-px bg-border" />
           <input
             ref={inputRef}
             type="text"
@@ -253,6 +265,8 @@ const EditorHeader = memo(
 
         {/* ── RIGHT ── */}
         <div className="flex items-center gap-1.5">
+          <ThemeToggle compact />
+          <div className="mx-1 h-4 w-px bg-border" />
           {/* ── DYNAMIC UPDATE TOGGLE ── */}
           <button
             onClick={handleDynamicToggle}

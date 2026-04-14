@@ -34,7 +34,7 @@ export function TopNav() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
-      <div className="container flex h-14 items-center justify-between px-4">
+      <div className="container flex h-(--app-nav-height) items-center justify-between px-4">
         <Link
           to="/"
           className="font-serif text-lg font-semibold tracking-tight text-foreground"

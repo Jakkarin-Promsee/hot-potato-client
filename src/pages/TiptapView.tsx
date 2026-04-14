@@ -1,14 +1,16 @@
 import TiptapViewer from "@/components/editor/TiptapViewer";
-import { CanvasProvider } from "@/contexts/CanvasContext";
+import { TopNav } from "@/components/TopNav";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useAnswerStore } from "@/stores/content-answer.store";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 
 function TiptapView() {
   const { id } = useParams<{ id: string }>();
   const { loadContent, isLoading } = useCanvasStore();
   const { loadAnswers, syncAnswers, isDirty } = useAnswerStore();
+  const [isNavVisible, setIsNavVisible] = useState(true);
+  const lastWindowScrollYRef = useRef(0);
 
   useEffect(() => {
     if (id) {
@@ -60,18 +62,59 @@ function TiptapView() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [id]);
 
+  useEffect(() => {
+    const MIN_DELTA = 8;
+
+    const handleWindowScroll = () => {
+      const currentY = window.scrollY;
+      const delta = currentY - lastWindowScrollYRef.current;
+      if (Math.abs(delta) < MIN_DELTA) return;
+
+      if (currentY <= 12) {
+        setIsNavVisible(true);
+      } else {
+        setIsNavVisible(delta < 0);
+      }
+
+      lastWindowScrollYRef.current = currentY;
+    };
+
+    window.addEventListener("scroll", handleWindowScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleWindowScroll);
+  }, []);
+
   if (isLoading)
     return (
-      <div className="flex h-screen items-center justify-center bg-background text-foreground">
-        <span className="animate-pulse text-sm text-muted-foreground">
-          Loading content...
-        </span>
+      <div className="flex min-h-screen flex-col bg-background text-foreground">
+        <TopNav />
+        <div className="flex flex-1 items-center justify-center">
+          <span className="animate-pulse text-sm text-muted-foreground">
+            Loading content...
+          </span>
+        </div>
       </div>
     );
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <TiptapViewer />
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <div
+        className={`fixed inset-x-0 top-0 z-50 transition-transform duration-200 ${
+          isNavVisible ? "translate-y-0" : "-translate-y-full"
+        }`}
+      >
+        <TopNav />
+      </div>
+      <div
+        className={`flex-1 min-h-0 transition-[padding-top] duration-200 ${
+          isNavVisible ? "pt-[var(--app-nav-height)]" : "pt-0"
+        }`}
+      >
+        <TiptapViewer
+          onScrollDirectionChange={(direction) =>
+            setIsNavVisible(direction !== "down")
+          }
+        />
+      </div>
     </div>
   );
 }

@@ -76,9 +76,8 @@
   --editor-selection: hsl(252 80% 92%);
   --editor-placeholder: hsl(220 8% 65%);
 
-  /* Header */
-  --color-header-bg: hsl(230 25% 9%);
-  --color-header-border: hsl(230 18% 20%);
+  /* Shared nav/header height */
+  --app-nav-height: 56px;
 }
 
 /* ─── Base reset ──────────────────────────────────────────────────────────── */
@@ -156,6 +155,7 @@
 }
 
 :root {
+  --app-nav-height: 56px;
   --background: hsl(220 33% 98%);
   --foreground: hsl(222 30% 12%);
   --card: hsl(0 0% 100%);
@@ -198,6 +198,8 @@
   --editor-code-fg: hsl(220 18% 20%);
   --editor-selection: hsl(252 80% 92%);
   --editor-placeholder: hsl(220 8% 58%);
+  --color-header-bg: var(--background);
+  --color-header-border: var(--border);
 }
 
 .dark {
@@ -242,4 +244,6 @@
   --editor-code-fg: hsl(220 18% 22%);
   --editor-selection: hsl(252 80% 92%);
   --editor-placeholder: hsl(220 8% 65%);
+  --color-header-bg: var(--background);
+  --color-header-border: var(--border);
 }
