@@ -23,6 +23,7 @@ import {
   ExternalLink,
   PenSquare,
   BetweenHorizonalStart,
+  Bot,
 } from "lucide-react";
 import { useUploadStore } from "@/stores/cloudinary.store";
 import { useCategoryStore } from "@/stores/category.store";
@@ -587,6 +588,11 @@ const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
       icon={HelpCircle}
       label="Fill Blank (Choice)"
       onClick={() => editor.chain().focus().insertQuestionBlankChoice().run()}
+    />
+    <ToolBtn
+      icon={Bot}
+      label="Ask AI Block"
+      onClick={() => editor.chain().focus().insertQuestionAgent().run()}
     />
     <ToolBtn
       icon={Columns}

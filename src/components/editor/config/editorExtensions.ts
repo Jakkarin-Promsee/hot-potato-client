@@ -21,6 +21,7 @@ import { QuestionChoiceNode } from "../extensions/QuestionChoiceNode";
 import { QuestionWriteNode } from "../extensions/QuestionWriteNode";
 import { QuestionBlankWriteNode } from "../extensions/QuestionBlankWriteNode";
 import { QuestionBlankChoiceNode } from "../extensions/QuestionBlankChoiceNode";
+import { QuestionAgentNode } from "../extensions/QuestionAgentNode";
 
 export const createEditorExtensions = (editable = true) => [
   StarterKit.configure({
@@ -71,4 +72,5 @@ export const createEditorExtensions = (editable = true) => [
   QuestionWriteNode,
   QuestionBlankWriteNode,
   QuestionBlankChoiceNode,
+  QuestionAgentNode,
 ];
