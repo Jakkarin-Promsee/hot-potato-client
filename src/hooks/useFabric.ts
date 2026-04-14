@@ -12,6 +12,7 @@ import {
   ActiveSelection,
   Line,
   Canvas as FabricCanvas,
+  classRegistry,
 } from "fabric";
 import { useCanvasContext } from "@/contexts/CanvasContext";
 
@@ -505,6 +506,10 @@ export class RichLine extends Group {
     return Promise.resolve(new RichLine(obj.richLineConfig));
   }
 }
+
+// Register for JSON serialization round-trips
+classRegistry.setClass(RichLine, "richLine");
+classRegistry.setSVGClass(RichLine, "richLine");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Canvas wiring for RichLine
