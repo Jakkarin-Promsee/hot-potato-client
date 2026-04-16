@@ -1,7 +1,6 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 
 import EditorHeader from "./EditorHeader";
-import { FabricCanvasNode } from "./extensions/FabricCanvasNode";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCanvasContext } from "@/contexts/CanvasContext";
 
@@ -100,7 +99,9 @@ const TipTapEditor = () => {
             if (cached) {
               secureUrl = cached;
             } else {
-              const saved = await useUploadStore.getState().upload(fileToUpload);
+              const saved = await useUploadStore
+                .getState()
+                .upload(fileToUpload);
               if (!saved) return;
               secureUrl = saved.secure_url;
               rememberPastedImageUrl(hash, secureUrl);

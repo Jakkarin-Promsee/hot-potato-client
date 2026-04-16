@@ -254,23 +254,22 @@ const CropOverlay = memo(
   ({ imgEl, aspectRatio, onConfirm, onCancel }: CropOverlayProps) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const isDragging = useRef(false);
-    const dragMode = useRef<"new" | "move" | "tl" | "tr" | "bl" | "br">("new");
+    const dragMode = useRef<
+      | "new"
+      | "move"
+      | "tl"
+      | "tr"
+      | "bl"
+      | "br"
+      | "t"
+      | "b"
+      | "l"
+      | "r"
+    >("new");
     const dragStart = useRef({ x: 0, y: 0 });
     const rectStart = useRef<CropRect | null>(null);
 
-    const [rect, setRect] = useState<CropRect | null>(null);
-
     const imgRect = imgEl.getBoundingClientRect();
-    const containerStyle: React.CSSProperties = {
-      position: "fixed",
-      left: imgRect.left,
-      top: imgRect.top,
-      width: imgRect.width,
-      height: imgRect.height,
-      zIndex: 9999,
-      cursor: "crosshair",
-      userSelect: "none",
-    };
 
     const clampRect = useCallback(
       (r: CropRect, ar: AspectRatio): CropRect => {
@@ -299,8 +298,26 @@ const CropOverlay = memo(
       [imgRect],
     );
 
+    const [rect, setRect] = useState<CropRect | null>(() =>
+      clampRect(
+        { x: 0, y: 0, width: imgRect.width, height: imgRect.height },
+        aspectRatio,
+      ),
+    );
+
+    const containerStyle: React.CSSProperties = {
+      position: "fixed",
+      left: imgRect.left,
+      top: imgRect.top,
+      width: imgRect.width,
+      height: imgRect.height,
+      zIndex: 9999,
+      cursor: "crosshair",
+      userSelect: "none",
+    };
+
     const onMouseDown = useCallback(
-      (e: React.MouseEvent, mode: typeof dragMode.current = "new") => {
+      (e: React.MouseEvent, mode: typeof dragMode.current) => {
         e.preventDefault();
         e.stopPropagation();
         isDragging.current = true;
@@ -330,48 +347,120 @@ const CropOverlay = memo(
         const dx = mx - dragStart.current.x;
         const dy = my - dragStart.current.y;
 
-        setRect((prev) => {
+        setRect(() => {
           const rs = rectStart.current!;
           let next: CropRect;
+          const mode = dragMode.current;
+          const ar = aspectRatio;
+          const ratio = ar !== "free" ? RATIO_MAP[ar]! : null;
 
-          if (dragMode.current === "new") {
+          if (mode === "new") {
             next = {
               x: Math.min(dragStart.current.x, mx),
               y: Math.min(dragStart.current.y, my),
               width: Math.abs(mx - dragStart.current.x),
               height: Math.abs(my - dragStart.current.y),
             };
-          } else if (dragMode.current === "move") {
+          } else if (mode === "move") {
             next = { ...rs, x: rs.x + dx, y: rs.y + dy };
-          } else if (dragMode.current === "tl") {
+          } else if (mode === "tl") {
             next = {
               x: rs.x + dx,
               y: rs.y + dy,
               width: rs.width - dx,
               height: rs.height - dy,
             };
-          } else if (dragMode.current === "tr") {
+          } else if (mode === "tr") {
             next = {
               x: rs.x,
               y: rs.y + dy,
               width: rs.width + dx,
               height: rs.height - dy,
             };
-          } else if (dragMode.current === "bl") {
+          } else if (mode === "bl") {
             next = {
               x: rs.x + dx,
               y: rs.y,
               width: rs.width - dx,
               height: rs.height + dy,
             };
+          } else if (mode === "br") {
+            next = {
+              x: rs.x,
+              y: rs.y,
+              width: rs.width + dx,
+              height: rs.height + dy,
+            };
+          } else if (mode === "t") {
+            if (ar === "free") {
+              next = {
+                x: rs.x,
+                y: rs.y + dy,
+                width: rs.width,
+                height: rs.height - dy,
+              };
+            } else {
+              const newH = rs.height - dy;
+              next = {
+                x: rs.x,
+                y: rs.y + dy,
+                width: newH * ratio!,
+                height: newH,
+              };
+            }
+          } else if (mode === "b") {
+            if (ar === "free") {
+              next = {
+                x: rs.x,
+                y: rs.y,
+                width: rs.width,
+                height: rs.height + dy,
+              };
+            } else {
+              const newH = rs.height + dy;
+              next = {
+                x: rs.x,
+                y: rs.y,
+                width: newH * ratio!,
+                height: newH,
+              };
+            }
+          } else if (mode === "l") {
+            if (ar === "free") {
+              next = {
+                x: rs.x + dx,
+                y: rs.y,
+                width: rs.width - dx,
+                height: rs.height,
+              };
+            } else {
+              const newW = rs.width - dx;
+              next = {
+                x: rs.x + dx,
+                y: rs.y,
+                width: newW,
+                height: newW / ratio!,
+              };
+            }
+          } else if (mode === "r") {
+            if (ar === "free") {
+              next = {
+                x: rs.x,
+                y: rs.y,
+                width: rs.width + dx,
+                height: rs.height,
+              };
+            } else {
+              const newW = rs.width + dx;
+              next = {
+                x: rs.x,
+                y: rs.y,
+                width: newW,
+                height: newW / ratio!,
+              };
+            }
           } else {
-            // br
-            next = {
-              x: rs.x,
-              y: rs.y,
-              width: rs.width + dx,
-              height: rs.height + dy,
-            };
+            next = rs;
           }
 
           return clampRect(next, aspectRatio);
@@ -439,7 +528,8 @@ const CropOverlay = memo(
               top: displayRect.y,
               width: displayRect.width,
               height: displayRect.height,
-              border: "1.5px solid #fff",
+              border: "2px solid #0a0a0a",
+              boxShadow: "0 0 0 1px rgba(255,255,255,0.92)",
               boxSizing: "border-box",
               cursor: "move",
             }}
@@ -501,7 +591,9 @@ const CropOverlay = memo(
                   position: "absolute",
                   width: 10,
                   height: 10,
-                  background: "#fff",
+                  background: "#0a0a0a",
+                  border: "1px solid rgba(255,255,255,0.95)",
+                  boxSizing: "border-box",
                   borderRadius: 2,
                   ...(pos.includes("t") ? { top: -5 } : { bottom: -5 }),
                   ...(pos.includes("l") ? { left: -5 } : { right: -5 }),
@@ -513,6 +605,84 @@ const CropOverlay = memo(
                 }}
               />
             ))}
+
+            {/* Edge handles (midpoints) */}
+            <div
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: -4,
+                transform: "translateX(-50%)",
+                width: 20,
+                height: 8,
+                background: "#0a0a0a",
+                border: "1px solid rgba(255,255,255,0.95)",
+                boxSizing: "border-box",
+                borderRadius: 2,
+                cursor: "ns-resize",
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                onMouseDown(e, "t");
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                left: "50%",
+                bottom: -4,
+                transform: "translateX(-50%)",
+                width: 20,
+                height: 8,
+                background: "#0a0a0a",
+                border: "1px solid rgba(255,255,255,0.95)",
+                boxSizing: "border-box",
+                borderRadius: 2,
+                cursor: "ns-resize",
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                onMouseDown(e, "b");
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                left: -4,
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 8,
+                height: 20,
+                background: "#0a0a0a",
+                border: "1px solid rgba(255,255,255,0.95)",
+                boxSizing: "border-box",
+                borderRadius: 2,
+                cursor: "ew-resize",
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                onMouseDown(e, "l");
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                right: -4,
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 8,
+                height: 20,
+                background: "#0a0a0a",
+                border: "1px solid rgba(255,255,255,0.95)",
+                boxSizing: "border-box",
+                borderRadius: 2,
+                cursor: "ew-resize",
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                onMouseDown(e, "r");
+              }}
+            />
 
             {/* Dimension badge */}
             <div
@@ -803,10 +973,12 @@ export const ImagePanel = memo(
               }`}
             >
               <Crop size={15} strokeWidth={2} />
-              {isCropping ? "Cropping — draw on image" : "Crop image"}
+              {isCropping
+                ? "Cropping — drag handles or move"
+                : "Crop image"}
               {!isCropping && (
                 <span className="ml-auto text-[10px] font-normal text-muted-foreground">
-                  drag to select
+                  adjust frame
                 </span>
               )}
             </button>
