@@ -326,17 +326,17 @@ const TipTapEditor = () => {
         <main ref={mainRef} className="editor-main" onClick={handleEditorClick}>
           {/* Page Range (px <-> editor <-> px) */}
           <div
-            className="w-fit mx-auto px-10 editor-card shadow-sm"
+            className="w-fit mx-auto px-6 editor-card shadow-sm"
             style={{
               transform: `scale(${zoom})`,
               transformOrigin: "top center",
               marginBottom: `calc((${zoom} - 1) * 100%)`,
             }}
           >
-            {/* Editor (default 600px) */}
+            {/* Editor (default 400px) */}
             <div
               className="tiptap-editor mx-auto pt-16 pb-40"
-              style={{ width: "600px" }}
+              style={{ width: "400px" }}
             >
               <EditorContent editor={editor} />
             </div>

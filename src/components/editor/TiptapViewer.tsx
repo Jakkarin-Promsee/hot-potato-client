@@ -6,8 +6,8 @@ import { useCanvasStore } from "@/stores/canvas.store";
 const ZOOM_MIN = 0.1;
 const ZOOM_MAX = 4.0;
 const ZOOM_STEP = 0.1;
-const CONTENT_WIDTH = 600;
-const PADDING = 40;
+const CONTENT_WIDTH = 400;
+const PADDING = 24;
 const MAX_DISPLAY_WIDTH = 500;
 const CARD_PADDING = 40; // px-10 = 40px each side
 
@@ -133,7 +133,7 @@ function TiptapViewer({ onScrollDirectionChange }: TiptapViewerProps) {
           <div className="editor-card shadow-sm">
             <div
               className="tiptap-editor mx-auto py-8"
-              style={{ width: "600px" }}
+              style={{ width: "400px" }}
             >
               <EditorContent editor={editor} />
             </div>
