@@ -2,6 +2,7 @@ import TiptapViewer from "@/components/editor/TiptapViewer";
 import { TopNav } from "@/components/TopNav";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useAnswerStore } from "@/stores/content-answer.store";
+import { useLearningHistoryStore } from "@/stores/learningHistory.store";
 import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 
@@ -9,6 +10,7 @@ function TiptapView() {
   const { id } = useParams<{ id: string }>();
   const { loadContent, isLoading } = useCanvasStore();
   const { loadAnswers, syncAnswers, isDirty } = useAnswerStore();
+  const recordVisit = useLearningHistoryStore((s) => s.recordVisit);
   const [isNavVisible, setIsNavVisible] = useState(true);
   const lastWindowScrollYRef = useRef(0);
 
@@ -16,6 +18,7 @@ function TiptapView() {
     if (id) {
       loadContent(id);
       loadAnswers(id);
+      void recordVisit(id);
     }
   }, [id]);
 

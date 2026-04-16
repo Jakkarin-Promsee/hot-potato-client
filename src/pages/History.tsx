@@ -1,50 +1,21 @@
+import { useEffect, useMemo } from "react";
+import { Loader2 } from "lucide-react";
 import { ContentCard } from "@/components/ContentCard";
+import { useNavigate } from "react-router-dom";
+import {
+  useLearningHistoryStore,
+  type LearningHistoryEntry,
+} from "@/stores/learningHistory.store";
+import { formatAuthorLine } from "@/lib/formatAuthors";
 
-interface HistoryEntry {
-  id: string;
-  title: string;
-  topics: string[];
-  author: string;
-  viewedAt: string;
+function authorWithRelativeTime(row: LearningHistoryEntry): string {
+  const names = formatAuthorLine(
+    row.content.author_name,
+    row.content.collaborator_names,
+  );
+  const rel = formatRelative(row.last_accessed);
+  return names ? `${names} · ${rel}` : rel;
 }
-
-const mockHistory: HistoryEntry[] = [
-  {
-    id: "1",
-    title: "Understanding Derivatives Intuitively",
-    topics: ["slope", "limit", "differentiation"],
-    author: "Ms. Chen",
-    viewedAt: "2026-04-12T14:30:00Z",
-  },
-  {
-    id: "2",
-    title: "How Electricity Really Works",
-    topics: ["current", "voltage", "circuits"],
-    author: "Mr. Park",
-    viewedAt: "2026-04-12T09:15:00Z",
-  },
-  {
-    id: "3",
-    title: "The Logic Behind Recursion",
-    topics: ["stack", "base case", "trees"],
-    author: "Dr. Kim",
-    viewedAt: "2026-04-11T20:45:00Z",
-  },
-  {
-    id: "4",
-    title: "Gravity: A Visual Journey",
-    topics: ["force", "mass", "spacetime"],
-    author: "Prof. Tanaka",
-    viewedAt: "2026-04-10T16:00:00Z",
-  },
-  {
-    id: "5",
-    title: "Why Music Sounds Good",
-    topics: ["harmony", "frequency", "intervals"],
-    author: "Ms. Yamada",
-    viewedAt: "2026-04-09T11:20:00Z",
-  },
-];
 
 function formatRelative(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -57,28 +28,38 @@ function formatRelative(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-function groupByDate(entries: HistoryEntry[]): Record<string, HistoryEntry[]> {
-  const groups: Record<string, HistoryEntry[]> = {};
-  for (const entry of entries) {
-    const d = new Date(entry.viewedAt);
-    const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(today.getDate() - 1);
+function groupByDate(
+  entries: LearningHistoryEntry[],
+): Record<string, LearningHistoryEntry[]> {
+  const groups: Record<string, LearningHistoryEntry[]> = {};
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
 
+  for (const entry of entries) {
+    const d = new Date(entry.last_accessed);
     let label: string;
     if (d.toDateString() === today.toDateString()) label = "Today";
-    else if (d.toDateString() === yesterday.toDateString()) label = "Yesterday";
+    else if (d.toDateString() === yesterday.toDateString())
+      label = "Yesterday";
     else
       label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
     if (!groups[label]) groups[label] = [];
-    groups[label]?.push(entry);
+    groups[label]!.push(entry);
   }
   return groups;
 }
 
 export default function History() {
-  const grouped = groupByDate(mockHistory);
+  const navigate = useNavigate();
+  const { entries, isLoading, error, fetchHistory } = useLearningHistoryStore();
+
+  useEffect(() => {
+    fetchHistory(100);
+  }, [fetchHistory]);
+
+  const grouped = useMemo(() => groupByDate(entries), [entries]);
 
   return (
     <div className="container px-4 pb-24 pt-6 md:pb-8">
@@ -87,26 +68,40 @@ export default function History() {
         Your learning journey, sorted by time
       </p>
 
-      {mockHistory.length === 0 ? (
+      {error && (
+        <p className="mt-3 text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
+
+      {isLoading && entries.length === 0 ? (
+        <div className="mt-16 flex justify-center text-sm text-muted-foreground">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Loading history…
+        </div>
+      ) : entries.length === 0 ? (
         <div className="mt-16 text-center text-sm text-muted-foreground">
-          No history yet. Start exploring!
+          No history yet. Open a lesson from Explore or your library — it will
+          appear here.
         </div>
       ) : (
         <div className="mt-6 space-y-8">
-          {Object.entries(grouped).map(([label, entries]) => (
+          {Object.entries(grouped).map(([label, rows]) => (
             <div key={label}>
               <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {label}
               </h2>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                {entries.map((c) => (
-                  <ContentCard
-                    key={c.id}
-                    title={c.title}
-                    topics={c.topics}
-                    author={c.author}
-                    onClick={() => {}}
-                  />
+                {rows.map((row) => (
+                  <div key={row._id} className="relative">
+                    <ContentCard
+                      title={row.content.title}
+                      coverUrl={row.content.title_image || undefined}
+                      topics={row.content.topics}
+                      author={authorWithRelativeTime(row)}
+                      onClick={() => navigate(`/view/${row.content._id}`)}
+                    />
+                  </div>
                 ))}
               </div>
             </div>

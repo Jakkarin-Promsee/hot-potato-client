@@ -3,15 +3,20 @@ import { useParams } from "react-router-dom";
 import TipTapEditor from "@/components/editor/TipTapEditor";
 import { CanvasProvider } from "@/contexts/CanvasContext";
 import { useCanvasStore } from "@/stores/canvas.store";
+import { useLearningHistoryStore } from "@/stores/learningHistory.store";
 
 const TipTapCanvas = () => {
   const { id } = useParams<{ id: string }>();
   const { loadContent, saveContent, isLoading, isDirty, conflict } =
     useCanvasStore();
+  const recordVisit = useLearningHistoryStore((s) => s.recordVisit);
 
   useEffect(() => {
-    if (id) loadContent(id);
-  }, [id]);
+    if (id) {
+      loadContent(id);
+      void recordVisit(id);
+    }
+  }, [id, loadContent, recordVisit]);
 
   // Auto save
   useEffect(() => {

@@ -1,75 +1,81 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, ChevronRight } from "lucide-react";
+import { Search, ChevronRight, Loader2 } from "lucide-react";
 import { ContentCard } from "@/components/ContentCard";
 import { Link, useNavigate } from "react-router-dom";
 import { useContentStore } from "@/stores/content.store";
+import { useLearningHistoryStore } from "@/stores/learningHistory.store";
+import { formatAuthorLine } from "@/lib/formatAuthors";
 
 const TABS = ["All", "Bookmarked", "Recent"] as const;
 
-const mockHistory = [
-  {
-    id: "h1",
-    title: "Understanding Derivatives Intuitively",
-    topics: ["slope", "limit"],
-    author: "Ms. Chen",
-  },
-  {
-    id: "h2",
-    title: "How Electricity Really Works",
-    topics: ["current", "voltage"],
-    author: "Mr. Park",
-  },
-  {
-    id: "h3",
-    title: "The Logic Behind Recursion",
-    topics: ["stack", "base case"],
-    author: "Dr. Kim",
-  },
-  {
-    id: "h4",
-    title: "Gravity: A Visual Journey",
-    topics: ["force", "mass"],
-    author: "Prof. Tanaka",
-  },
-  {
-    id: "h5",
-    title: "Why Music Sounds Good",
-    topics: ["harmony", "frequency"],
-    author: "Ms. Yamada",
-  },
-];
+const RECENT_MS = 14 * 24 * 60 * 60 * 1000;
 
 export default function Explore() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("All");
   const [search, setSearch] = useState("");
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
-  const { contents, fetchMyContents, searchContents } = useContentStore();
+  const {
+    exploreContents,
+    exploreLoading,
+    error,
+    fetchExploreContents,
+    searchExploreContents,
+  } = useContentStore();
+
+  const {
+    entries: historyEntries,
+    isLoading: historyLoading,
+    error: historyError,
+    fetchHistory,
+  } = useLearningHistoryStore();
 
   useEffect(() => {
-    fetchMyContents();
-  }, [fetchMyContents]);
+    fetchExploreContents();
+  }, [fetchExploreContents]);
+
+  useEffect(() => {
+    fetchHistory(6);
+  }, [fetchHistory]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (search.trim()) {
-        searchContents(search);
+        searchExploreContents(search);
       } else {
-        fetchMyContents();
+        fetchExploreContents();
       }
     }, 400);
 
     return () => clearTimeout(timeout);
-  }, [search, searchContents, fetchMyContents]);
+  }, [search, searchExploreContents, fetchExploreContents]);
 
   const validContents = useMemo(
     () =>
-      contents.filter(
+      exploreContents.filter(
         (c) =>
           Boolean(c?._id) && Boolean(c?.title && c.title.trim().length > 0),
       ),
-    [contents],
+    [exploreContents],
   );
+
+  const continueLearning = useMemo(
+    () => historyEntries.slice(0, 6),
+    [historyEntries],
+  );
+
+  const displayed = useMemo(() => {
+    if (activeTab === "Bookmarked") {
+      return validContents.filter((c) => bookmarks.has(c._id));
+    }
+    if (activeTab === "Recent") {
+      const cutoff = Date.now() - RECENT_MS;
+      return validContents.filter(
+        (c) => new Date(c.updatedAt).getTime() >= cutoff,
+      );
+    }
+    return validContents;
+  }, [activeTab, validContents, bookmarks]);
 
   const toggleBookmark = (id: string) => {
     setBookmarks((prev) => {
@@ -79,19 +85,20 @@ export default function Explore() {
     });
   };
 
-  const displayed =
-    activeTab === "Bookmarked"
-      ? validContents.filter((c) => bookmarks.has(c._id))
-      : validContents;
-
   return (
     <div className="container px-4 pb-24 pt-6 md:pb-8">
       <h1 className="font-serif text-2xl font-bold">Explore</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Discover lessons crafted for understanding
+        Discover public lessons crafted for understanding
       </p>
 
-      {/* Continue learning – horizontal scroll */}
+      {(error || historyError) && (
+        <p className="mt-3 text-sm text-destructive" role="alert">
+          {error ?? historyError}
+        </p>
+      )}
+
+      {/* Continue learning – from signed-in user's history */}
       <div className="mt-5">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">
@@ -105,16 +112,32 @@ export default function Explore() {
           </Link>
         </div>
         <div className="mt-2 flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-          {mockHistory.map((c) => (
-            <div key={c.id} className="w-48 shrink-0">
-              <ContentCard
-                title={c.title}
-                topics={c.topics}
-                author={c.author}
-                onClick={() => {}}
-              />
+          {historyLoading && continueLearning.length === 0 ? (
+            <div className="flex h-40 w-full items-center justify-center text-sm text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Loading…
             </div>
-          ))}
+          ) : continueLearning.length === 0 ? (
+            <p className="py-6 text-sm text-muted-foreground">
+              No history yet. Open any lesson you can access — it will show up
+              here. Browse public lessons below to get started.
+            </p>
+          ) : (
+            continueLearning.map((row) => (
+              <div key={row._id} className="w-48 shrink-0">
+                <ContentCard
+                  title={row.content.title}
+                  coverUrl={row.content.title_image || undefined}
+                  topics={row.content.topics}
+                  author={formatAuthorLine(
+                    row.content.author_name,
+                    row.content.collaborator_names,
+                  )}
+                  onClick={() => navigate(`/view/${row.content._id}`)}
+                />
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -124,7 +147,7 @@ export default function Explore() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search lessons..."
+          placeholder="Search public lessons..."
           className="h-10 w-full rounded-lg border border-border bg-card pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
@@ -134,6 +157,7 @@ export default function Explore() {
         {TABS.map((tab) => (
           <button
             key={tab}
+            type="button"
             onClick={() => setActiveTab(tab)}
             className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
               activeTab === tab
@@ -148,23 +172,36 @@ export default function Explore() {
 
       {/* Grid */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-        {displayed.map((c) => (
-          <ContentCard
-            key={c._id}
-            title={c.title}
-            coverUrl={c.title_image}
-            bookmarked={bookmarks.has(c._id)}
-            onBookmark={() => toggleBookmark(c._id)}
-            onClick={() => navigate(`/view/${c._id}`)}
-          />
-        ))}
+        {exploreLoading && displayed.length === 0 ? (
+          <div className="col-span-full flex justify-center py-16 text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Loading lessons…
+          </div>
+        ) : (
+          displayed.map((c) => (
+            <ContentCard
+              key={c._id}
+              title={c.title}
+              coverUrl={c.title_image}
+              topics={c.topics}
+              author={formatAuthorLine(c.author_name, c.collaborator_names)}
+              bookmarked={bookmarks.has(c._id)}
+              onBookmark={() => toggleBookmark(c._id)}
+              onClick={() => navigate(`/view/${c._id}`)}
+            />
+          ))
+        )}
       </div>
 
-      {displayed.length === 0 && (
+      {!exploreLoading && displayed.length === 0 && (
         <div className="mt-16 text-center text-sm text-muted-foreground">
           {activeTab === "Bookmarked"
             ? "No bookmarked lessons yet."
-            : "No lessons found."}
+            : activeTab === "Recent"
+              ? "No lessons updated in the last 14 days."
+              : search.trim()
+                ? "No public lessons match your search."
+                : "No public lessons found."}
         </div>
       )}
     </div>
