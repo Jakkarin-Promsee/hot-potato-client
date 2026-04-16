@@ -15,6 +15,7 @@ import {
   ZapOff,
 } from "lucide-react";
 import { useCanvasStore } from "@/stores/canvas.store";
+import PublishSettingsModal from "./PublishSettingsModal";
 
 const IconBtn = memo(
   ({
@@ -64,6 +65,7 @@ const EditorHeader = memo(
     dynamicUpdate,
     onDynamicUpdateChange,
   }: EditorHeaderProps) => {
+    const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
     const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">(
       "idle",
     );
@@ -198,14 +200,19 @@ const EditorHeader = memo(
     );
 
     const handlePublic = useCallback(async () => {
-      await saveContent(); // save first
-      console.log(editor?.getJSON());
-    }, [editor]);
+      setIsPublishModalOpen(true);
+    }, []);
 
     return (
-      <div className="editor-header-inner">
-        {/* ── LEFT ── */}
-        <div className="flex items-center gap-1.5">
+      <>
+        <PublishSettingsModal
+          open={isPublishModalOpen}
+          onClose={() => setIsPublishModalOpen(false)}
+        />
+
+        <div className="editor-header-inner">
+          {/* ── LEFT ── */}
+          <div className="flex items-center gap-1.5">
           <Link
             to="/create"
             title="Back to create"
@@ -261,10 +268,10 @@ const EditorHeader = memo(
               <p>Redo</p>
             </div>
           </IconBtn>
-        </div>
+          </div>
 
-        {/* ── RIGHT ── */}
-        <div className="flex items-center gap-1.5">
+          {/* ── RIGHT ── */}
+          <div className="flex items-center gap-1.5">
           <ThemeToggle compact />
           <div className="mx-1 h-4 w-px bg-border" />
           {/* ── DYNAMIC UPDATE TOGGLE ── */}
@@ -370,8 +377,9 @@ const EditorHeader = memo(
           >
             Publish
           </button>
+          </div>
         </div>
-      </div>
+      </>
     );
   },
 );
