@@ -937,6 +937,7 @@ export const ImagePanel = memo(
 
     const imgEl = getImgElement();
     const currentAlign = imageAttrs["data-align"] ?? imageAttrs.align ?? "left";
+    const resizeProgressPct = ((resizePct - 10) / 190) * 100;
 
     return (
       <>
@@ -1020,77 +1021,33 @@ export const ImagePanel = memo(
                 {resizePct}%
               </span>
             </div>
-            {/* Slider with explicit cross-browser track/thumb styles */}
-            <style>{`
-              .img-resize-slider {
-                -webkit-appearance: none;
-                appearance: none;
-                width: 100%;
-                height: 20px;
-                outline: none;
-                cursor: pointer;
-                background: transparent;
-              }
-              .img-resize-slider::-webkit-slider-runnable-track {
-                height: 6px;
-                border-radius: 9999px;
-                border: 1px solid rgba(255, 255, 255, 0.42);
-                background: linear-gradient(
-                  to right,
-                  hsl(var(--primary)) 0%,
-                  hsl(var(--primary)) ${((resizePct - 10) / 190) * 100}%,
-                  hsl(var(--border)) ${((resizePct - 10) / 190) * 100}%,
-                  hsl(var(--border)) 100%
-                );
-              }
-              .img-resize-slider::-webkit-slider-thumb {
-                -webkit-appearance: none;
-                appearance: none;
-                width: 18px;
-                height: 18px;
-                border-radius: 50%;
-                background: hsl(var(--primary));
-                border: 2px solid rgba(255, 255, 255, 0.65);
-                box-shadow: 0 0 0 1px hsl(var(--primary));
-                margin-top: -7px;
-                cursor: pointer;
-                transition: transform 0.12s ease, box-shadow 0.15s ease;
-              }
-              .img-resize-slider::-webkit-slider-thumb:hover {
-                box-shadow: 0 0 0 3px hsl(var(--primary) / 0.25);
-                transform: scale(1.04);
-              }
-              .img-resize-slider::-moz-range-track {
-                height: 6px;
-                border-radius: 9999px;
-                border: 1px solid rgba(255, 255, 255, 0.42);
-                background: hsl(var(--border));
-              }
-              .img-resize-slider::-moz-range-progress {
-                height: 6px;
-                border-radius: 9999px;
-                border: 1px solid rgba(255, 255, 255, 0.42);
-                background: hsl(var(--primary));
-              }
-              .img-resize-slider::-moz-range-thumb {
-                width: 18px;
-                height: 18px;
-                border-radius: 50%;
-                background: hsl(var(--primary));
-                border: 2px solid rgba(255, 255, 255, 0.65);
-                box-shadow: 0 0 0 1px hsl(var(--primary));
-                cursor: pointer;
-              }
-            `}</style>
-            <input
-              type="range"
-              min={10}
-              max={200}
-              step={1}
-              value={resizePct}
-              onChange={(e) => handleResizeChange(Number(e.target.value))}
-              className="img-resize-slider"
-            />
+            {/* Always-visible custom slider visuals + native input overlay */}
+            <div className="relative h-6">
+              <div
+                className="absolute left-0 right-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full border border-border bg-muted"
+                aria-hidden="true"
+              />
+              <div
+                className="absolute left-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-primary"
+                style={{ width: `${resizeProgressPct}%` }}
+                aria-hidden="true"
+              />
+              <div
+                className="absolute top-1/2 h-[18px] w-[18px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-primary shadow-[0_0_0_1px_hsl(var(--primary)),0_0_0_2px_hsl(var(--foreground)/0.22)]"
+                style={{ left: `${resizeProgressPct}%` }}
+                aria-hidden="true"
+              />
+              <input
+                type="range"
+                min={10}
+                max={200}
+                step={1}
+                value={resizePct}
+                onChange={(e) => handleResizeChange(Number(e.target.value))}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                aria-label="Resize image scale"
+              />
+            </div>
             <div className="flex justify-between text-[10px] text-muted-foreground/50 mt-1 px-0.5">
               <span>10%</span>
               <span>100%</span>
