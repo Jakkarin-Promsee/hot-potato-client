@@ -19,18 +19,26 @@ import {
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useAuthStore } from "@/stores/auth.store";
 
-const navItems = [
+const publicNavItems = [
   { to: "/explore", icon: Compass, label: "Explore" },
+  { to: "/guide", icon: BookOpen, label: "Guide" },
+];
+
+const authOnlyNavItems = [
   { to: "/history", icon: History, label: "History" },
   { to: "/create", icon: PenSquare, label: "Create" },
-  { to: "/guide", icon: BookOpen, label: "Guide" },
   { to: "/profile", icon: User, label: "Profile" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
 export function TopNav() {
   const navigate = useNavigate();
+  const token = useAuthStore((s) => s.token);
+  const navItems = token
+    ? [...publicNavItems, ...authOnlyNavItems]
+    : publicNavItems;
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
@@ -43,7 +51,6 @@ export function TopNav() {
         </Link>
 
         <div className="hidden items-center gap-2 md:flex">
-          {/* Desktop nav */}
           <nav className="flex items-center gap-1">
             {navItems.map(({ to, icon: Icon, label }) => (
               <NavLink
@@ -57,11 +64,20 @@ export function TopNav() {
               </NavLink>
             ))}
           </nav>
+          {!token && (
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/login">Log in</Link>
+            </Button>
+          )}
           <ThemeToggle compact />
         </div>
 
-        {/* Mobile controls */}
         <div className="flex items-center gap-1 md:hidden">
+          {!token && (
+            <Button variant="outline" size="sm" className="mr-1" asChild>
+              <Link to="/login">Log in</Link>
+            </Button>
+          )}
           <ThemeToggle compact />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

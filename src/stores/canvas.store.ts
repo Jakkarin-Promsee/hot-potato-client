@@ -15,6 +15,8 @@ interface CanvasState {
   isDirty: boolean; // unsaved changes?
   updatedAt: string | null; // 👈 track version
   conflict: boolean; // 👈 conflict flag
+  /** Set when /content/load fails (e.g. 401 private link while logged out). */
+  contentLoadError: string | null;
 
   loadContent: (id: string) => Promise<void>;
   saveContent: () => Promise<void>;
@@ -42,34 +44,54 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   isDirty: false,
   updatedAt: null,
   conflict: false,
+  contentLoadError: null,
 
   loadContent: async (id: string) => {
-    set({ isLoading: true, conflict: false });
-    const res = await api.get(`/content/load?id=${id}`);
-    const collaborators = Array.isArray(res.data.collaborators)
-      ? res.data.collaborators.map((c: unknown) => {
-          if (typeof c === "string") return c;
-          if (c && typeof c === "object" && "_id" in c) {
-            const raw = (c as { _id?: unknown })._id;
-            return typeof raw === "string" ? raw : String(raw ?? "");
-          }
-          return String(c ?? "");
-        })
-      : [];
+    set({ isLoading: true, conflict: false, contentLoadError: null });
+    try {
+      const res = await api.get(`/content/load?id=${id}`);
+      const collaborators = Array.isArray(res.data.collaborators)
+        ? res.data.collaborators.map((c: unknown) => {
+            if (typeof c === "string") return c;
+            if (c && typeof c === "object" && "_id" in c) {
+              const raw = (c as { _id?: unknown })._id;
+              return typeof raw === "string" ? raw : String(raw ?? "");
+            }
+            return String(c ?? "");
+          })
+        : [];
 
-    set({
-      contentId: id,
-      title: res.data.title,
-      titleImage: res.data.title_image ?? "",
-      tiptapJson: res.data.tiptap_json,
-      collaborators: collaborators.filter(Boolean),
-      accessType: res.data.access_type ?? "private",
-      topics: Array.isArray(res.data.topics) ? res.data.topics : [],
-      description: res.data.description ?? "",
-      updatedAt: res.data.updatedAt, // 👈 store server time
-      isLoading: false,
-      isDirty: false,
-    });
+      set({
+        contentId: id,
+        title: res.data.title,
+        titleImage: res.data.title_image ?? "",
+        tiptapJson: res.data.tiptap_json,
+        collaborators: collaborators.filter(Boolean),
+        accessType: res.data.access_type ?? "private",
+        topics: Array.isArray(res.data.topics) ? res.data.topics : [],
+        description: res.data.description ?? "",
+        updatedAt: res.data.updatedAt, // 👈 store server time
+        isLoading: false,
+        isDirty: false,
+        contentLoadError: null,
+      });
+    } catch (err: unknown) {
+      const message =
+        err &&
+        typeof err === "object" &&
+        "response" in err &&
+        (err as { response?: { data?: { message?: string } } }).response?.data
+          ?.message;
+      set({
+        isLoading: false,
+        contentId: id,
+        tiptapJson: "{}",
+        contentLoadError:
+          typeof message === "string" && message.length > 0
+            ? message
+            : "Could not load this content.",
+      });
+    }
   },
 
   saveContent: async () => {

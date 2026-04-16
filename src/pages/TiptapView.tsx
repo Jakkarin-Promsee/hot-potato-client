@@ -1,69 +1,70 @@
 import TiptapViewer from "@/components/editor/TiptapViewer";
 import { TopNav } from "@/components/TopNav";
+import { Button } from "@/components/ui/button";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useAnswerStore } from "@/stores/content-answer.store";
 import { useLearningHistoryStore } from "@/stores/learningHistory.store";
+import { useAuthStore } from "@/stores/auth.store";
 import React, { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 function TiptapView() {
   const { id } = useParams<{ id: string }>();
-  const { loadContent, isLoading } = useCanvasStore();
+  const token = useAuthStore((s) => s.token);
+  const { loadContent, isLoading, contentLoadError } = useCanvasStore();
   const { loadAnswers, syncAnswers, isDirty } = useAnswerStore();
   const recordVisit = useLearningHistoryStore((s) => s.recordVisit);
   const [isNavVisible, setIsNavVisible] = useState(true);
   const lastWindowScrollYRef = useRef(0);
 
   useEffect(() => {
-    if (id) {
-      loadContent(id);
-      loadAnswers(id);
-      void recordVisit(id);
-    }
-  }, [id]);
+    if (!id) return;
+    void loadContent(id);
+    if (!token) return;
+    loadAnswers(id);
+    void recordVisit(id);
+  }, [id, token, loadContent, loadAnswers, recordVisit]);
 
-  // 30s auto sync
+  // 30s auto sync (signed-in only)
   useEffect(() => {
+    if (!token) return;
     const interval = setInterval(() => {
       if (isDirty) syncAnswers();
     }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [token, isDirty, syncAnswers]);
 
-  // Save on page leave
+  // Save on page leave (signed-in only)
   useEffect(() => {
+    if (!token) return;
     const handleLeave = () => syncAnswers();
     window.addEventListener("beforeunload", handleLeave);
     return () => window.removeEventListener("beforeunload", handleLeave);
-  }, []);
+  }, [token, syncAnswers]);
 
-  // On canvas load, check if another tab has this content open
-  const STALE_THRESHOLD = 60 * 1000; // 1 minute
+  const STALE_THRESHOLD = 60 * 1000;
   useEffect(() => {
+    if (!token || !id) return;
+
     let hiddenAt: number | null = null;
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        hiddenAt = Date.now(); // record when tab was hidden
+        hiddenAt = Date.now();
         return;
       }
-
-      // Tab became visible
       if (!hiddenAt) return;
-
       const awayMs = Date.now() - hiddenAt;
       hiddenAt = null;
-
-      // Only re-sync if away for more than 1 minute
       if (awayMs > STALE_THRESHOLD) {
-        loadAnswers(id!);
+        loadAnswers(id);
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () =>
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [id]);
+  }, [id, token, loadAnswers]);
 
   useEffect(() => {
     const MIN_DELTA = 8;
@@ -94,6 +95,27 @@ function TiptapView() {
           <span className="animate-pulse text-sm text-muted-foreground">
             Loading content...
           </span>
+        </div>
+      </div>
+    );
+
+  if (contentLoadError)
+    return (
+      <div className="flex min-h-screen flex-col bg-background text-foreground">
+        <TopNav />
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
+          <p className="max-w-md text-sm text-muted-foreground">
+            {contentLoadError}
+          </p>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/login">Log in</Link>
+          </Button>
+          <Link
+            to="/explore"
+            className="text-xs text-primary underline-offset-4 hover:underline"
+          >
+            Back to Explore
+          </Link>
         </div>
       </div>
     );

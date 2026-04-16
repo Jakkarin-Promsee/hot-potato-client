@@ -4,6 +4,7 @@ import { ContentCard } from "@/components/ContentCard";
 import { Link, useNavigate } from "react-router-dom";
 import { useContentStore } from "@/stores/content.store";
 import { useLearningHistoryStore } from "@/stores/learningHistory.store";
+import { useAuthStore } from "@/stores/auth.store";
 import { formatAuthorLine } from "@/lib/formatAuthors";
 
 const TABS = ["All", "Bookmarked", "Recent"] as const;
@@ -29,14 +30,15 @@ export default function Explore() {
     error: historyError,
     fetchHistory,
   } = useLearningHistoryStore();
+  const token = useAuthStore((s) => s.token);
 
   useEffect(() => {
     fetchExploreContents();
   }, [fetchExploreContents]);
 
   useEffect(() => {
-    fetchHistory(6);
-  }, [fetchHistory]);
+    if (token) fetchHistory(6);
+  }, [token, fetchHistory]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
