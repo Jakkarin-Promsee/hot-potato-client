@@ -255,16 +255,7 @@ const CropOverlay = memo(
     const containerRef = useRef<HTMLDivElement>(null);
     const isDragging = useRef(false);
     const dragMode = useRef<
-      | "new"
-      | "move"
-      | "tl"
-      | "tr"
-      | "bl"
-      | "br"
-      | "t"
-      | "b"
-      | "l"
-      | "r"
+      "new" | "move" | "tl" | "tr" | "bl" | "br" | "t" | "b" | "l" | "r"
     >("new");
     const dragStart = useRef({ x: 0, y: 0 });
     const rectStart = useRef<CropRect | null>(null);
@@ -973,9 +964,7 @@ export const ImagePanel = memo(
               }`}
             >
               <Crop size={15} strokeWidth={2} />
-              {isCropping
-                ? "Cropping — drag handles or move"
-                : "Crop image"}
+              {isCropping ? "Cropping — drag handles or move" : "Crop image"}
               {!isCropping && (
                 <span className="ml-auto text-[10px] font-normal text-muted-foreground">
                   adjust frame
@@ -1037,10 +1026,15 @@ export const ImagePanel = memo(
                 -webkit-appearance: none;
                 appearance: none;
                 width: 100%;
-                height: 4px;
-                border-radius: 9999px;
+                height: 20px;
                 outline: none;
                 cursor: pointer;
+                background: transparent;
+              }
+              .img-resize-slider::-webkit-slider-runnable-track {
+                height: 6px;
+                border-radius: 9999px;
+                border: 1px solid rgba(255, 255, 255, 0.42);
                 background: linear-gradient(
                   to right,
                   hsl(var(--primary)) 0%,
@@ -1052,25 +1046,39 @@ export const ImagePanel = memo(
               .img-resize-slider::-webkit-slider-thumb {
                 -webkit-appearance: none;
                 appearance: none;
-                width: 16px;
-                height: 16px;
+                width: 18px;
+                height: 18px;
                 border-radius: 50%;
                 background: hsl(var(--primary));
-                border: 2.5px solid hsl(var(--background));
-                box-shadow: 0 0 0 1.5px hsl(var(--primary));
+                border: 2px solid rgba(255, 255, 255, 0.65);
+                box-shadow: 0 0 0 1px hsl(var(--primary));
+                margin-top: -7px;
                 cursor: pointer;
-                transition: box-shadow 0.15s;
+                transition: transform 0.12s ease, box-shadow 0.15s ease;
               }
               .img-resize-slider::-webkit-slider-thumb:hover {
                 box-shadow: 0 0 0 3px hsl(var(--primary) / 0.25);
+                transform: scale(1.04);
+              }
+              .img-resize-slider::-moz-range-track {
+                height: 6px;
+                border-radius: 9999px;
+                border: 1px solid rgba(255, 255, 255, 0.42);
+                background: hsl(var(--border));
+              }
+              .img-resize-slider::-moz-range-progress {
+                height: 6px;
+                border-radius: 9999px;
+                border: 1px solid rgba(255, 255, 255, 0.42);
+                background: hsl(var(--primary));
               }
               .img-resize-slider::-moz-range-thumb {
-                width: 16px;
-                height: 16px;
+                width: 18px;
+                height: 18px;
                 border-radius: 50%;
                 background: hsl(var(--primary));
-                border: 2.5px solid hsl(var(--background));
-                box-shadow: 0 0 0 1.5px hsl(var(--primary));
+                border: 2px solid rgba(255, 255, 255, 0.65);
+                box-shadow: 0 0 0 1px hsl(var(--primary));
                 cursor: pointer;
               }
             `}</style>
