@@ -106,7 +106,7 @@ function TiptapView() {
       </div>
       <div
         className={`flex-1 min-h-0 transition-[padding-top] duration-200 ${
-          isNavVisible ? "pt-[var(--app-nav-height)]" : "pt-0"
+          isNavVisible ? "pt-(--app-nav-height)" : "pt-0"
         }`}
       >
         <TiptapViewer

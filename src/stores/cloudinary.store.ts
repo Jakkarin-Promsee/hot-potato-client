@@ -13,7 +13,10 @@ interface UploadState {
   selectedImage: UploadedImage | null;
 
   fetchHistory: () => Promise<void>;
-  upload: (file: File, category_id?: string | null) => Promise<void>;
+  upload: (
+    file: File,
+    category_id?: string | null,
+  ) => Promise<UploadedImage | undefined>;
   uploadFromUrl: (url: string, category_id?: string | null) => Promise<void>;
   assignCategory: (
     public_id: string,
@@ -49,7 +52,7 @@ export const useUploadStore = create<UploadState>((set, get) => ({
   upload: async (file, category_id = null) => {
     if (!file.type.startsWith("image/")) {
       set({ error: "Only image files are supported." });
-      return;
+      return undefined;
     }
 
     const previewUrl = URL.createObjectURL(file);
@@ -70,6 +73,8 @@ export const useUploadStore = create<UploadState>((set, get) => ({
       setTimeout(() => {
         set({ isUploading: false, progress: 0, previewUrl: null });
       }, 600);
+
+      return saved;
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : "Upload failed.",
@@ -77,6 +82,7 @@ export const useUploadStore = create<UploadState>((set, get) => ({
         progress: 0,
         previewUrl: null,
       });
+      return undefined;
     }
   },
 

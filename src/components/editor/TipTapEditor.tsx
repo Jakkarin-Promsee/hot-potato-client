@@ -10,6 +10,12 @@ import EditorRightSidebar from "./EditorRightSidebar";
 import CanvasLeftSidebar from "./canvas/CanvasLeftSidebar";
 import CanvasRightSidebar from "./canvas/CanvasRightSidebar";
 import { useCanvasStore } from "@/stores/canvas.store";
+import { useUploadStore } from "@/stores/cloudinary.store";
+import {
+  getCachedSecureUrlForPaste,
+  hashImageFileContent,
+  rememberPastedImageUrl,
+} from "@/lib/clipboardPasteImageCache";
 import { createEditorExtensions } from "./config/editorExtensions";
 
 const ZOOM_MIN = 0.5;
@@ -64,6 +70,59 @@ const TipTapEditor = () => {
           }
         }
         return false;
+      },
+      handlePaste: (view, event) => {
+        const items = event.clipboardData?.items;
+        if (!items?.length) return false;
+
+        let imageFile: File | null = null;
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (!item || item.kind !== "file") continue;
+          if (!item.type.startsWith("image/")) continue;
+          const file = item.getAsFile();
+          if (file) {
+            imageFile = file;
+            break;
+          }
+        }
+
+        if (!imageFile) return false;
+
+        const fileToUpload = imageFile;
+        event.preventDefault();
+        void (async () => {
+          let secureUrl: string | undefined;
+
+          try {
+            const hash = await hashImageFileContent(fileToUpload);
+            const cached = getCachedSecureUrlForPaste(hash);
+            if (cached) {
+              secureUrl = cached;
+            } else {
+              const saved = await useUploadStore.getState().upload(fileToUpload);
+              if (!saved) return;
+              secureUrl = saved.secure_url;
+              rememberPastedImageUrl(hash, secureUrl);
+            }
+          } catch {
+            const saved = await useUploadStore.getState().upload(fileToUpload);
+            if (!saved) return;
+            secureUrl = saved.secure_url;
+          }
+
+          if (!secureUrl || !view.dom.isConnected) return;
+
+          const { schema } = view.state;
+          const imageType = schema.nodes.image;
+          if (!imageType) return;
+
+          const node = imageType.create({ src: secureUrl });
+          const tr = view.state.tr.replaceSelectionWith(node).scrollIntoView();
+          view.dispatch(tr);
+        })();
+
+        return true;
       },
       handleClick(view, pos, event) {
         const target = event.target as HTMLElement;
