@@ -9,7 +9,7 @@ import {
   Settings,
 } from "lucide-react";
 import { NavLink } from "./NavLink";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,8 +22,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuthStore } from "@/stores/auth.store";
 
 const publicNavItems = [
-  { to: "/explore", icon: Compass, label: "Explore" },
   { to: "/guide", icon: BookOpen, label: "Guide" },
+  { to: "/explore", icon: Compass, label: "Explore" },
 ];
 
 const authOnlyNavItems = [
@@ -35,7 +35,9 @@ const authOnlyNavItems = [
 
 export function TopNav() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const token = useAuthStore((s) => s.token);
+  const showLoginLink = !token && pathname !== "/login";
   const navItems = token
     ? [...publicNavItems, ...authOnlyNavItems]
     : publicNavItems;
@@ -64,7 +66,7 @@ export function TopNav() {
               </NavLink>
             ))}
           </nav>
-          {!token && (
+          {showLoginLink && (
             <Button variant="outline" size="sm" asChild>
               <Link to="/login">Log in</Link>
             </Button>
@@ -73,7 +75,7 @@ export function TopNav() {
         </div>
 
         <div className="flex items-center gap-1 md:hidden">
-          {!token && (
+          {showLoginLink && (
             <Button variant="outline" size="sm" className="mr-1" asChild>
               <Link to="/login">Log in</Link>
             </Button>

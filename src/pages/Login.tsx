@@ -20,7 +20,7 @@ const Login = () => {
       } else {
         await login(email, password);
       }
-      navigate("/dashboard"); // ✅ redirect after success
+      navigate("/explore"); // ✅ redirect after success
     } catch (err: any) {
       // error is handled in store, but you can also catch axios errors here
       const message = err.response?.data?.message || "Something went wrong";
@@ -29,7 +29,7 @@ const Login = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="flex flex-1 flex-col items-center justify-center px-4 py-10">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute left-1/2 top-1/3 h-120 w-120 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[120px]" />
       </div>
@@ -121,8 +121,8 @@ const Login = () => {
               {isLoading
                 ? "Please wait..."
                 : isSignUp
-                ? "Create account"
-                : "Sign in"}
+                  ? "Create account"
+                  : "Sign in"}
             </button>
           </form>
 

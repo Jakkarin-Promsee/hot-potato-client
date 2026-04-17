@@ -40,15 +40,6 @@ const App = () => (
         <Route path="/status" element={<Status />} />
 
         <Route
-          path="/login"
-          element={
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
-          }
-        />
-
-        <Route
           path="/dashboard"
           element={
             <ProtectedRoute>
@@ -79,6 +70,14 @@ const App = () => (
         <Route path="/view/:id" element={<TiptapView />} />
 
         <Route element={<AppLayout />}>
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            }
+          />
           <Route path="/explore" element={<Explore />} />
           <Route path="/guide" element={<Guide />} />
           <Route

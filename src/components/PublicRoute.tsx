@@ -3,7 +3,7 @@ import { useAuthStore } from "../stores/auth.store";
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const token = useAuthStore((s) => s.token);
-  return token ? <Navigate to="/dashboard" replace /> : <>{children}</>;
+  return token ? <Navigate to="/explore" replace /> : <>{children}</>;
 };
 
 export default PublicRoute;

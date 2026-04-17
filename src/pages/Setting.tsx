@@ -8,8 +8,10 @@ import {
   LogOut,
   ChevronRight,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useThemeStore } from "@/stores/theme.store";
+import { useAuthStore } from "@/stores/auth.store";
 
 interface SettingRow {
   icon: React.ElementType;
@@ -71,6 +73,13 @@ const sections: { heading: string; items: SettingRow[] }[] = [
 
 export default function Settings() {
   const { theme } = useThemeStore();
+  const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/explore", { replace: true });
+  };
 
   return (
     <div className="container max-w-lg px-4 pb-12 pt-6">
@@ -104,6 +113,10 @@ export default function Settings() {
               {section.items.map((item, i) => (
                 <button
                   key={item.label}
+                  type="button"
+                  onClick={
+                    item.label === "Log out" ? handleLogout : undefined
+                  }
                   className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent ${
                     i > 0 ? "border-t border-border" : ""
                   }`}
