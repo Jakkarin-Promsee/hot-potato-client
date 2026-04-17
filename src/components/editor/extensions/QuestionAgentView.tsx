@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
 import { useAnswerStore } from "@/stores/content-answer.store";
+import api from "@/lib/axios";
 import {
   Bot,
   SendHorizontal,
@@ -11,6 +12,10 @@ import {
   ChevronUp,
 } from "lucide-react";
 import type { QuestionAgentAttrs } from "./QuestionAgentNode";
+import {
+  buildQuestionAgentUserContext,
+  getQuestionAgentContextAbove,
+} from "./questionAgentContext";
 
 export interface ChatMessage {
   question: string;
@@ -43,13 +48,26 @@ function useAutoGrow(value: string) {
 }
 
 const buildFallbackReply = (question: string) =>
-  `I got your question: "${question}". AI backend is not connected yet, but this block is ready for integration.`;
+  `I couldn't get an AI response right now. Your question was: "${question}". Please try again.`;
 
-async function askAi(question: string): Promise<string> {
-  // Safe placeholder until backend endpoint is connected.
-  // Replace with your real API call later.
-  await new Promise((resolve) => setTimeout(resolve, 450));
-  return buildFallbackReply(question);
+async function askAi(
+  question: string,
+  context: string,
+  userContext: string,
+): Promise<string> {
+  try {
+    const response = await api.post<{ answer?: string }>("/chat/ask", {
+      prompt: question,
+      context,
+      userContext,
+    });
+
+    const answer = response.data?.answer?.trim();
+    if (!answer) return buildFallbackReply(question);
+    return answer;
+  } catch {
+    return buildFallbackReply(question);
+  }
 }
 
 export default function QuestionAgentView({
@@ -112,7 +130,13 @@ export default function QuestionAgentView({
 
     setIsAsking(true);
     try {
-      const answer = await askAi(question);
+      const context = getQuestionAgentContextAbove(editor, getPos);
+      const userContext = buildQuestionAgentUserContext(
+        answers,
+        blockId,
+        chatHistory,
+      );
+      const answer = await askAi(question, context, userContext);
       const nextHistory = [
         ...chatHistory,
         { question, answer, createdAt: new Date().toISOString() },
