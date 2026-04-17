@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, type MutableRefObject } from "react";
 import {
   FabricObject,
   Rect,
@@ -13,13 +13,12 @@ import {
   Line,
   Canvas as FabricCanvas,
   classRegistry,
-  util,
-  CanvasEvents,
+  Point,
 } from "fabric";
 import { useCanvasContext } from "@/contexts/CanvasContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Types
+// RichLine types
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type ArrowType =
@@ -44,85 +43,184 @@ export interface RichLineConfig {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Snapping
+// Animated media helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-const OBJECT_SNAP_DISTANCE = 20;
-const ANGLE_SNAP_DEG = 45;
-
-function getSnapPoints(obj: FabricObject) {
-  const b = obj.getBoundingRect();
-  const cx = b.left + b.width / 2;
-  const cy = b.top + b.height / 2;
-  return [
-    { x: cx, y: cy },
-    { x: cx, y: b.top },
-    { x: cx, y: b.top + b.height },
-    { x: b.left, y: cy },
-    { x: b.left + b.width, y: cy },
-    { x: b.left, y: b.top },
-    { x: b.left + b.width, y: b.top },
-    { x: b.left, y: b.top + b.height },
-    { x: b.left + b.width, y: b.top + b.height },
-  ];
+/** True for URLs that need a live animation loop (GIF or video). */
+function isAnimatedMedia(url: string): boolean {
+  const clean = url.split("?")[0]!.toLowerCase();
+  return (
+    clean.endsWith(".gif") ||
+    clean.endsWith(".mp4") ||
+    clean.endsWith(".webm") ||
+    clean.endsWith(".ogg") ||
+    /\/[^/]+\.gif($|\/)/.test(clean) // Cloudinary path e.g. /upload/file.gif/
+  );
 }
 
-function findObjectSnap(
-  p: { x: number; y: number },
-  canvas: FabricCanvas,
-  excludeIds: Set<string>,
-): { x: number; y: number; found: boolean } {
-  let bestX = p.x,
-    bestY = p.y,
-    bestDist = OBJECT_SNAP_DISTANCE,
-    found = false;
-  for (const obj of canvas.getObjects()) {
-    if (excludeIds.has((obj as any).__richLineId)) continue;
-    if ((obj as any).__isRichLinePart) continue;
-    for (const sp of getSnapPoints(obj)) {
-      const d = Math.hypot(sp.x - p.x, sp.y - p.y);
-      if (d < bestDist) {
-        bestDist = d;
-        bestX = sp.x;
-        bestY = sp.y;
-        found = true;
-      }
-    }
-  }
-  return { x: bestX, y: bestY, found };
+function isVideoMedia(url: string): boolean {
+  const clean = url.split("?")[0]!.toLowerCase();
+  return (
+    clean.endsWith(".mp4") || clean.endsWith(".webm") || clean.endsWith(".ogg")
+  );
 }
 
-function applyAngleSnap(
-  anchor: { x: number; y: number },
-  free: { x: number; y: number },
-): { x: number; y: number } {
-  const dx = free.x - anchor.x,
-    dy = free.y - anchor.y;
-  const dist = Math.hypot(dx, dy);
-  if (dist === 0) return free;
-  const snapRad = (ANGLE_SNAP_DEG * Math.PI) / 180;
-  const snapped = Math.round(Math.atan2(dy, dx) / snapRad) * snapRad;
-  return {
-    x: anchor.x + Math.cos(snapped) * dist,
-    y: anchor.y + Math.sin(snapped) * dist,
-  };
+/**
+ * Adds an animated GIF to the canvas.
+ *
+ * The browser animates an <img> element internally — we just need to keep
+ * calling canvas.renderAll() on every animation frame so each new GIF frame
+ * gets painted onto the Fabric canvas.
+ */
+function addAnimatedGif(
+  url: string,
+  cv: FabricCanvas,
+  saveState: (() => void) | null,
+): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+
+    img.onload = () => {
+      const fabricImg = new FabricImage(img);
+      const scale = 300 / (img.naturalWidth || 300);
+      fabricImg.set({ left: 100, top: 100, scaleX: scale, scaleY: scale });
+
+      cv.add(fabricImg);
+      cv.setActiveObject(fabricImg);
+      saveState?.();
+      cv.requestRenderAll();
+
+      // RAF loop — repaints so animated GIF frames stay live
+      let rafId: number;
+      const tick = () => {
+        if (!cv.contains(fabricImg)) {
+          cancelAnimationFrame(rafId);
+          return;
+        }
+        cv.renderAll();
+        rafId = requestAnimationFrame(tick);
+      };
+      rafId = requestAnimationFrame(tick);
+
+      fabricImg.on("removed", () => cancelAnimationFrame(rafId));
+      resolve();
+    };
+
+    img.onerror = async () => {
+      // Fallback: static load
+      const fi = await FabricImage.fromURL(url, { crossOrigin: "anonymous" });
+      const scale = 300 / ((fi.width as number) || 300);
+      fi.set({ left: 100, top: 100, scaleX: scale, scaleY: scale });
+      cv.add(fi);
+      cv.setActiveObject(fi);
+      saveState?.();
+      cv.requestRenderAll();
+      resolve();
+    };
+
+    img.src = url;
+  });
+}
+
+/**
+ * Adds a video (MP4/WebM/Ogg) to the canvas.
+ *
+ * Fabric accepts an HTMLVideoElement as the image source.  We create a hidden
+ * <video>, autoplay it, and run a RAF loop so each decoded frame repaints.
+ */
+function addVideo(
+  url: string,
+  cv: FabricCanvas,
+  saveState: (() => void) | null,
+): Promise<void> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    video.crossOrigin = "anonymous";
+    video.src = url;
+    video.loop = true;
+    video.muted = true; // required for autoplay in most browsers
+    video.playsInline = true;
+    video.autoplay = true;
+    video.style.cssText =
+      "position:fixed;left:-9999px;opacity:0;pointer-events:none;";
+    document.body.appendChild(video);
+
+    const mount = () => {
+      // FabricImage accepts HTMLVideoElement cast as HTMLImageElement
+      const fabricImg = new FabricImage(video as unknown as HTMLImageElement);
+      const scale = 400 / (video.videoWidth || 400);
+      fabricImg.set({ left: 100, top: 100, scaleX: scale, scaleY: scale });
+
+      cv.add(fabricImg);
+      cv.setActiveObject(fabricImg);
+      saveState?.();
+      cv.requestRenderAll();
+
+      video.play().catch(() => cv.renderAll()); // autoplay may be blocked
+
+      let rafId: number;
+      const tick = () => {
+        if (!cv.contains(fabricImg)) {
+          cancelAnimationFrame(rafId);
+          video.pause();
+          document.body.removeChild(video);
+          return;
+        }
+        cv.renderAll();
+        rafId = requestAnimationFrame(tick);
+      };
+      rafId = requestAnimationFrame(tick);
+
+      fabricImg.on("removed", () => {
+        cancelAnimationFrame(rafId);
+        video.pause();
+        if (document.body.contains(video)) document.body.removeChild(video);
+      });
+
+      resolve();
+    };
+
+    video.onloadeddata = mount;
+    video.onerror = () => {
+      if (document.body.contains(video)) document.body.removeChild(video);
+      resolve(); // silently skip broken video
+    };
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Arrowhead builder
+// RichLine internal helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function buildArrowhead(
+const HANDLE_R = 7;
+const HANDLE_FILL = "#6c5ce7";
+const HANDLE_STROKE = "#ffffff";
+const HANDLE_SW = 2;
+const PAD = 20;
+
+function _dashArray(style: LineStyle, sw: number): number[] {
+  if (style === "dashed") return [sw * 4, sw * 3];
+  if (style === "dotted") return [sw, sw * 2];
+  return [];
+}
+
+function _angleDeg(x1: number, y1: number, x2: number, y2: number) {
+  return (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
+}
+
+function _buildArrowhead(
   type: ArrowType,
   stroke: string,
   sw: number,
 ): FabricObject | null {
   const s = 10 + sw * 1.5;
-  const base = {
+  const shared = {
     originX: "center" as const,
     originY: "center" as const,
     selectable: false,
     evented: false,
+    visible: true,
   };
   switch (type) {
     case "arrow":
@@ -133,7 +231,7 @@ function buildArrowhead(
           { x: -s * 0.55, y: 0 },
           { x: -s, y: -s * 0.38 },
         ],
-        { fill: stroke, stroke: "transparent", strokeWidth: 0, ...base },
+        { fill: stroke, stroke: "transparent", strokeWidth: 0, ...shared },
       );
     case "open":
       return new Polygon(
@@ -147,7 +245,7 @@ function buildArrowhead(
           fill: "transparent",
           stroke,
           strokeWidth: Math.max(sw, 1.5),
-          ...base,
+          ...shared,
         },
       );
     case "circle":
@@ -156,7 +254,10 @@ function buildArrowhead(
         fill: stroke,
         stroke: "transparent",
         strokeWidth: 0,
-        ...base,
+        originX: "center",
+        originY: "center",
+        selectable: false,
+        evented: false,
       });
     case "square":
       return new Rect({
@@ -165,7 +266,10 @@ function buildArrowhead(
         fill: stroke,
         stroke: "transparent",
         strokeWidth: 0,
-        ...base,
+        originX: "center",
+        originY: "center",
+        selectable: false,
+        evented: false,
       });
     case "diamond": {
       const h = s * 0.5;
@@ -176,7 +280,7 @@ function buildArrowhead(
           { x: -h, y: 0 },
           { x: 0, y: h * 0.5 },
         ],
-        { fill: stroke, stroke: "transparent", strokeWidth: 0, ...base },
+        { fill: stroke, stroke: "transparent", strokeWidth: 0, ...shared },
       );
     }
     default:
@@ -184,77 +288,84 @@ function buildArrowhead(
   }
 }
 
-function angleDeg(x1: number, y1: number, x2: number, y2: number) {
-  return (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
-}
-
-function dashArray(style: LineStyle, sw: number): number[] {
-  if (style === "dashed") return [sw * 4, sw * 3];
-  if (style === "dotted") return [sw, sw * 2];
-  return [];
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// RichLineController — manages a set of raw Fabric objects (no Group)
+// RichLine class
 // ─────────────────────────────────────────────────────────────────────────────
 
-const HANDLE_R = 8;
-let _rlIdCounter = 0;
-
-export class RichLineController {
-  readonly id: string;
-
-  private _cv: FabricCanvas;
-  private _saveState: (() => void) | null;
+export class RichLine extends Group {
+  static type = "richLine";
 
   private _x1: number;
   private _y1: number;
   private _x2: number;
   private _y2: number;
+
   private _lineStyle: LineStyle;
   private _srcArrow: ArrowType;
   private _dstArrow: ArrowType;
-  private _stroke: string;
-  private _strokeWidth: number;
+  private _richStroke: string;
+  private _richStrokeWidth: number;
 
-  // The actual Fabric objects on canvas
   private _line!: Line;
   private _srcHead: FabricObject | null = null;
   private _dstHead: FabricObject | null = null;
   private _srcHandle!: Circle;
   private _dstHandle!: Circle;
-  private _snapRing!: Circle;
-  private _hitZone!: Line; // wide invisible line for easy clicking
 
-  private _selected = false;
   private _dragging: "src" | "dst" | null = null;
+  /** Pointer position minus handle center at mousedown (scene space), so the endpoint tracks the cursor without jump. */
+  private _dragPointerOffset: Point | null = null;
+  private _isActive = false;
 
-  // Canvas event handlers stored so we can remove them later
-  private _handlers: Record<string, (e: any) => void> = {};
+  constructor(cfg: RichLineConfig) {
+    super([], {
+      left: 0,
+      top: 0,
+      hasControls: false,
+      hasBorders: false,
+      lockScalingX: true,
+      lockScalingY: true,
+      lockRotation: true,
+      // If true, Fabric targets inner Line (selectable:false) and the group cannot be selected.
+      interactive: false,
+      subTargetCheck: true,
+      selectable: true,
+    });
 
-  constructor(
-    cfg: Required<RichLineConfig>,
-    cv: FabricCanvas,
-    saveState: (() => void) | null,
-  ) {
-    this.id = `rl_${++_rlIdCounter}`;
-    this._cv = cv;
-    this._saveState = saveState;
     this._x1 = cfg.x1;
     this._y1 = cfg.y1;
     this._x2 = cfg.x2;
     this._y2 = cfg.y2;
-    this._lineStyle = cfg.lineStyle;
-    this._srcArrow = cfg.srcArrow;
-    this._dstArrow = cfg.dstArrow;
-    this._stroke = cfg.stroke;
-    this._strokeWidth = cfg.strokeWidth;
+    this._lineStyle = cfg.lineStyle ?? "solid";
+    this._srcArrow = cfg.srcArrow ?? "none";
+    this._dstArrow = cfg.dstArrow ?? "arrow";
+    this._richStroke = cfg.stroke ?? "#1a1a2e";
+    this._richStrokeWidth = cfg.strokeWidth ?? 2;
 
-    this._createObjects();
-    this._wireCanvasEvents();
+    this._buildChildren();
+    this._attachHandleEvents();
   }
 
-  // ── public API ──────────────────────────────────────────────────────────────
+  setLineStyle(s: LineStyle) {
+    this._lineStyle = s;
+    this._rebuild();
+  }
+  setSrcArrow(t: ArrowType) {
+    this._srcArrow = t;
+    this._rebuild();
+  }
+  setDstArrow(t: ArrowType) {
+    this._dstArrow = t;
+    this._rebuild();
+  }
+  setRichStroke(c: string) {
+    this._richStroke = c;
+    this._rebuild();
+  }
+  setRichStrokeWidth(w: number) {
+    this._richStrokeWidth = w;
+    this._rebuild();
+  }
 
   getConfig(): Required<RichLineConfig> {
     return {
@@ -265,555 +376,257 @@ export class RichLineController {
       lineStyle: this._lineStyle,
       srcArrow: this._srcArrow,
       dstArrow: this._dstArrow,
-      stroke: this._stroke,
-      strokeWidth: this._strokeWidth,
+      stroke: this._richStroke,
+      strokeWidth: this._richStrokeWidth,
     };
   }
 
-  setLineStyle(v: LineStyle) {
-    this._lineStyle = v;
-    this._redraw();
-  }
-  setSrcArrow(v: ArrowType) {
-    this._srcArrow = v;
-    this._redraw();
-  }
-  setDstArrow(v: ArrowType) {
-    this._dstArrow = v;
-    this._redraw();
-  }
-  setStroke(v: string) {
-    this._stroke = v;
-    this._redraw();
-  }
-  setStrokeWidth(v: number) {
-    this._strokeWidth = v;
-    this._redraw();
-  }
-
-  /** Returns all Fabric objects that belong to this controller */
-  getObjects(): FabricObject[] {
-    const objs: FabricObject[] = [this._hitZone, this._line];
-    if (this._srcHead) objs.push(this._srcHead);
-    if (this._dstHead) objs.push(this._dstHead);
-    objs.push(this._srcHandle, this._dstHandle, this._snapRing);
-    return objs;
-  }
-
-  destroy() {
-    this.getObjects().forEach((o) => this._cv.remove(o));
-    Object.entries(this._handlers).forEach(([ev, fn]) =>
-      this._cv.off(ev as keyof CanvasEvents, fn),
-    );
-  }
-
-  // ── object creation ─────────────────────────────────────────────────────────
-
-  private _tag(obj: FabricObject) {
-    (obj as any).__isRichLinePart = true;
-    (obj as any).__richLineId = this.id;
-  }
-
-  private _createObjects() {
-    const { _x1: x1, _y1: y1, _x2: x2, _y2: y2 } = this;
-    const angle = angleDeg(x1, y1, x2, y2);
-
-    // Invisible wide hit zone — the actual click target for selecting
-    this._hitZone = new Line([x1, y1, x2, y2], {
-      stroke: "transparent",
-      strokeWidth: Math.max(this._strokeWidth + 16, 20),
-      selectable: true,
-      evented: true,
-      hasBorders: false,
-      hasControls: false,
-      hoverCursor: "pointer",
-      perPixelTargetFind: false,
-      originX: "left",
-      originY: "top",
-    });
-    this._tag(this._hitZone);
-
-    // Visible line
-    this._line = new Line([x1, y1, x2, y2], {
-      stroke: this._stroke,
-      strokeWidth: this._strokeWidth,
-      strokeDashArray: dashArray(this._lineStyle, this._strokeWidth),
-      strokeLineCap: "round",
-      selectable: false,
-      evented: false,
-      originX: "left",
-      originY: "top",
-    });
-    this._tag(this._line);
-
-    // Arrowheads
-    this._srcHead = buildArrowhead(
-      this._srcArrow,
-      this._stroke,
-      this._strokeWidth,
-    );
-    if (this._srcHead) {
-      this._srcHead.set({ left: x1, top: y1, angle: angle + 180 });
-      this._tag(this._srcHead);
-    }
-
-    this._dstHead = buildArrowhead(
-      this._dstArrow,
-      this._stroke,
-      this._strokeWidth,
-    );
-    if (this._dstHead) {
-      this._dstHead.set({ left: x2, top: y2, angle });
-      this._tag(this._dstHead);
-    }
-
-    // Handles (hidden until selected)
-    const handleBase = {
-      radius: HANDLE_R,
-      fill: "#6c5ce7",
-      stroke: "#ffffff",
-      strokeWidth: 2,
-      originX: "center" as const,
-      originY: "center" as const,
-      selectable: false,
-      evented: false,
-      visible: false,
-      hoverCursor: "crosshair",
-    };
-    this._srcHandle = new Circle({ ...handleBase, left: x1, top: y1 });
-    this._dstHandle = new Circle({ ...handleBase, left: x2, top: y2 });
-    this._tag(this._srcHandle);
-    this._tag(this._dstHandle);
-
-    // Snap ring
-    this._snapRing = new Circle({
-      radius: 10,
-      fill: "transparent",
-      stroke: "#6c5ce7",
-      strokeWidth: 2,
-      originX: "center" as const,
-      originY: "center" as const,
-      selectable: false,
-      evented: false,
-      visible: false,
-    });
-    this._tag(this._snapRing);
-
-    // Add all to canvas in correct z-order
-    this._cv.add(this._hitZone, this._line);
-    if (this._srcHead) this._cv.add(this._srcHead);
-    if (this._dstHead) this._cv.add(this._dstHead);
-    this._cv.add(this._srcHandle, this._dstHandle, this._snapRing);
-  }
-
-  private _redraw() {
-    // Remove old objects
-    this.getObjects().forEach((o) => this._cv.remove(o));
-
-    // Recreate
-    this._srcHead = null;
-    this._dstHead = null;
-    this._createObjects();
-
-    // Restore selection state
-    if (this._selected) this._showHandles(true);
-    this._cv.requestRenderAll();
-  }
-
-  // ── handle visibility ───────────────────────────────────────────────────────
-
-  private _showHandles(visible: boolean) {
-    this._selected = visible;
+  showHandles(visible: boolean) {
+    this._isActive = visible;
     this._srcHandle.set({ visible, evented: visible });
     this._dstHandle.set({ visible, evented: visible });
-    if (!visible) this._snapRing.set({ visible: false });
+    this.canvas?.renderAll();
   }
 
-  // ── canvas event wiring ─────────────────────────────────────────────────────
-
-  private _wireCanvasEvents() {
-    // Select / deselect
-    const onSelCreated = (e: any) => {
-      const isMe = e.selected?.includes(this._hitZone);
-      if (isMe) this._showHandles(true);
-      this._cv.requestRenderAll();
-    };
-    const onSelUpdated = (e: any) => {
-      const isMe = e.selected?.includes(this._hitZone);
-      const wasMe = e.deselected?.includes(this._hitZone);
-      if (isMe) this._showHandles(true);
-      if (wasMe) this._showHandles(false);
-      this._cv.requestRenderAll();
-    };
-    const onSelCleared = (e: any) => {
-      if (this._selected) {
-        this._showHandles(false);
-        this._cv.requestRenderAll();
-      }
-    };
-
-    // Handle mousedown — start dragging a handle endpoint
-    const onMouseDown = (e: any) => {
-      const t = e.target;
-      if (t === this._srcHandle) {
-        this._dragging = "src";
-        this._cv.selection = false;
-      }
-      if (t === this._dstHandle) {
-        this._dragging = "dst";
-        this._cv.selection = false;
-      }
-    };
-
-    // Handle mousemove — move the dragged endpoint with snapping
-    const onMouseMove = (e: any) => {
-      if (!this._dragging) return;
-      e.e?.preventDefault?.();
-      const p = this._cv.getScenePoint(e.e);
-
-      // Object snap
-      const excludeIds = new Set([this.id]);
-      const snap = findObjectSnap(p, this._cv, excludeIds);
-      const resolved = snap.found
-        ? { x: snap.x, y: snap.y }
-        : (() => {
-            const anchor =
-              this._dragging === "src"
-                ? { x: this._x2, y: this._y2 }
-                : { x: this._x1, y: this._y1 };
-            return applyAngleSnap(anchor, p);
-          })();
-
-      if (this._dragging === "src") {
-        this._x1 = resolved.x;
-        this._y1 = resolved.y;
-      } else {
-        this._x2 = resolved.x;
-        this._y2 = resolved.y;
-      }
-
-      this._updatePositions();
-
-      // Show/hide snap ring
-      if (snap.found) {
-        this._snapRing.set({
-          left: resolved.x,
-          top: resolved.y,
-          visible: true,
-        });
-      } else {
-        this._snapRing.set({ visible: false });
-      }
-      this._cv.requestRenderAll();
-    };
-
-    // Handle mouseup — finish drag
-    const onMouseUp = () => {
-      if (this._dragging) {
-        this._dragging = null;
-        this._cv.selection = true;
-        this._snapRing.set({ visible: false });
-        this._saveState?.();
-        this._cv.requestRenderAll();
-      }
-    };
-
-    // When hitZone is moved by Fabric drag, sync x1/y1/x2/y2
-    const onObjectMoving = (e: any) => {
-      if (e.target !== this._hitZone) return;
-      const hz = this._hitZone;
-      // Fabric moves the Line object; x1/y1/x2/y2 inside it shift by left/top delta
-      // Read back updated endpoints from the Line's current transform
-      const mat = hz.calcTransformMatrix();
-      const w = (hz.width ?? 0) / 2;
-      const h = (hz.height ?? 0) / 2;
-      // Local endpoints of a Line are relative to its center
-      const p1 = util.transformPoint({ x: -w, y: -h }, mat);
-      const p2 = util.transformPoint({ x: w, y: h }, mat);
-      this._x1 = p1.x;
-      this._y1 = p1.y;
-      this._x2 = p2.x;
-      this._y2 = p2.y;
-      this._updatePositions(false); // update visuals without moving hitZone itself
-    };
-
-    const onObjectMoved = (e: any) => {
-      if (e.target !== this._hitZone) return;
-      this._saveState?.();
-    };
-
-    this._cv.on("selection:created", onSelCreated);
-    this._cv.on("selection:updated", onSelUpdated);
-    this._cv.on("selection:cleared", onSelCleared);
-    this._cv.on("mouse:down", onMouseDown);
-    this._cv.on("mouse:move", onMouseMove);
-    this._cv.on("mouse:up", onMouseUp);
-    this._cv.on("object:moving", onObjectMoving);
-    this._cv.on("object:modified", onObjectMoved);
-
-    this._handlers = {
-      "selection:created": onSelCreated,
-      "selection:updated": onSelUpdated,
-      "selection:cleared": onSelCleared,
-      "mouse:down": onMouseDown,
-      "mouse:move": onMouseMove,
-      "mouse:up": onMouseUp,
-      "object:moving": onObjectMoving,
-      "object:modified": onObjectMoved,
-    };
-  }
-
-  // ── position sync (no recreate, just move existing objects) ─────────────────
-
-  private _updatePositions(moveHitZone = true) {
+  private _buildChildren() {
     const { _x1: x1, _y1: y1, _x2: x2, _y2: y2 } = this;
-    const angle = angleDeg(x1, y1, x2, y2);
+    const ox = Math.min(x1, x2) - PAD;
+    const oy = Math.min(y1, y2) - PAD;
+    const lx1 = x1 - ox,
+      ly1 = y1 - oy;
+    const lx2 = x2 - ox,
+      ly2 = y2 - oy;
+    const angle = _angleDeg(lx1, ly1, lx2, ly2);
 
-    if (moveHitZone) {
-      this._hitZone.set({ x1, y1, x2, y2 });
-      this._hitZone.setCoords();
-    }
-
-    this._line.set({
-      x1,
-      y1,
-      x2,
-      y2,
-      strokeDashArray: dashArray(this._lineStyle, this._strokeWidth),
+    this._line = new Line([lx1, ly1, lx2, ly2], {
+      stroke: this._richStroke,
+      strokeWidth: this._richStrokeWidth,
+      strokeDashArray: _dashArray(this._lineStyle, this._richStrokeWidth),
+      strokeLineCap: "round",
+      originX: "center",
+      originY: "center",
+      selectable: false,
+      evented: false,
     });
-    this._line.setCoords();
 
-    if (this._srcHead) {
-      this._srcHead.set({ left: x1, top: y1, angle: angle + 180 });
-      this._srcHead.setCoords();
-    }
-    if (this._dstHead) {
-      this._dstHead.set({ left: x2, top: y2, angle });
-      this._dstHead.setCoords();
-    }
+    this._srcHead = _buildArrowhead(
+      this._srcArrow,
+      this._richStroke,
+      this._richStrokeWidth,
+    );
+    if (this._srcHead)
+      this._srcHead.set({ left: lx1, top: ly1, angle: angle + 180 });
 
-    this._srcHandle.set({ left: x1, top: y1 });
-    this._srcHandle.setCoords();
-    this._dstHandle.set({ left: x2, top: y2 });
-    this._dstHandle.setCoords();
-  }
+    this._dstHead = _buildArrowhead(
+      this._dstArrow,
+      this._richStroke,
+      this._richStrokeWidth,
+    );
+    if (this._dstHead) this._dstHead.set({ left: lx2, top: ly2, angle });
 
-  // ── serialization ────────────────────────────────────────────────────────────
-
-  toJSON() {
-    return { type: "richLine", richLineConfig: this.getConfig() };
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RichLine shim — a dummy FabricObject just for JSON round-trip registry
-// The real work is done by RichLineController above
-// ─────────────────────────────────────────────────────────────────────────────
-
-export class RichLine extends Group {
-  static type = "richLine";
-  declare richLineConfig: Required<RichLineConfig>;
-
-  constructor(cfg: RichLineConfig) {
-    super([], { selectable: false, evented: false, visible: false });
-    this.richLineConfig = {
-      x1: cfg.x1,
-      y1: cfg.y1,
-      x2: cfg.x2,
-      y2: cfg.y2,
-      lineStyle: cfg.lineStyle ?? "solid",
-      srcArrow: cfg.srcArrow ?? "none",
-      dstArrow: cfg.dstArrow ?? "arrow",
-      stroke: cfg.stroke ?? "#1a1a2e",
-      strokeWidth: cfg.strokeWidth ?? 2,
+    const handleVis = this._isActive;
+    const handleBase = {
+      radius: HANDLE_R,
+      fill: HANDLE_FILL,
+      stroke: HANDLE_STROKE,
+      strokeWidth: HANDLE_SW,
+      originX: "center" as const,
+      originY: "center" as const,
+      selectable: false,
     };
+
+    this._srcHandle = new Circle({
+      ...handleBase,
+      left: lx1,
+      top: ly1,
+      evented: handleVis,
+      visible: handleVis,
+      hoverCursor: "crosshair",
+    });
+    this._dstHandle = new Circle({
+      ...handleBase,
+      left: lx2,
+      top: ly2,
+      evented: handleVis,
+      visible: handleVis,
+      // Crosshair hotspot is centered — easier to align than pointer/grab.
+      hoverCursor: "crosshair",
+    });
+
+    const kids: FabricObject[] = [this._line];
+    if (this._srcHead) kids.push(this._srcHead);
+    if (this._dstHead) kids.push(this._dstHead);
+    kids.push(this._srcHandle, this._dstHandle);
+
+    this.removeAll();
+    this.add(...kids);
+    this.set({ left: ox, top: oy });
+    this.setCoords();
+  }
+
+  private _rebuild() {
+    this._buildChildren();
+    this._attachHandleEvents();
+    this.canvas?.renderAll();
+  }
+
+  private _attachHandleEvents() {
+    this._srcHandle.off("mousedown");
+    this._dstHandle.off("mousedown");
+    this._srcHandle.on("mousedown", (ev) => {
+      this._beginHandleDrag("src", ev);
+    });
+    this._dstHandle.on("mousedown", (ev) => {
+      this._beginHandleDrag("dst", ev);
+    });
+  }
+
+  private _beginHandleDrag(
+    which: "src" | "dst",
+    ev: { scenePoint?: Point; e?: Event },
+  ) {
+    this._dragging = which;
+    const handle = which === "src" ? this._srcHandle : this._dstHandle;
+    const sp =
+      ev.scenePoint ??
+      (this.canvas && ev.e
+        ? this.canvas.getScenePoint(ev.e as never)
+        : undefined);
+    if (sp) {
+      const c = handle.getCenterPoint();
+      this._dragPointerOffset = new Point(sp.x - c.x, sp.y - c.y);
+    } else {
+      this._dragPointerOffset = new Point(0, 0);
+    }
+  }
+
+  onPointerMove(p: Point | { x: number; y: number }) {
+    if (!this._dragging) return;
+    const ox = this._dragPointerOffset?.x ?? 0;
+    const oy = this._dragPointerOffset?.y ?? 0;
+    const nx = p.x - ox;
+    const ny = p.y - oy;
+    if (this._dragging === "src") {
+      this._x1 = nx;
+      this._y1 = ny;
+    } else {
+      this._x2 = nx;
+      this._y2 = ny;
+    }
+    this._rebuild();
+  }
+
+  onPointerUp() {
+    this._dragging = null;
+    this._dragPointerOffset = null;
+  }
+  isDraggingHandle() {
+    return this._dragging !== null;
   }
 
   override toObject(extra?: any[]): any {
     return {
-      ...(super.toObject as any)(extra),
-      richLineConfig: this.richLineConfig,
+      ...(super.toObject as (extra?: any[]) => any)(extra),
+      richLineConfig: this.getConfig(),
       type: "richLine",
     };
   }
 
-  static fromObject(obj: any): Promise<RichLine> {
-    return Promise.resolve(new RichLine(obj.richLineConfig));
+  static fromObject(
+    object: Record<string, unknown> & { richLineConfig?: RichLineConfig },
+  ): Promise<RichLine> {
+    const cfg = object.richLineConfig ?? ({} as RichLineConfig);
+    const rl = new RichLine({
+      x1: cfg.x1 ?? 0,
+      y1: cfg.y1 ?? 0,
+      x2: cfg.x2 ?? 100,
+      y2: cfg.y2 ?? 100,
+      lineStyle: cfg.lineStyle,
+      srcArrow: cfg.srcArrow,
+      dstArrow: cfg.dstArrow,
+      stroke: cfg.stroke,
+      strokeWidth: cfg.strokeWidth,
+    });
+    const skip = new Set([
+      "type",
+      "objects",
+      "richLineConfig",
+      "layoutManager",
+      "version",
+    ]);
+    const hydrated: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(object)) {
+      if (!skip.has(k)) hydrated[k] = v;
+    }
+    rl.set(hydrated as Partial<RichLine>);
+    rl.set({
+      interactive: false,
+      subTargetCheck: true,
+      selectable: true,
+    });
+    rl.setCoords();
+    return Promise.resolve(rl);
   }
 }
 
+// Register for JSON serialization round-trips
 classRegistry.setClass(RichLine, "richLine");
 classRegistry.setSVGClass(RichLine, "richLine");
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Manager — maps canvas to its RichLineControllers, handles load/save
+// Canvas wiring for RichLine
 // ─────────────────────────────────────────────────────────────────────────────
 
-const _controllers = new WeakMap<
-  FabricCanvas,
-  Map<string, RichLineController>
->();
+const wiredRichLines = new WeakSet<RichLine>();
 
-function getControllers(cv: FabricCanvas): Map<string, RichLineController> {
-  if (!_controllers.has(cv)) _controllers.set(cv, new Map());
-  return _controllers.get(cv)!;
-}
-
-export function createRichLine(
-  cfg: Partial<RichLineConfig>,
-  cv: FabricCanvas,
-  saveState: (() => void) | null,
-): RichLineController {
-  const full: Required<RichLineConfig> = {
-    x1: 120,
-    y1: 200,
-    x2: 420,
-    y2: 200,
-    lineStyle: "solid",
-    srcArrow: "none",
-    dstArrow: "arrow",
-    stroke: "#1F1F1F",
-    strokeWidth: 2,
-    ...cfg,
-  };
-  const ctrl = new RichLineController(full, cv, saveState);
-  getControllers(cv).set(ctrl.id, ctrl);
-  return ctrl;
-}
-
-export function destroyRichLine(ctrl: RichLineController, cv: FabricCanvas) {
-  ctrl.destroy();
-  getControllers(cv).delete(ctrl.id);
-}
-
-/**
- * After loadFromJSON, Fabric will have added invisible RichLine shim objects.
- * Call this to replace them with live RichLineControllers.
- */
-export function rehydrateRichLines(
-  cv: FabricCanvas,
-  saveState: (() => void) | null,
+function _wireRichLine(
+  canvas: FabricCanvas,
+  rl: RichLine,
+  saveStateRef: MutableRefObject<(() => void) | null>,
 ) {
-  const shims = cv
-    .getObjects()
-    .filter((o) => (o as any).type === "richLine") as RichLine[];
-  shims.forEach((shim) => {
-    cv.remove(shim);
-    createRichLine(shim.richLineConfig, cv, saveState);
+  if (wiredRichLines.has(rl)) return;
+  wiredRichLines.add(rl);
+  const onMove = (e: any) => {
+    if (!rl.isDraggingHandle()) return;
+    e.e?.preventDefault?.();
+    const p = e.scenePoint ?? canvas.getScenePoint(e.e);
+    rl.onPointerMove(p);
+  };
+
+  const onUp = () => {
+    if (rl.isDraggingHandle()) {
+      rl.onPointerUp();
+      saveStateRef.current?.();
+      canvas.renderAll();
+    }
+  };
+
+  const onSelectionChange = () => {
+    const active = canvas.getActiveObject();
+    rl.showHandles(active === rl);
+  };
+
+  canvas.on("mouse:move", onMove);
+  canvas.on("mouse:up", onUp);
+  canvas.on("selection:created", onSelectionChange);
+  canvas.on("selection:updated", onSelectionChange);
+  canvas.on("selection:cleared", onSelectionChange);
+
+  rl.on("removed", () => {
+    canvas.off("mouse:move", onMove);
+    canvas.off("mouse:up", onUp);
+    canvas.off("selection:created", onSelectionChange);
+    canvas.off("selection:updated", onSelectionChange);
+    canvas.off("selection:cleared", onSelectionChange);
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Animated media helpers (unchanged from original)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function isAnimatedMedia(url: string): boolean {
-  const clean = url.split("?")[0]!.toLowerCase();
-  return (
-    clean.endsWith(".gif") ||
-    clean.endsWith(".mp4") ||
-    clean.endsWith(".webm") ||
-    clean.endsWith(".ogg") ||
-    /\/[^/]+\.gif($|\/)/.test(clean)
-  );
-}
-function isVideoMedia(url: string): boolean {
-  const clean = url.split("?")[0]!.toLowerCase();
-  return (
-    clean.endsWith(".mp4") || clean.endsWith(".webm") || clean.endsWith(".ogg")
-  );
-}
-function addAnimatedGif(
-  url: string,
-  cv: FabricCanvas,
-  saveState: (() => void) | null,
-): Promise<void> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const fabricImg = new FabricImage(img);
-      const scale = 300 / (img.naturalWidth || 300);
-      fabricImg.set({ left: 100, top: 100, scaleX: scale, scaleY: scale });
-      cv.add(fabricImg);
-      cv.setActiveObject(fabricImg);
-      saveState?.();
-      cv.requestRenderAll();
-      let rafId: number;
-      const tick = () => {
-        if (!cv.contains(fabricImg)) {
-          cancelAnimationFrame(rafId);
-          return;
-        }
-        cv.renderAll();
-        rafId = requestAnimationFrame(tick);
-      };
-      rafId = requestAnimationFrame(tick);
-      fabricImg.on("removed", () => cancelAnimationFrame(rafId));
-      resolve();
-    };
-    img.onerror = async () => {
-      const fi = await FabricImage.fromURL(url, { crossOrigin: "anonymous" });
-      const scale = 300 / ((fi.width as number) || 300);
-      fi.set({ left: 100, top: 100, scaleX: scale, scaleY: scale });
-      cv.add(fi);
-      cv.setActiveObject(fi);
-      saveState?.();
-      cv.requestRenderAll();
-      resolve();
-    };
-    img.src = url;
-  });
-}
-function addVideo(
-  url: string,
-  cv: FabricCanvas,
-  saveState: (() => void) | null,
-): Promise<void> {
-  return new Promise((resolve) => {
-    const video = document.createElement("video");
-    video.crossOrigin = "anonymous";
-    video.src = url;
-    video.loop = true;
-    video.muted = true;
-    video.playsInline = true;
-    video.autoplay = true;
-    video.style.cssText =
-      "position:fixed;left:-9999px;opacity:0;pointer-events:none;";
-    document.body.appendChild(video);
-    const mount = () => {
-      const fabricImg = new FabricImage(video as unknown as HTMLImageElement);
-      const scale = 400 / (video.videoWidth || 400);
-      fabricImg.set({ left: 100, top: 100, scaleX: scale, scaleY: scale });
-      cv.add(fabricImg);
-      cv.setActiveObject(fabricImg);
-      saveState?.();
-      cv.requestRenderAll();
-      video.play().catch(() => cv.renderAll());
-      let rafId: number;
-      const tick = () => {
-        if (!cv.contains(fabricImg)) {
-          cancelAnimationFrame(rafId);
-          video.pause();
-          document.body.removeChild(video);
-          return;
-        }
-        cv.renderAll();
-        rafId = requestAnimationFrame(tick);
-      };
-      rafId = requestAnimationFrame(tick);
-      fabricImg.on("removed", () => {
-        cancelAnimationFrame(rafId);
-        video.pause();
-        if (document.body.contains(video)) document.body.removeChild(video);
-      });
-      resolve();
-    };
-    video.onloadeddata = mount;
-    video.onerror = () => {
-      if (document.body.contains(video)) document.body.removeChild(video);
-      resolve();
-    };
+/** Call after `loadFromJSON` so RichLines get selection + handle drag wiring. */
+export function wireRichLinesOnCanvas(
+  canvas: FabricCanvas,
+  saveStateRef: MutableRefObject<(() => void) | null>,
+) {
+  canvas.getObjects().forEach((obj) => {
+    if (obj instanceof RichLine) _wireRichLine(canvas, obj, saveStateRef);
   });
 }
 
@@ -858,21 +671,20 @@ export function useFabric() {
     const base = { left: 100, top: 100, fill: "#1F1F1F" };
 
     if (type === "line" || type === "arrow") {
-      createRichLine(
-        {
-          lineStyle: "solid",
-          srcArrow: "none",
-          dstArrow: type === "arrow" ? "arrow" : "none",
-          stroke: "#1F1F1F",
-          strokeWidth: 2,
-          x1: 100,
-          y1: 200,
-          x2: 400,
-          y2: 200,
-        },
-        cv,
-        saveStateRef.current,
-      );
+      const rl = new RichLine({
+        x1: 100,
+        y1: 200,
+        x2: 400,
+        y2: 200,
+        lineStyle: "solid",
+        srcArrow: "none",
+        dstArrow: type === "arrow" ? "arrow" : "none",
+        stroke: "#1F1F1F",
+        strokeWidth: 2,
+      });
+      _wireRichLine(cv, rl, saveStateRef);
+      cv.add(rl);
+      cv.setActiveObject(rl);
       saveStateRef.current?.();
       cv.requestRenderAll();
       return;
@@ -906,6 +718,7 @@ export function useFabric() {
       default:
         obj = new Rect({ ...base, width: 100, height: 100 });
     }
+
     cv.add(obj);
     cv.setActiveObject(obj);
     saveStateRef.current?.();
@@ -915,9 +728,24 @@ export function useFabric() {
 
   const addRichLine = useCallback((config: Partial<RichLineConfig> = {}) => {
     if (!canvasRef.current) return;
-    createRichLine(config, canvasRef.current, saveStateRef.current);
+    const cv = canvasRef.current;
+    const rl = new RichLine({
+      x1: 120,
+      y1: 200,
+      x2: 420,
+      y2: 200,
+      lineStyle: "solid",
+      srcArrow: "none",
+      dstArrow: "arrow",
+      stroke: "#1F1F1F",
+      strokeWidth: 2,
+      ...config,
+    });
+    _wireRichLine(cv, rl, saveStateRef);
+    cv.add(rl);
+    cv.setActiveObject(rl);
     saveStateRef.current?.();
-    canvasRef.current.requestRenderAll();
+    cv.requestRenderAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -968,17 +796,25 @@ export function useFabric() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── addImage — handles static images, animated GIFs, and video ─────────────
+
   const addImage = useCallback(async (url: string) => {
     if (!canvasRef.current) return;
     const cv = canvasRef.current;
+
+    // Video files
     if (isVideoMedia(url)) {
       await addVideo(url, cv, saveStateRef.current);
       return;
     }
+
+    // Animated GIFs
     if (isAnimatedMedia(url)) {
       await addAnimatedGif(url, cv, saveStateRef.current);
       return;
     }
+
+    // Static images (original behaviour)
     const img = await FabricImage.fromURL(url, { crossOrigin: "anonymous" });
     const scale = 300 / (img.width || 300);
     img.set({ left: 100, top: 100, scaleX: scale, scaleY: scale });
