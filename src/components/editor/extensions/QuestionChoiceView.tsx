@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
 import { useAnswerStore } from "@/stores/content-answer.store";
+import { requestQuestionFeedback } from "./questionFeedbackApi";
 
 import {
   Minus,
@@ -290,6 +291,7 @@ interface ViewerViewProps {
 interface BlockAnswer {
   selected: number[]; // chosen indices
   submitted: boolean; // has user submitted?
+  aiFeedback?: string;
 }
 
 function ViewerView({ attrs }: ViewerViewProps) {
@@ -308,12 +310,17 @@ function ViewerView({ attrs }: ViewerViewProps) {
   const [submitted, setSubmitted] = useState<boolean>(
     savedAnswer?.submitted ?? false,
   );
+  const [aiFeedback, setAiFeedback] = useState<string>(
+    savedAnswer?.aiFeedback ?? "",
+  );
+  const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
 
   // ── Sync from store on load (when answers load after component mounts) ──
   useEffect(() => {
     if (savedAnswer) {
       setSelectedIndices(savedAnswer.selected ?? []);
       setSubmitted(savedAnswer.submitted ?? false);
+      setAiFeedback(savedAnswer.aiFeedback ?? "");
     }
   }, [answers[blockId]]); // re-sync when this block's answer changes
 
@@ -334,19 +341,79 @@ function ViewerView({ attrs }: ViewerViewProps) {
     setSelectedIndices(next);
 
     // Save selection instantly (not submitted yet)
-    setAnswer(blockId, { selected: next, submitted: false });
+    setAnswer(blockId, { selected: next, submitted: false, aiFeedback: "" });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setSubmitted(true);
+    setAiFeedback("");
     // Save with submitted: true — this triggers 30s sync to DB
-    setAnswer(blockId, { selected: selectedIndices, submitted: true });
+    setAnswer(blockId, {
+      selected: selectedIndices,
+      submitted: true,
+      aiFeedback: "",
+    });
+
+    setIsFeedbackLoading(true);
+    try {
+      const matchedCount = choices.filter(
+        (choice, idx) => choice.correct === selectedIndices.includes(idx),
+      ).length;
+      const accuracyPercent =
+        choices.length > 0
+          ? Math.round((matchedCount / choices.length) * 100)
+          : 0;
+      const evaluationLevel =
+        accuracyPercent === 100
+          ? "correct"
+          : accuracyPercent >= 60
+            ? "almost"
+            : "incorrect";
+      const missedCorrect = choices
+        .map((choice, idx) => ({ choice, idx }))
+        .filter(({ choice, idx }) => choice.correct && !selectedIndices.includes(idx))
+        .map(({ choice }) => choice.text.trim())
+        .filter(Boolean)
+        .join(" | ");
+      const wrongSelected = selectedIndices
+        .filter((idx) => !choices[idx]?.correct)
+        .map((idx) => choices[idx]?.text?.trim() ?? "")
+        .filter(Boolean)
+        .join(" | ");
+      const correctAnswer = choices
+        .filter((choice) => choice.correct)
+        .map((choice) => choice.text.trim())
+        .filter(Boolean)
+        .join(" | ");
+      const userAnswer = selectedIndices
+        .map((idx) => choices[idx]?.text?.trim() ?? "")
+        .filter(Boolean)
+        .join(" | ");
+
+      const feedback = await requestQuestionFeedback({
+        question: question || "Choice question",
+        correctAnswer,
+        userAnswer,
+        evaluationLevel,
+        accuracyPercent,
+        diagnostics: `missedCorrect=${missedCorrect || "(none)"}; wrongSelected=${wrongSelected || "(none)"}`,
+      });
+      setAiFeedback(feedback);
+      setAnswer(blockId, {
+        selected: selectedIndices,
+        submitted: true,
+        aiFeedback: feedback,
+      });
+    } finally {
+      setIsFeedbackLoading(false);
+    }
   };
 
   const handleReset = () => {
     setSelectedIndices([]);
     setSubmitted(false);
-    setAnswer(blockId, { selected: [], submitted: false });
+    setAiFeedback("");
+    setAnswer(blockId, { selected: [], submitted: false, aiFeedback: "" });
   };
 
   const isFullyCorrect =
@@ -460,7 +527,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
         {!submitted ? (
           <button
             type="button"
-            onClick={handleSubmit} // 👈 updated
+              onClick={() => void handleSubmit()} // 👈 updated
             disabled={!hasSelection}
             className="rounded-lg bg-violet-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -488,6 +555,18 @@ function ViewerView({ attrs }: ViewerViewProps) {
           </>
         )}
       </div>
+      {submitted && (
+        <div className="rounded-lg border border-violet-100 bg-violet-50 px-3 py-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-violet-500">
+            AI feedback
+          </p>
+          <p className="mt-1 text-sm text-violet-900">
+            {isFeedbackLoading
+              ? "AI กำลังเขียนคำแนะนำแบบละเอียดให้..."
+              : aiFeedback || "ยังไม่มีคำแนะนำ"}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

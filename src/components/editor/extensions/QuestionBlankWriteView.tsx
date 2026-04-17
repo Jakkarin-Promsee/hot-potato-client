@@ -2,12 +2,14 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
 import { useAnswerStore } from "@/stores/content-answer.store";
+import { requestQuestionFeedback } from "./questionFeedbackApi";
 import { Check, Eye, EyeOff, HelpCircle, SquareDashedMousePointer, X } from "lucide-react";
 import type { QuestionBlankWriteAttrs } from "./QuestionBlankWriteNode";
 
 interface BlockAnswer {
   inputs: string[];
   submitted: boolean;
+  aiFeedback?: string;
 }
 
 function useAutoGrow(value: string) {
@@ -255,11 +257,14 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
     saved?.inputs ?? blankAnswers.map(() => ""),
   );
   const [submitted, setSubmitted] = useState<boolean>(saved?.submitted ?? false);
+  const [aiFeedback, setAiFeedback] = useState<string>(saved?.aiFeedback ?? "");
+  const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
 
   useEffect(() => {
     const next = saved?.inputs ?? blankAnswers.map(() => "");
     setInputs(blankAnswers.map((_, i) => next[i] ?? ""));
     setSubmitted(saved?.submitted ?? false);
+    setAiFeedback(saved?.aiFeedback ?? "");
   }, [answers[blockId], blankAnswers]);
 
   const hasInput = inputs.some((v) => v.trim().length > 0);
@@ -272,19 +277,66 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
     const next = [...inputs];
     next[i] = value;
     setInputs(next);
-    setAnswer(blockId, { inputs: next, submitted: false });
+    setAnswer(blockId, { inputs: next, submitted: false, aiFeedback: "" });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setSubmitted(true);
-    setAnswer(blockId, { inputs, submitted: true });
+    setAiFeedback("");
+    setAnswer(blockId, { inputs, submitted: true, aiFeedback: "" });
+
+    setIsFeedbackLoading(true);
+    try {
+      const totalBlanks = blankAnswers.length;
+      const matchedCount = isCorrectList.filter(Boolean).length;
+      const accuracyPercent =
+        totalBlanks > 0 ? Math.round((matchedCount / totalBlanks) * 100) : 0;
+      const evaluationLevel =
+        accuracyPercent === 100
+          ? "correct"
+          : accuracyPercent >= 60
+            ? "almost"
+            : "incorrect";
+      const correctAnswer = blankAnswers
+        .map((value, idx) => `[Q-${blankIndices[idx] ?? idx}] = ${value}`)
+        .join(" | ");
+      const userAnswer = inputs
+        .map(
+          (value, idx) =>
+            `[Q-${blankIndices[idx] ?? idx}] = ${value.trim() || "(empty)"}`,
+        )
+        .join(" | ");
+      const diagnostics = blankAnswers
+        .map((correct, i) => {
+          if (isCorrectList[i]) return "";
+          const token = blankIndices[i] ?? i;
+          const user = inputs[i]?.trim() || "(empty)";
+          return `[Q-${token}] expected="${correct}" got="${user}"`;
+        })
+        .filter(Boolean)
+        .join(" ; ");
+
+      const feedback = await requestQuestionFeedback({
+        question: template || "Fill blank write question",
+        correctAnswer,
+        userAnswer,
+        evaluationLevel,
+        accuracyPercent,
+        diagnostics,
+      });
+      setAiFeedback(feedback);
+      setAnswer(blockId, { inputs, submitted: true, aiFeedback: feedback });
+    } finally {
+      setIsFeedbackLoading(false);
+    }
   };
 
   const handleReset = () => {
     const empty = blankAnswers.map(() => "");
     setInputs(empty);
     setSubmitted(false);
-    setAnswer(blockId, { inputs: empty, submitted: false });
+    setAiFeedback("");
+    setAnswer(blockId, { inputs: empty, submitted: false, aiFeedback: "" });
   };
 
   if (blankIndices.length === 0) {
@@ -353,7 +405,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
         {!submitted ? (
           <button
             type="button"
-            onClick={handleSubmit}
+            onClick={() => void handleSubmit()}
             disabled={!hasInput}
             className="rounded-lg bg-violet-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -379,6 +431,18 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
           </>
         )}
       </div>
+      {submitted && (
+        <div className="rounded-lg border border-violet-100 bg-violet-50 px-3 py-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-violet-500">
+            AI feedback
+          </p>
+          <p className="mt-1 text-sm text-violet-900">
+            {isFeedbackLoading
+              ? "AI กำลังเขียนคำแนะนำแบบละเอียดให้..."
+              : aiFeedback || "ยังไม่มีคำแนะนำ"}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

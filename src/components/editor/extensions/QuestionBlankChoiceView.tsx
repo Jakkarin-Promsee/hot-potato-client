@@ -2,12 +2,14 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
 import { useAnswerStore } from "@/stores/content-answer.store";
+import { requestQuestionFeedback } from "./questionFeedbackApi";
 import { Check, Eye, EyeOff, HelpCircle, SquareDashedMousePointer, X } from "lucide-react";
 import type { QuestionBlankChoiceAttrs } from "./QuestionBlankChoiceNode";
 
 interface BlockAnswer {
   placedByBlank: Array<number | null>;
   submitted: boolean;
+  aiFeedback?: string;
 }
 
 const BLANK_TOKEN_REGEX = /\[Q-(\d+)\]|\{\{(\d+)\}\}/g;
@@ -282,12 +284,15 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
     saved?.placedByBlank ?? blankIndices.map(() => null),
   );
   const [submitted, setSubmitted] = useState<boolean>(saved?.submitted ?? false);
+  const [aiFeedback, setAiFeedback] = useState<string>(saved?.aiFeedback ?? "");
+  const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
   const [dragChoiceIdx, setDragChoiceIdx] = useState<number | null>(null);
 
   useEffect(() => {
     const next = saved?.placedByBlank ?? blankIndices.map(() => null);
     setPlacedByBlank(blankIndices.map((_, i) => next[i] ?? null));
     setSubmitted(saved?.submitted ?? false);
+    setAiFeedback(saved?.aiFeedback ?? "");
   }, [answers[blockId], blankIndices]);
 
   const usedChoiceSet = new Set(placedByBlank.filter((v): v is number => v !== null));
@@ -311,21 +316,78 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
       const prevPos = next.findIndex((v) => v === choiceIdx);
       if (choiceIdx !== null && prevPos !== -1) next[prevPos] = null;
       next[blankPos] = choiceIdx;
-      setAnswer(blockId, { placedByBlank: next, submitted: false });
+      setAnswer(blockId, { placedByBlank: next, submitted: false, aiFeedback: "" });
       return next;
     });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setSubmitted(true);
-    setAnswer(blockId, { placedByBlank, submitted: true });
+    setAiFeedback("");
+    setAnswer(blockId, { placedByBlank, submitted: true, aiFeedback: "" });
+
+    setIsFeedbackLoading(true);
+    try {
+      const totalBlanks = blankIndices.length;
+      const matchedCount = placedByBlank.filter(
+        (placed, i) => placed === (correctByBlank[i] ?? -1),
+      ).length;
+      const accuracyPercent =
+        totalBlanks > 0 ? Math.round((matchedCount / totalBlanks) * 100) : 0;
+      const evaluationLevel =
+        accuracyPercent === 100
+          ? "correct"
+          : accuracyPercent >= 60
+            ? "almost"
+            : "incorrect";
+      const correctAnswer = blankIndices
+        .map((token, i) => {
+          const choiceIdx = correctByBlank[i] ?? -1;
+          const text = choiceIdx >= 0 ? choices[choiceIdx] ?? "" : "";
+          return `[Q-${token}] = ${text}`;
+        })
+        .join(" | ");
+
+      const userAnswer = blankIndices
+        .map((token, i) => {
+          const placed = placedByBlank[i];
+          const text = placed !== null ? choices[placed] ?? "" : "(empty)";
+          return `[Q-${token}] = ${text}`;
+        })
+        .join(" | ");
+      const diagnostics = blankIndices
+        .map((token, i) => {
+          const placed = placedByBlank[i];
+          const user = placed !== null ? choices[placed] ?? "(empty)" : "(empty)";
+          const correctIdx = correctByBlank[i] ?? -1;
+          const expected = correctIdx >= 0 ? choices[correctIdx] ?? "" : "(none)";
+          if (placed === correctIdx) return "";
+          return `[Q-${token}] expected="${expected}" got="${user}"`;
+        })
+        .filter(Boolean)
+        .join(" ; ");
+
+      const feedback = await requestQuestionFeedback({
+        question: template || "Fill blank choice question",
+        correctAnswer,
+        userAnswer,
+        evaluationLevel,
+        accuracyPercent,
+        diagnostics,
+      });
+      setAiFeedback(feedback);
+      setAnswer(blockId, { placedByBlank, submitted: true, aiFeedback: feedback });
+    } finally {
+      setIsFeedbackLoading(false);
+    }
   };
 
   const handleReset = () => {
     const empty = blankIndices.map(() => null);
     setPlacedByBlank(empty);
     setSubmitted(false);
-    setAnswer(blockId, { placedByBlank: empty, submitted: false });
+    setAiFeedback("");
+    setAnswer(blockId, { placedByBlank: empty, submitted: false, aiFeedback: "" });
   };
 
   if (blankIndices.length === 0) {
@@ -425,7 +487,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
         {!submitted ? (
           <button
             type="button"
-            onClick={handleSubmit}
+            onClick={() => void handleSubmit()}
             disabled={placedByBlank.some((v) => v === null)}
             className="rounded-lg bg-violet-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -451,6 +513,18 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
           </>
         )}
       </div>
+      {submitted && (
+        <div className="rounded-lg border border-violet-100 bg-violet-50 px-3 py-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-violet-500">
+            AI feedback
+          </p>
+          <p className="mt-1 text-sm text-violet-900">
+            {isFeedbackLoading
+              ? "AI กำลังเขียนคำแนะนำแบบละเอียดให้..."
+              : aiFeedback || "ยังไม่มีคำแนะนำ"}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
