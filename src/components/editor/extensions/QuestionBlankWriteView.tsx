@@ -3,13 +3,20 @@ import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
 import { useAnswerStore } from "@/stores/content-answer.store";
 import { requestQuestionFeedback } from "./questionFeedbackApi";
-import { Check, Eye, EyeOff, HelpCircle, SquareDashedMousePointer, X } from "lucide-react";
+import { Eye, EyeOff, HelpCircle, SquareDashedMousePointer } from "lucide-react";
 import type { QuestionBlankWriteAttrs } from "./QuestionBlankWriteNode";
 
 interface BlockAnswer {
   inputs: string[];
   submitted: boolean;
   aiFeedback?: string;
+}
+
+interface InlineBlankTextareaProps {
+  value: string;
+  disabled: boolean;
+  placeholder: string;
+  onChange: (value: string) => void;
 }
 
 function useAutoGrow(value: string) {
@@ -31,11 +38,31 @@ function useAutoGrow(value: string) {
   return ref;
 }
 
-const normalize = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
+function InlineBlankTextarea({
+  value,
+  disabled,
+  placeholder,
+  onChange,
+}: InlineBlankTextareaProps) {
+  const ref = useAutoGrow(value);
+
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      disabled={disabled}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={[
+        "min-w-28 w-40 max-w-full resize-none overflow-hidden rounded border px-2 py-1 text-sm outline-none transition",
+        disabled
+          ? "border-violet-300 bg-violet-50 text-violet-900"
+          : "border-gray-300 bg-white text-gray-800 focus:border-violet-400 focus:ring-2 focus:ring-violet-100",
+      ].join(" ")}
+      placeholder={placeholder}
+    />
+  );
+}
 
 // Supports both:
 // - New: [Q-0], [Q-1], ...
@@ -268,10 +295,6 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
   }, [answers[blockId], blankAnswers]);
 
   const hasInput = inputs.some((v) => v.trim().length > 0);
-  const isCorrectList = blankAnswers.map(
-    (ans, i) => normalize(inputs[i] ?? "") === normalize(ans),
-  );
-  const isAllCorrect = submitted && isCorrectList.every(Boolean);
 
   const updateInput = (i: number, value: string) => {
     const next = [...inputs];
@@ -287,42 +310,21 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
 
     setIsFeedbackLoading(true);
     try {
-      const totalBlanks = blankAnswers.length;
-      const matchedCount = isCorrectList.filter(Boolean).length;
-      const accuracyPercent =
-        totalBlanks > 0 ? Math.round((matchedCount / totalBlanks) * 100) : 0;
-      const evaluationLevel =
-        accuracyPercent === 100
-          ? "correct"
-          : accuracyPercent >= 60
-            ? "almost"
-            : "incorrect";
-      const correctAnswer = blankAnswers
-        .map((value, idx) => `[Q-${blankIndices[idx] ?? idx}] = ${value}`)
-        .join(" | ");
       const userAnswer = inputs
         .map(
           (value, idx) =>
             `[Q-${blankIndices[idx] ?? idx}] = ${value.trim() || "(empty)"}`,
         )
         .join(" | ");
-      const diagnostics = blankAnswers
-        .map((correct, i) => {
-          if (isCorrectList[i]) return "";
-          const token = blankIndices[i] ?? i;
-          const user = inputs[i]?.trim() || "(empty)";
-          return `[Q-${token}] expected="${correct}" got="${user}"`;
-        })
-        .filter(Boolean)
-        .join(" ; ");
 
       const feedback = await requestQuestionFeedback({
         question: template || "Fill blank write question",
-        correctAnswer,
+        correctAnswer: "",
         userAnswer,
-        evaluationLevel,
-        accuracyPercent,
-        diagnostics,
+        evaluationLevel: "almost",
+        accuracyPercent: 0,
+        diagnostics:
+          "Open-ended blank writing response; avoid exact correctness judgement.",
       });
       setAiFeedback(feedback);
       setAnswer(blockId, { inputs, submitted: true, aiFeedback: feedback });
@@ -356,20 +358,11 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
               const tokenIdx = piece.blank ?? 0;
               const pos = blankPosByToken.get(tokenIdx) ?? 0;
               return (
-                <input
+                <InlineBlankTextarea
                   key={`b-${idx}`}
-                  type="text"
                   disabled={submitted}
                   value={inputs[pos] ?? ""}
-                  onChange={(e) => updateInput(pos, e.target.value)}
-                  className={[
-                    "min-w-28 rounded border px-2 py-1 text-sm outline-none transition",
-                    submitted
-                      ? isCorrectList[pos]
-                        ? "border-green-400 bg-green-50 text-green-900"
-                        : "border-red-400 bg-red-50 text-red-900"
-                      : "border-gray-300 bg-white text-gray-800 focus:border-violet-400 focus:ring-2 focus:ring-violet-100",
-                  ].join(" ")}
+                  onChange={(nextValue) => updateInput(pos, nextValue)}
                   placeholder={`[Q-${tokenIdx}]`}
                 />
               );
@@ -377,29 +370,6 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
           ),
         )}
       </div>
-
-      {submitted && (
-        <div className="flex flex-col gap-1">
-          {blankAnswers.map((correct, i) => (
-            <p
-              key={i}
-              className={[
-                "flex items-center gap-1 text-xs",
-                isCorrectList[i] ? "text-green-600" : "text-red-500",
-              ].join(" ")}
-            >
-              {isCorrectList[i] ? (
-                <Check className="h-3.5 w-3.5" />
-              ) : (
-                <X className="h-3.5 w-3.5" />
-              )}
-              Blank {"{{"}
-              {i}
-              {"}}"}: {isCorrectList[i] ? "Correct" : `Expected "${correct}"`}
-            </p>
-          ))}
-        </div>
-      )}
 
       <div className="flex items-center gap-3">
         {!submitted ? (
@@ -413,18 +383,10 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
           </button>
         ) : (
           <>
-            <span
-              className={[
-                "text-xs font-semibold",
-                isAllCorrect ? "text-green-600" : "text-red-500",
-              ].join(" ")}
-            >
-              {isAllCorrect ? "All blanks are correct." : "Some blanks are not correct."}
-            </span>
             <button
               type="button"
               onClick={handleReset}
-              className="ml-auto text-xs text-gray-400 underline transition hover:text-gray-600"
+              className="text-xs text-gray-400 underline transition hover:text-gray-600"
             >
               Try again
             </button>

@@ -34,7 +34,9 @@ export const QuestionBlankWriteNode = Node.create({
         default: [] as string[],
         parseHTML: (el) => {
           try {
-            return JSON.parse(el.getAttribute("data-blank-answers") ?? "[]") as string[];
+            return JSON.parse(
+              el.getAttribute("data-blank-answers") ?? "[]",
+            ) as string[];
           } catch {
             return [];
           }

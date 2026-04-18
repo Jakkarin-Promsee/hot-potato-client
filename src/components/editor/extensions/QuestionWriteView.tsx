@@ -3,7 +3,6 @@ import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
 import { useAnswerStore } from "@/stores/content-answer.store";
 import {
-  Check,
   Eye,
   EyeOff,
   HelpCircle,
@@ -104,6 +103,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
   const [submitted, setSubmitted] = useState(savedAnswer?.submitted ?? false);
   const [aiFeedback, setAiFeedback] = useState(savedAnswer?.aiFeedback ?? "");
   const [isEvaluating, setIsEvaluating] = useState(false);
+  const inputRef = useAutoGrow(input);
 
   useEffect(() => {
     if (!savedAnswer) return;
@@ -153,6 +153,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
       </p>
 
       <textarea
+        ref={inputRef}
         rows={2}
         disabled={submitted}
         value={input}
@@ -168,7 +169,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
           });
         }}
         className={[
-          "w-full resize-y rounded-lg border bg-white px-3 py-2 text-sm outline-none transition",
+          "w-full resize-none overflow-hidden rounded-lg border bg-white px-3 py-2 text-sm outline-none transition",
           submitted
             ? "border-violet-300 text-gray-900"
             : "border-gray-200 text-gray-800 focus:border-violet-400 focus:ring-2 focus:ring-violet-100",
@@ -187,14 +188,10 @@ function ViewerView({ attrs }: ViewerViewProps) {
           </button>
         ) : (
           <>
-            <span className="flex items-center gap-1 text-xs font-semibold text-violet-700">
-              <Check className="h-3.5 w-3.5" />
-              Submitted - AI deep review ready
-            </span>
             <button
               type="button"
               onClick={handleReset}
-              className="ml-auto text-xs text-gray-400 underline transition hover:text-gray-600"
+              className="text-xs text-gray-400 underline transition hover:text-gray-600"
             >
               Try again
             </button>
