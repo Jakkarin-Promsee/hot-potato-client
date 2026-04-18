@@ -14,7 +14,7 @@ export const FormulaBlockNode = Node.create({
   name: "formulaBlock",
   group: "block",
   atom: true,
-  selectable: false,
+  selectable: true,
   draggable: false,
 
   addAttributes() {

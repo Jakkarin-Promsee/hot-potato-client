@@ -36,6 +36,7 @@
     "cloudinary": "^2.9.0",
     "clsx": "^2.1.1",
     "fabric": "^7.2.0",
+    "katex": "^0.16.45",
     "lowlight": "^3.3.0",
     "lucide-react": "^0.575.0",
     "radix-ui": "^1.4.3",
@@ -54,6 +55,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@types/katex": "^0.16.8",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/react-router-dom": "^5.3.3",

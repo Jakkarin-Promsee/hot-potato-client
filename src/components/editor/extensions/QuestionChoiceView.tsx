@@ -371,7 +371,9 @@ function ViewerView({ attrs }: ViewerViewProps) {
             : "incorrect";
       const missedCorrect = choices
         .map((choice, idx) => ({ choice, idx }))
-        .filter(({ choice, idx }) => choice.correct && !selectedIndices.includes(idx))
+        .filter(
+          ({ choice, idx }) => choice.correct && !selectedIndices.includes(idx),
+        )
         .map(({ choice }) => choice.text.trim())
         .filter(Boolean)
         .join(" | ");
@@ -527,7 +529,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
         {!submitted ? (
           <button
             type="button"
-              onClick={() => void handleSubmit()} // 👈 updated
+            onClick={() => void handleSubmit()} // 👈 updated
             disabled={!hasSelection}
             className="rounded-lg bg-violet-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
           >

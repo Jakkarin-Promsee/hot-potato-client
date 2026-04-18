@@ -6,8 +6,9 @@ type FormulaNodeProps = {
   node: FormulaNodeType;
   dispatch: Dispatch<FormulaAction>;
   className?: string;
-  activeTargetKey?: string;
-  onFocusTarget?: (targetKey: string) => void;
+  focusedSlotId: string | null;
+  onFocusTarget?: (targetKey: string | null) => void;
+  onInsertAfterInRow?: (rowId: string, index: number) => void;
   editable?: boolean;
 };
 
@@ -16,13 +17,15 @@ type SlotProps = {
   slot: string;
   dispatch: Dispatch<FormulaAction>;
   className?: string;
-  activeTargetKey?: string;
-  onFocusTarget?: (targetKey: string) => void;
+  focusedSlotId: string | null;
+  onFocusTarget?: (targetKey: string | null) => void;
+  onInsertAfterInRow?: (rowId: string, index: number) => void;
   editable?: boolean;
 };
 
-const slotBaseClass =
-  "min-h-5 min-w-5 rounded-[3px] border border-dashed border-slate-400 bg-slate-100";
+const slotBaseClass = "min-h-5 min-w-5 rounded-[3px]";
+const focusedSlotClass = "border-2 border-[#2563eb] bg-[#eff6ff] outline-none";
+const unfocusedSlotClass = "border border-dashed border-[#aaa] bg-[#f5f5f5]";
 
 function handleEditableInput(
   dispatch: Dispatch<FormulaAction>,
@@ -42,26 +45,31 @@ const FormulaSlot = memo(function FormulaSlot({
   slot,
   dispatch,
   className,
-  activeTargetKey,
+  focusedSlotId,
   onFocusTarget,
+  onInsertAfterInRow,
   editable = true,
 }: SlotProps) {
   const slotNode = parent.slots?.[slot];
-  const targetKey = `${parent.id}::${slot}`;
-  const isActive = activeTargetKey === targetKey;
-  const activeClass = isActive ? "border-2 border-blue-600 bg-blue-50" : "";
+  const targetKey = `slot:${parent.id}:${slot}`;
+  const isActive = focusedSlotId === targetKey;
+  const slotStateClass = isActive ? focusedSlotClass : unfocusedSlotClass;
 
   if (slotNode) {
     return (
       <div
-        className={`${className ?? ""} ${activeClass}`}
-        onMouseDown={() => onFocusTarget?.(targetKey)}
+        className={`${slotBaseClass} ${slotStateClass} ${className ?? ""}`}
+        onMouseDown={(event) => {
+          event.stopPropagation();
+          onFocusTarget?.(targetKey);
+        }}
       >
         <FormulaNode
           node={slotNode}
           dispatch={dispatch}
-          activeTargetKey={activeTargetKey}
+          focusedSlotId={focusedSlotId}
           onFocusTarget={onFocusTarget}
+          onInsertAfterInRow={onInsertAfterInRow}
           editable={editable}
         />
       </div>
@@ -72,10 +80,14 @@ const FormulaSlot = memo(function FormulaSlot({
     <button
       type="button"
       title={`Insert into ${slot}`}
-      className={`${slotBaseClass} ${className ?? ""} ${activeClass}`}
+      className={`${slotBaseClass} ${slotStateClass} ${className ?? ""} relative`}
       disabled={!editable}
-      onClick={() => {
+      onMouseDown={(event) => {
+        event.stopPropagation();
+      }}
+      onClick={(event) => {
         if (!editable) return;
+        event.stopPropagation();
         onFocusTarget?.(targetKey);
         dispatch({
           type: "INSERT_NODE",
@@ -84,7 +96,11 @@ const FormulaSlot = memo(function FormulaSlot({
           node: createFormulaNode("number", { value: "" }),
         });
       }}
-    />
+    >
+      {isActive && (
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-[60%] w-px -translate-x-1/2 -translate-y-1/2 bg-[#2563eb] formula-caret-blink" />
+      )}
+    </button>
   );
 });
 
@@ -92,36 +108,51 @@ const FormulaNode = memo(function FormulaNode({
   node,
   dispatch,
   className,
-  activeTargetKey,
+  focusedSlotId,
   onFocusTarget,
+  onInsertAfterInRow,
   editable = true,
 }: FormulaNodeProps) {
   if (node.type === "row") {
     return (
       <div className={`inline-flex flex-wrap items-end gap-1 ${className ?? ""}`}>
-        {(node.children ?? []).map((child) => (
-          <FormulaNode
-            key={child.id}
-            node={child}
-            dispatch={dispatch}
-            activeTargetKey={activeTargetKey}
-            onFocusTarget={onFocusTarget}
-            editable={editable}
-          />
+        {(node.children ?? []).map((child, index) => (
+          <div key={child.id} className="relative">
+            <FormulaNode
+              node={child}
+              dispatch={dispatch}
+              focusedSlotId={focusedSlotId}
+              onFocusTarget={onFocusTarget}
+              onInsertAfterInRow={onInsertAfterInRow}
+              editable={editable}
+            />
+            {editable && (
+              <div
+                className="absolute right-[-4px] top-0 z-10 h-full w-2 cursor-text bg-transparent"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onInsertAfterInRow?.(node.id, index);
+                }}
+                title="Insert here"
+              />
+            )}
+          </div>
         ))}
       </div>
     );
   }
 
   if (node.type === "number" || node.type === "variable" || node.type === "symbol") {
-    const nodeTargetKey = `node::${node.id}`;
-    const isActive = activeTargetKey === nodeTargetKey;
+    const nodeTargetKey = `node:${node.id}`;
+    const isActive = focusedSlotId === nodeTargetKey;
     return (
       <span
         contentEditable={editable}
         suppressContentEditableWarning
         data-formula-editable="true"
-        className={`inline-block min-w-3 rounded px-0.5 text-[15px] leading-none outline-none ${isActive ? "border-2 border-blue-600 bg-blue-50" : "focus:border focus:border-blue-600 focus:bg-blue-50"} ${className ?? ""}`}
+        data-formula-node-id={node.id}
+        className={`inline-block min-w-3 rounded px-0.5 text-[15px] leading-none ${isActive ? focusedSlotClass : unfocusedSlotClass} ${className ?? ""}`}
         onInput={(event) => handleEditableInput(dispatch, node.id, event)}
         onFocus={() => onFocusTarget?.(nodeTargetKey)}
         onKeyDown={(event) => event.stopPropagation()}
@@ -140,8 +171,9 @@ const FormulaNode = memo(function FormulaNode({
             parent={node}
             slot="numerator"
             dispatch={dispatch}
-            activeTargetKey={activeTargetKey}
+            focusedSlotId={focusedSlotId}
             onFocusTarget={onFocusTarget}
+            onInsertAfterInRow={onInsertAfterInRow}
             editable={editable}
           />
         </div>
@@ -151,8 +183,9 @@ const FormulaNode = memo(function FormulaNode({
             parent={node}
             slot="denominator"
             dispatch={dispatch}
-            activeTargetKey={activeTargetKey}
+            focusedSlotId={focusedSlotId}
             onFocusTarget={onFocusTarget}
+            onInsertAfterInRow={onInsertAfterInRow}
             editable={editable}
           />
         </div>
@@ -177,8 +210,9 @@ const FormulaNode = memo(function FormulaNode({
           parent={node}
           slot="base"
           dispatch={dispatch}
-          activeTargetKey={activeTargetKey}
+          focusedSlotId={focusedSlotId}
           onFocusTarget={onFocusTarget}
+          onInsertAfterInRow={onInsertAfterInRow}
           editable={editable}
         />
         <div
@@ -189,8 +223,9 @@ const FormulaNode = memo(function FormulaNode({
             slot="exponent"
             dispatch={dispatch}
             className="min-h-4 min-w-4"
-            activeTargetKey={activeTargetKey}
+            focusedSlotId={focusedSlotId}
             onFocusTarget={onFocusTarget}
+            onInsertAfterInRow={onInsertAfterInRow}
             editable={editable}
           />
         </div>
@@ -209,8 +244,9 @@ const FormulaNode = memo(function FormulaNode({
               slot="index"
               dispatch={dispatch}
               className="min-h-4 min-w-4"
-              activeTargetKey={activeTargetKey}
+              focusedSlotId={focusedSlotId}
               onFocusTarget={onFocusTarget}
+              onInsertAfterInRow={onInsertAfterInRow}
               editable={editable}
             />
           </div>
@@ -220,8 +256,9 @@ const FormulaNode = memo(function FormulaNode({
             parent={node}
             slot="content"
             dispatch={dispatch}
-            activeTargetKey={activeTargetKey}
+            focusedSlotId={focusedSlotId}
             onFocusTarget={onFocusTarget}
+            onInsertAfterInRow={onInsertAfterInRow}
             editable={editable}
           />
         </div>
@@ -243,8 +280,9 @@ const FormulaNode = memo(function FormulaNode({
           parent={node}
           slot="content"
           dispatch={dispatch}
-          activeTargetKey={activeTargetKey}
+          focusedSlotId={focusedSlotId}
           onFocusTarget={onFocusTarget}
+          onInsertAfterInRow={onInsertAfterInRow}
           editable={editable}
         />
         <span className="text-[17px] leading-none">{right}</span>
@@ -262,8 +300,10 @@ const FormulaNode = memo(function FormulaNode({
               slot="upper"
               dispatch={dispatch}
               className="min-h-4 min-w-4"
-              activeTargetKey={activeTargetKey}
+              focusedSlotId={focusedSlotId}
               onFocusTarget={onFocusTarget}
+              onInsertAfterInRow={onInsertAfterInRow}
+              editable={editable}
             />
           </div>
           <span className="text-[22px] leading-none">Σ</span>
@@ -273,8 +313,9 @@ const FormulaNode = memo(function FormulaNode({
               slot="lower"
               dispatch={dispatch}
               className="min-h-4 min-w-4"
-              activeTargetKey={activeTargetKey}
+              focusedSlotId={focusedSlotId}
               onFocusTarget={onFocusTarget}
+              onInsertAfterInRow={onInsertAfterInRow}
               editable={editable}
             />
           </div>
@@ -283,8 +324,9 @@ const FormulaNode = memo(function FormulaNode({
           parent={node}
           slot="body"
           dispatch={dispatch}
-          activeTargetKey={activeTargetKey}
+          focusedSlotId={focusedSlotId}
           onFocusTarget={onFocusTarget}
+          onInsertAfterInRow={onInsertAfterInRow}
           editable={editable}
         />
       </div>
@@ -306,8 +348,9 @@ const FormulaNode = memo(function FormulaNode({
           parent={node}
           slot="argument"
           dispatch={dispatch}
-          activeTargetKey={activeTargetKey}
+          focusedSlotId={focusedSlotId}
           onFocusTarget={onFocusTarget}
+          onInsertAfterInRow={onInsertAfterInRow}
           editable={editable}
         />
         <span>)</span>
@@ -326,8 +369,9 @@ const FormulaNode = memo(function FormulaNode({
               slot="base"
               dispatch={dispatch}
               className="min-h-4 min-w-4"
-              activeTargetKey={activeTargetKey}
+              focusedSlotId={focusedSlotId}
               onFocusTarget={onFocusTarget}
+              onInsertAfterInRow={onInsertAfterInRow}
               editable={editable}
             />
           </div>
@@ -337,8 +381,9 @@ const FormulaNode = memo(function FormulaNode({
           parent={node}
           slot="argument"
           dispatch={dispatch}
-          activeTargetKey={activeTargetKey}
+          focusedSlotId={focusedSlotId}
           onFocusTarget={onFocusTarget}
+          onInsertAfterInRow={onInsertAfterInRow}
           editable={editable}
         />
         <span>)</span>
@@ -355,8 +400,9 @@ const FormulaNode = memo(function FormulaNode({
           parent={node}
           slot="argument"
           dispatch={dispatch}
-          activeTargetKey={activeTargetKey}
+          focusedSlotId={focusedSlotId}
           onFocusTarget={onFocusTarget}
+          onInsertAfterInRow={onInsertAfterInRow}
           editable={editable}
         />
         <span>)</span>
@@ -376,8 +422,9 @@ const FormulaNode = memo(function FormulaNode({
               slot="upper"
               dispatch={dispatch}
               className="min-h-4 min-w-4"
-              activeTargetKey={activeTargetKey}
+              focusedSlotId={focusedSlotId}
               onFocusTarget={onFocusTarget}
+              onInsertAfterInRow={onInsertAfterInRow}
               editable={editable}
             />
           </div>
@@ -387,8 +434,9 @@ const FormulaNode = memo(function FormulaNode({
               slot="lower"
               dispatch={dispatch}
               className="min-h-4 min-w-4"
-              activeTargetKey={activeTargetKey}
+              focusedSlotId={focusedSlotId}
               onFocusTarget={onFocusTarget}
+              onInsertAfterInRow={onInsertAfterInRow}
               editable={editable}
             />
           </div>
@@ -397,8 +445,9 @@ const FormulaNode = memo(function FormulaNode({
           parent={node}
           slot="integrand"
           dispatch={dispatch}
-          activeTargetKey={activeTargetKey}
+          focusedSlotId={focusedSlotId}
           onFocusTarget={onFocusTarget}
+          onInsertAfterInRow={onInsertAfterInRow}
           editable={editable}
         />
         <span>d</span>
@@ -407,8 +456,9 @@ const FormulaNode = memo(function FormulaNode({
           slot="variable"
           dispatch={dispatch}
           className="min-h-4 min-w-4"
-          activeTargetKey={activeTargetKey}
+          focusedSlotId={focusedSlotId}
           onFocusTarget={onFocusTarget}
+          onInsertAfterInRow={onInsertAfterInRow}
           editable={editable}
         />
       </div>

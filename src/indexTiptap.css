@@ -992,3 +992,18 @@ button.bg-editor-highlight {
 .ProseMirror [data-type="choice-question"].ProseMirror-selectednode {
   outline: none;
 }
+
+@keyframes formulaCaretBlink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.formula-caret-blink {
+  animation: formulaCaretBlink 530ms steps(1, end) infinite;
+}

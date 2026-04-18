@@ -32,7 +32,11 @@ import {
 import { useUploadStore } from "@/stores/cloudinary.store";
 import { useCategoryStore } from "@/stores/category.store";
 import CloudinaryUpload from "@/components/CloudinaryUpload";
-import { emitFormulaToolbarAction } from "./FormulaBlock/formulaToolbarBus";
+import {
+  emitFormulaToolbarAction,
+  subscribeActiveFormulaBlock,
+} from "./FormulaBlock/formulaToolbarBus";
+import { createFormulaRow } from "./FormulaBlock/formulaReducer";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -88,7 +92,7 @@ const CATEGORIES: {
 }[] = [
   { key: "text", icon: Type, label: "Text" },
   { key: "media", icon: Images, label: "Media" },
-  { key: "formular", icon: Sigma, label: "Formlar" },
+  { key: "formular", icon: Sigma, label: "Formula" },
   { key: "special", icon: LayoutDashboard, label: "Special" },
 ];
 
@@ -713,17 +717,42 @@ const TextPanel = memo(
 );
 
 const FormularPanel = memo(({ editor }: { editor: Editor }) => {
-  const ensureFormulaBlock = useCallback(() => {
-    if (editor.isActive("formulaBlock")) return;
-    editor.chain().focus().insertFormulaBlock().run();
+  const [activeFormulaBlockId, setActiveFormulaBlockId] = useState<
+    string | null
+  >(null);
+
+  useEffect(() => {
+    return subscribeActiveFormulaBlock((blockId) => {
+      setActiveFormulaBlockId(blockId);
+    });
+  }, []);
+
+  const insertFormulaBlockWithId = useCallback(() => {
+    const blockId = crypto.randomUUID();
+    editor
+      .chain()
+      .focus()
+      .insertContent([
+        {
+          type: "formulaBlock",
+          attrs: {
+            id: blockId,
+            formula: createFormulaRow(),
+            latex: "",
+          },
+        },
+        { type: "paragraph" },
+      ])
+      .run();
+    return blockId;
   }, [editor]);
 
   const sendAction = useCallback(
     (action: Parameters<typeof emitFormulaToolbarAction>[0]) => {
-      ensureFormulaBlock();
-      emitFormulaToolbarAction(action);
+      const targetBlockId = activeFormulaBlockId ?? insertFormulaBlockWithId();
+      emitFormulaToolbarAction(action, targetBlockId);
     },
-    [ensureFormulaBlock],
+    [activeFormulaBlockId, insertFormulaBlockWithId],
   );
 
   return (
