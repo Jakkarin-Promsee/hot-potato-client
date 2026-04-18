@@ -17,8 +17,9 @@ import {
   ListTodo,
   LayoutDashboard,
   HelpCircle,
-  Columns,
   List,
+  ListOrdered,
+  Minus,
   X,
   ExternalLink,
   PenSquare,
@@ -112,6 +113,72 @@ const ToolBtn = memo(
     >
       <Icon size={16} strokeWidth={1.8} />
       <span className="flex-1 text-left">{label}</span>
+    </button>
+  ),
+);
+
+const QuickInsertBtn = memo(
+  ({
+    icon: Icon,
+    label,
+    onClick,
+    active = false,
+  }: {
+    icon: React.ElementType;
+    label: string;
+    onClick: () => void;
+    active?: boolean;
+  }) => (
+    <button
+      onClick={onClick}
+      title={label}
+      className={`flex items-center justify-center gap-2 rounded-lg border px-2.5 py-2.5 text-xs font-semibold transition-colors ${
+        active
+          ? "border-primary bg-primary/12 text-primary"
+          : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
+      }`}
+    >
+      <Icon size={14} strokeWidth={1.9} />
+      <span>{label}</span>
+    </button>
+  ),
+);
+
+const SpecialBlockBtn = memo(
+  ({
+    icon: Icon,
+    label,
+    description,
+    tip,
+    onClick,
+  }: {
+    icon: React.ElementType;
+    label: string;
+    description: string;
+    tip: string;
+    onClick: () => void;
+  }) => (
+    <button
+      onClick={onClick}
+      title={label}
+      className="w-full rounded-lg border border-border/80 bg-background/60 px-3 py-2.5 text-left transition-colors hover:border-border hover:bg-accent/40"
+    >
+      <div className="flex items-start gap-2.5">
+        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent text-muted-foreground">
+          <Icon size={14} strokeWidth={1.9} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold text-foreground leading-tight">
+            {label}
+          </p>
+          <p className="mt-0.5 text-[12px] text-muted-foreground leading-snug">
+            {description}
+          </p>
+          <p className="mt-1 text-[11px] font-medium text-muted-foreground">
+            {tip}
+          </p>
+        </div>
+      </div>
     </button>
   ),
 );
@@ -529,6 +596,40 @@ const TextPanel = memo(
             />
           ))}
         </div>
+
+        <div className="mt-3">
+          <PanelLabel>Quick Insert</PanelLabel>
+          <div className="grid grid-cols-1 gap-1.5 px-2 py-1">
+            <QuickInsertBtn
+              icon={LayoutDashboard}
+              label="Add canvas board"
+              onClick={() =>
+                editor
+                  .chain()
+                  .focus()
+                  .insertContent({ type: "fabricCanvas" })
+                  .run()
+              }
+            />
+            <QuickInsertBtn
+              icon={Minus}
+              label="Add line"
+              onClick={() => editor.chain().focus().setHorizontalRule().run()}
+            />
+            <QuickInsertBtn
+              icon={List}
+              label="Add bullet list"
+              active={editor.isActive("bulletList")}
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+            />
+            <QuickInsertBtn
+              icon={ListOrdered}
+              label="Add numbered list"
+              active={editor.isActive("orderedList")}
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            />
+          </div>
+        </div>
       </div>
     );
   },
@@ -560,47 +661,45 @@ const OtherPanel = memo(
 );
 
 const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
-  <div className="flex flex-col gap-0.5">
-    <PanelLabel>Blocks</PanelLabel>
-    <ToolBtn
-      icon={LayoutDashboard}
-      label="Canvas Board"
-      onClick={() =>
-        editor.chain().focus().insertContent({ type: "fabricCanvas" }).run()
-      }
-    />
-    <ToolBtn
-      icon={HelpCircle}
-      label="Q&A Card"
-      onClick={() => editor.chain().focus().insertQuestionChoice().run()}
-    />
-    <ToolBtn
-      icon={PenSquare}
-      label="Writing Q&A"
-      onClick={() => editor.chain().focus().insertQuestionWrite().run()}
-    />
-    <ToolBtn
-      icon={BetweenHorizonalStart}
-      label="Fill Blank (Write)"
-      onClick={() => editor.chain().focus().insertQuestionBlankWrite().run()}
-    />
-    <ToolBtn
-      icon={HelpCircle}
-      label="Fill Blank (Choice)"
-      onClick={() => editor.chain().focus().insertQuestionBlankChoice().run()}
-    />
-    <ToolBtn
-      icon={Bot}
-      label="Ask AI Block"
-      onClick={() => editor.chain().focus().insertQuestionAgent().run()}
-    />
-    <ToolBtn
-      icon={Columns}
-      label="Layout"
-      onClick={() =>
-        editor.chain().focus().insertContent({ type: "mcq" }).run()
-      }
-    />
+  <div className="flex flex-col gap-1.5">
+    <PanelLabel>Choose Block Type</PanelLabel>
+    <div className="grid grid-cols-1 gap-1.5 px-2 py-0.5">
+      <SpecialBlockBtn
+        icon={HelpCircle}
+        label="Multiple Choice Question"
+        description="Students pick one answer from options."
+        tip="Best for: quick concept checks"
+        onClick={() => editor.chain().focus().insertQuestionChoice().run()}
+      />
+      <SpecialBlockBtn
+        icon={PenSquare}
+        label="Written Reflection"
+        description="Students type a short answer in their own words."
+        tip="Best for: understanding and reasoning"
+        onClick={() => editor.chain().focus().insertQuestionWrite().run()}
+      />
+      <SpecialBlockBtn
+        icon={BetweenHorizonalStart}
+        label="Fill in the Blank (Write)"
+        description="Students type the missing word or phrase."
+        tip="Best for: recall and vocabulary"
+        onClick={() => editor.chain().focus().insertQuestionBlankWrite().run()}
+      />
+      <SpecialBlockBtn
+        icon={HelpCircle}
+        label="Fill in the Blank (Choice)"
+        description="Students choose the missing word from options."
+        tip="Best for: scaffolded practice"
+        onClick={() => editor.chain().focus().insertQuestionBlankChoice().run()}
+      />
+      <SpecialBlockBtn
+        icon={Bot}
+        label="Ask AI Helper"
+        description="Student can ask AI for hint or explanation."
+        tip="Best for: self-study support"
+        onClick={() => editor.chain().focus().insertQuestionAgent().run()}
+      />
+    </div>
   </div>
 ));
 
