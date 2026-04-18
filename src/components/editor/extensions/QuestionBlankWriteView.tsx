@@ -2,7 +2,13 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
 import { useAnswerStore } from "@/stores/content-answer.store";
-import { requestQuestionFeedback } from "./questionFeedbackApi";
+import FeedbackDiscussionPanel, {
+  type FeedbackThreadMessage,
+} from "./FeedbackDiscussionPanel";
+import {
+  requestFeedbackFollowup,
+  requestQuestionFeedback,
+} from "./questionFeedbackApi";
 import { Eye, EyeOff, HelpCircle, SquareDashedMousePointer } from "lucide-react";
 import type { QuestionBlankWriteAttrs } from "./QuestionBlankWriteNode";
 
@@ -10,6 +16,8 @@ interface BlockAnswer {
   inputs: string[];
   submitted: boolean;
   aiFeedback?: string;
+  feedbackThread?: FeedbackThreadMessage[];
+  threadOpen?: boolean;
 }
 
 interface InlineBlankTextareaProps {
@@ -54,7 +62,7 @@ function InlineBlankTextarea({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={[
-        "min-w-28 w-40 max-w-full resize-none overflow-hidden rounded border px-2 py-1 text-sm outline-none transition",
+        "min-w-28 w-40 max-w-full resize-none overflow-hidden rounded border px-2 py-1 text-base outline-none transition",
         disabled
           ? "border-violet-300 bg-violet-50 text-violet-900"
           : "border-gray-300 bg-white text-gray-800 focus:border-violet-400 focus:ring-2 focus:ring-violet-100",
@@ -214,14 +222,14 @@ function CreatorView({
           setBlankAnswers(nextAnswers);
         }}
         onBlur={() => flush(template, blankAnswers)}
-        className="w-full resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+        className="w-full resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-base text-gray-900 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
       />
 
       <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
           Preview
         </p>
-        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-900">
+        <div className="flex flex-wrap items-center gap-2 text-base text-gray-900">
           {previewPieces.map((piece, idx) =>
             piece.text !== undefined ? (
               <span key={`pt-${idx}`} className="whitespace-pre-wrap">
@@ -257,7 +265,7 @@ function CreatorView({
                 setBlankAnswers(next);
               }}
               onBlur={() => flush(template, blankAnswers)}
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-base text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
             />
           ))}
         </div>
@@ -285,13 +293,34 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
   );
   const [submitted, setSubmitted] = useState<boolean>(saved?.submitted ?? false);
   const [aiFeedback, setAiFeedback] = useState<string>(saved?.aiFeedback ?? "");
+  const [feedbackThread, setFeedbackThread] = useState<FeedbackThreadMessage[]>(
+    saved?.feedbackThread ?? [],
+  );
+  const [threadOpen, setThreadOpen] = useState(saved?.threadOpen ?? false);
+  const [isThreadLoading, setIsThreadLoading] = useState(false);
   const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
+
+  const persistAnswer = useCallback(
+    (next: Partial<BlockAnswer>) => {
+      setAnswer(blockId, {
+        inputs,
+        submitted,
+        aiFeedback,
+        feedbackThread,
+        threadOpen,
+        ...next,
+      });
+    },
+    [aiFeedback, blockId, feedbackThread, inputs, setAnswer, submitted, threadOpen],
+  );
 
   useEffect(() => {
     const next = saved?.inputs ?? blankAnswers.map(() => "");
     setInputs(blankAnswers.map((_, i) => next[i] ?? ""));
     setSubmitted(saved?.submitted ?? false);
     setAiFeedback(saved?.aiFeedback ?? "");
+    setFeedbackThread(saved?.feedbackThread ?? []);
+    setThreadOpen(saved?.threadOpen ?? false);
   }, [answers[blockId], blankAnswers]);
 
   const hasInput = inputs.some((v) => v.trim().length > 0);
@@ -300,13 +329,29 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
     const next = [...inputs];
     next[i] = value;
     setInputs(next);
-    setAnswer(blockId, { inputs: next, submitted: false, aiFeedback: "" });
+    setFeedbackThread([]);
+    setThreadOpen(false);
+    persistAnswer({
+      inputs: next,
+      submitted: false,
+      aiFeedback: "",
+      feedbackThread: [],
+      threadOpen: false,
+    });
   };
 
   const handleSubmit = async () => {
     setSubmitted(true);
     setAiFeedback("");
-    setAnswer(blockId, { inputs, submitted: true, aiFeedback: "" });
+    setFeedbackThread([]);
+    setThreadOpen(false);
+    persistAnswer({
+      inputs,
+      submitted: true,
+      aiFeedback: "",
+      feedbackThread: [],
+      threadOpen: false,
+    });
 
     setIsFeedbackLoading(true);
     try {
@@ -327,7 +372,13 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
           "Open-ended blank writing response; avoid exact correctness judgement.",
       });
       setAiFeedback(feedback);
-      setAnswer(blockId, { inputs, submitted: true, aiFeedback: feedback });
+      persistAnswer({
+        inputs,
+        submitted: true,
+        aiFeedback: feedback,
+        feedbackThread: [],
+        threadOpen: false,
+      });
     } finally {
       setIsFeedbackLoading(false);
     }
@@ -338,16 +389,76 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
     setInputs(empty);
     setSubmitted(false);
     setAiFeedback("");
-    setAnswer(blockId, { inputs: empty, submitted: false, aiFeedback: "" });
+    setFeedbackThread([]);
+    setThreadOpen(false);
+    persistAnswer({
+      inputs: empty,
+      submitted: false,
+      aiFeedback: "",
+      feedbackThread: [],
+      threadOpen: false,
+    });
   };
 
+  const handleSendThreadMessage = useCallback(
+    async (message: string) => {
+      if (!aiFeedback.trim()) return;
+      const studentMessage: FeedbackThreadMessage = {
+        role: "student",
+        text: message,
+        createdAt: new Date().toISOString(),
+      };
+      const threadWithStudent = [...feedbackThread, studentMessage];
+      setFeedbackThread(threadWithStudent);
+      persistAnswer({ feedbackThread: threadWithStudent, threadOpen: true });
+
+      const userAnswer = inputs
+        .map(
+          (value, idx) => `[Q-${blankIndices[idx] ?? idx}] = ${value.trim() || "(empty)"}`,
+        )
+        .join(" | ");
+      const expectedAnswer = blankAnswers
+        .map(
+          (value, idx) =>
+            `[Q-${blankIndices[idx] ?? idx}] = ${value.trim() || "(open)"} `,
+        )
+        .join(" | ");
+
+      setIsThreadLoading(true);
+      try {
+        const aiReply = await requestFeedbackFollowup({
+          topic: template || "Fill blank write question",
+          studentAnswer: userAnswer,
+          initialFeedback: aiFeedback,
+          followupQuestion: message,
+          expectedAnswer,
+          thread: threadWithStudent.map((entry) => ({
+            role: entry.role,
+            text: entry.text,
+          })),
+        });
+        const aiMessage: FeedbackThreadMessage = {
+          role: "ai",
+          text: aiReply,
+          createdAt: new Date().toISOString(),
+        };
+        const nextThread = [...threadWithStudent, aiMessage];
+        setFeedbackThread(nextThread);
+        persistAnswer({ feedbackThread: nextThread, threadOpen: true });
+      } finally {
+        setIsThreadLoading(false);
+      }
+    },
+    [aiFeedback, blankAnswers, blankIndices, feedbackThread, inputs, persistAnswer, template],
+  );
+
   if (blankIndices.length === 0) {
-    return <p className="text-sm italic text-gray-400">No blanks configured.</p>;
+    return <p className="text-base italic text-gray-400">No blanks configured.</p>;
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-900">
+      <div className="flex flex-wrap items-center gap-2 text-base text-gray-900">
         {pieces.map((piece, idx) =>
           piece.text !== undefined ? (
             <span key={`t-${idx}`} className="whitespace-pre-wrap">
@@ -377,7 +488,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
             type="button"
             onClick={() => void handleSubmit()}
             disabled={!hasInput}
-            className="rounded-lg bg-violet-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Submit
           </button>
@@ -386,7 +497,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
             <button
               type="button"
               onClick={handleReset}
-              className="text-xs text-gray-400 underline transition hover:text-gray-600"
+              className="text-sm text-gray-400 underline transition hover:text-gray-600"
             >
               Try again
             </button>
@@ -398,12 +509,25 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
           <p className="text-xs font-semibold uppercase tracking-wide text-violet-500">
             AI feedback
           </p>
-          <p className="mt-1 text-sm text-violet-900">
+          <p className="mt-1 text-base text-violet-900">
             {isFeedbackLoading
               ? "AI กำลังเขียนคำแนะนำแบบละเอียดให้..."
               : aiFeedback || "ยังไม่มีคำแนะนำ"}
           </p>
         </div>
+      )}
+      {submitted && aiFeedback && (
+        <FeedbackDiscussionPanel
+          messages={feedbackThread}
+          open={threadOpen}
+          loading={isThreadLoading}
+          onToggle={() => {
+            const next = !threadOpen;
+            setThreadOpen(next);
+            persistAnswer({ threadOpen: next });
+          }}
+          onSend={handleSendThreadMessage}
+        />
       )}
     </div>
   );
@@ -436,7 +560,7 @@ export default function QuestionBlankWriteView({
   }, [getPos, editor]);
 
   return (
-    <NodeViewWrapper>
+    <NodeViewWrapper className="text-base">
       <div
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) selectNode();
@@ -445,19 +569,15 @@ export default function QuestionBlankWriteView({
           selected ? "" : "border-accent-foreground shadow-md"
         }`}
       >
-        <div className="mb-3 flex items-center gap-2">
-          <span className="flex h-5 w-5 items-center justify-center rounded bg-violet-100">
-            <HelpCircle className="h-3 w-3 text-violet-600" />
-          </span>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-            {isEditable
-              ? previewMode
-                ? "Fill blank (write) - preview"
-                : "Fill blank (write) - creator"
-              : "Fill blank (write)"}
-          </span>
+        {isEditable && (
+          <div className="mb-3 flex items-center gap-2">
+            <span className="flex h-5 w-5 items-center justify-center rounded bg-violet-100">
+              <HelpCircle className="h-3 w-3 text-violet-600" />
+            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              {previewMode ? "Fill blank (write) - preview" : "Fill blank (write) - creator"}
+            </span>
 
-          {isEditable && (
             <div className="ml-auto flex items-center gap-1">
               <button
                 type="button"
@@ -490,8 +610,8 @@ export default function QuestionBlankWriteView({
                 <SquareDashedMousePointer className="h-3.5 w-3.5" />
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {isEditable && !previewMode ? (
           <CreatorView

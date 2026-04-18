@@ -8,7 +8,13 @@ import {
   HelpCircle,
   SquareDashedMousePointer,
 } from "lucide-react";
-import { requestWriteEvaluation } from "./questionFeedbackApi";
+import FeedbackDiscussionPanel, {
+  type FeedbackThreadMessage,
+} from "./FeedbackDiscussionPanel";
+import {
+  requestFeedbackFollowup,
+  requestWriteEvaluation,
+} from "./questionFeedbackApi";
 
 export interface QuestionWriteAttrs {
   id: string;
@@ -20,6 +26,8 @@ interface BlockAnswer {
   answer: string;
   submitted: boolean;
   aiFeedback?: string;
+  feedbackThread?: FeedbackThreadMessage[];
+  threadOpen?: boolean;
 }
 
 function useAutoGrow(value: string) {
@@ -73,7 +81,7 @@ function CreatorView({
         placeholder="Type your writing question here..."
         onChange={(e) => setQuestion(e.target.value)}
         onBlur={() => onFlush(question, answer)}
-        className="w-full resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+        className="w-full resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-base font-medium text-gray-900 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
       />
 
       <textarea
@@ -83,7 +91,7 @@ function CreatorView({
         placeholder="Set the correct writing answer..."
         onChange={(e) => setAnswer(e.target.value)}
         onBlur={() => onFlush(question, answer)}
-        className="w-full resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+        className="w-full resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-base text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
       />
     </div>
   );
@@ -102,14 +110,35 @@ function ViewerView({ attrs }: ViewerViewProps) {
   const [input, setInput] = useState(savedAnswer?.answer ?? "");
   const [submitted, setSubmitted] = useState(savedAnswer?.submitted ?? false);
   const [aiFeedback, setAiFeedback] = useState(savedAnswer?.aiFeedback ?? "");
+  const [threadOpen, setThreadOpen] = useState(savedAnswer?.threadOpen ?? false);
+  const [feedbackThread, setFeedbackThread] = useState<FeedbackThreadMessage[]>(
+    savedAnswer?.feedbackThread ?? [],
+  );
+  const [isThreadLoading, setIsThreadLoading] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const inputRef = useAutoGrow(input);
+
+  const persistAnswer = useCallback(
+    (next: Partial<BlockAnswer>) => {
+      setAnswer(blockId, {
+        answer: input,
+        submitted,
+        aiFeedback,
+        feedbackThread,
+        threadOpen,
+        ...next,
+      });
+    },
+    [aiFeedback, blockId, feedbackThread, input, setAnswer, submitted, threadOpen],
+  );
 
   useEffect(() => {
     if (!savedAnswer) return;
     setInput(savedAnswer.answer ?? "");
     setSubmitted(savedAnswer.submitted ?? false);
     setAiFeedback(savedAnswer.aiFeedback ?? "");
+    setFeedbackThread(savedAnswer.feedbackThread ?? []);
+    setThreadOpen(savedAnswer.threadOpen ?? false);
   }, [answers[blockId]]);
 
   const canSubmit = input.trim().length > 0;
@@ -117,7 +146,15 @@ function ViewerView({ attrs }: ViewerViewProps) {
   const handleSubmit = async () => {
     setSubmitted(true);
     setAiFeedback("");
-    setAnswer(blockId, { answer: input, submitted: true, aiFeedback: "" });
+    setFeedbackThread([]);
+    setThreadOpen(false);
+    persistAnswer({
+      answer: input,
+      submitted: true,
+      aiFeedback: "",
+      feedbackThread: [],
+      threadOpen: false,
+    });
 
     setIsEvaluating(true);
     try {
@@ -127,10 +164,12 @@ function ViewerView({ attrs }: ViewerViewProps) {
         studentAnswer: input,
       });
       setAiFeedback(feedback);
-      setAnswer(blockId, {
+      persistAnswer({
         answer: input,
         submitted: true,
         aiFeedback: feedback,
+        feedbackThread: [],
+        threadOpen: false,
       });
     } finally {
       setIsEvaluating(false);
@@ -141,12 +180,60 @@ function ViewerView({ attrs }: ViewerViewProps) {
     setInput("");
     setSubmitted(false);
     setAiFeedback("");
-    setAnswer(blockId, { answer: "", submitted: false, aiFeedback: "" });
+    setThreadOpen(false);
+    setFeedbackThread([]);
+    persistAnswer({
+      answer: "",
+      submitted: false,
+      aiFeedback: "",
+      feedbackThread: [],
+      threadOpen: false,
+    });
   };
+
+  const handleSendThreadMessage = useCallback(
+    async (message: string) => {
+      if (!aiFeedback.trim()) return;
+      const studentMessage: FeedbackThreadMessage = {
+        role: "student",
+        text: message,
+        createdAt: new Date().toISOString(),
+      };
+      const threadWithStudent = [...feedbackThread, studentMessage];
+      setFeedbackThread(threadWithStudent);
+      persistAnswer({ feedbackThread: threadWithStudent, threadOpen: true });
+
+      setIsThreadLoading(true);
+      try {
+        const aiReply = await requestFeedbackFollowup({
+          topic: question || "Writing question",
+          studentAnswer: input,
+          initialFeedback: aiFeedback,
+          followupQuestion: message,
+          expectedAnswer: answer,
+          thread: threadWithStudent.map((entry) => ({
+            role: entry.role,
+            text: entry.text,
+          })),
+        });
+        const aiMessage: FeedbackThreadMessage = {
+          role: "ai",
+          text: aiReply,
+          createdAt: new Date().toISOString(),
+        };
+        const nextThread = [...threadWithStudent, aiMessage];
+        setFeedbackThread(nextThread);
+        persistAnswer({ feedbackThread: nextThread, threadOpen: true });
+      } finally {
+        setIsThreadLoading(false);
+      }
+    },
+    [aiFeedback, answer, feedbackThread, input, persistAnswer, question],
+  );
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm font-semibold text-gray-900">
+      <p className="text-base font-semibold text-gray-900">
         {question || (
           <span className="italic text-gray-400">No question set</span>
         )}
@@ -162,14 +249,18 @@ function ViewerView({ attrs }: ViewerViewProps) {
           const next = e.target.value;
           setInput(next);
           setAiFeedback("");
-          setAnswer(blockId, {
+          setFeedbackThread([]);
+          setThreadOpen(false);
+          persistAnswer({
             answer: next,
             submitted: false,
             aiFeedback: "",
+            feedbackThread: [],
+            threadOpen: false,
           });
         }}
         className={[
-          "w-full resize-none overflow-hidden rounded-lg border bg-white px-3 py-2 text-sm outline-none transition",
+          "w-full resize-none overflow-hidden rounded-lg border bg-white px-3 py-2 text-base outline-none transition",
           submitted
             ? "border-violet-300 text-gray-900"
             : "border-gray-200 text-gray-800 focus:border-violet-400 focus:ring-2 focus:ring-violet-100",
@@ -182,7 +273,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
             type="button"
             onClick={() => void handleSubmit()}
             disabled={!canSubmit}
-            className="rounded-lg bg-violet-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Submit
           </button>
@@ -191,7 +282,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
             <button
               type="button"
               onClick={handleReset}
-              className="text-xs text-gray-400 underline transition hover:text-gray-600"
+              className="text-sm text-gray-400 underline transition hover:text-gray-600"
             >
               Try again
             </button>
@@ -203,12 +294,25 @@ function ViewerView({ attrs }: ViewerViewProps) {
           <p className="text-xs font-semibold uppercase tracking-wide text-violet-600">
             AI deep evaluation
           </p>
-          <p className="mt-1 whitespace-pre-wrap text-sm text-violet-900">
+          <p className="mt-1 whitespace-pre-wrap text-base text-violet-900">
             {isEvaluating
               ? "AI กำลังวิเคราะห์คำตอบแบบละเอียด..."
               : aiFeedback || "ยังไม่มีผลวิเคราะห์"}
           </p>
         </div>
+      )}
+      {submitted && aiFeedback && (
+        <FeedbackDiscussionPanel
+          messages={feedbackThread}
+          open={threadOpen}
+          loading={isThreadLoading}
+          onToggle={() => {
+            const next = !threadOpen;
+            setThreadOpen(next);
+            persistAnswer({ threadOpen: next });
+          }}
+          onSend={handleSendThreadMessage}
+        />
       )}
     </div>
   );
@@ -241,7 +345,7 @@ export default function QuestionWriteView({
   }, [getPos, editor]);
 
   return (
-    <NodeViewWrapper>
+    <NodeViewWrapper className="text-base">
       <div
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) selectNode();
@@ -250,19 +354,15 @@ export default function QuestionWriteView({
           selected ? "" : "border-accent-foreground shadow-md"
         }`}
       >
-        <div className="mb-3 flex items-center gap-2">
-          <span className="flex h-5 w-5 items-center justify-center rounded bg-violet-100">
-            <HelpCircle className="h-3 w-3 text-violet-600" />
-          </span>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-            {isEditable
-              ? previewMode
-                ? "Writing question - preview"
-                : "Writing question - creator"
-              : "Writing question"}
-          </span>
+        {isEditable && (
+          <div className="mb-3 flex items-center gap-2">
+            <span className="flex h-5 w-5 items-center justify-center rounded bg-violet-100">
+              <HelpCircle className="h-3 w-3 text-violet-600" />
+            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              {previewMode ? "Writing question - preview" : "Writing question - creator"}
+            </span>
 
-          {isEditable && (
             <div className="ml-auto flex items-center gap-1">
               <button
                 type="button"
@@ -297,8 +397,8 @@ export default function QuestionWriteView({
                 <SquareDashedMousePointer className="h-3.5 w-3.5" />
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {isEditable && !previewMode ? (
           <CreatorView

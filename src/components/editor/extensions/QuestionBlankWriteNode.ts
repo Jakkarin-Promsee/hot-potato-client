@@ -55,7 +55,10 @@ export const QuestionBlankWriteNode = Node.create({
   renderHTML({ HTMLAttributes }) {
     return [
       "div",
-      mergeAttributes(HTMLAttributes, { "data-type": "blank-write-question" }),
+      mergeAttributes(HTMLAttributes, {
+        "data-type": "blank-write-question",
+        class: "text-base",
+      }),
     ];
   },
 

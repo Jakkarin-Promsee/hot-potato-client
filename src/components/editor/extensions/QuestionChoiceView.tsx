@@ -2,7 +2,13 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
 import { useAnswerStore } from "@/stores/content-answer.store";
-import { requestQuestionFeedback } from "./questionFeedbackApi";
+import FeedbackDiscussionPanel, {
+  type FeedbackThreadMessage,
+} from "./FeedbackDiscussionPanel";
+import {
+  requestFeedbackFollowup,
+  requestQuestionFeedback,
+} from "./questionFeedbackApi";
 
 import {
   Minus,
@@ -98,7 +104,7 @@ function ChoiceInput({
         value={choice.text}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
-        className="flex-1 resize-none overflow-hidden rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+        className="flex-1 resize-none overflow-hidden rounded-md border border-gray-200 bg-white px-3 py-1.5 text-base text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
       />
 
       {onRemove && (
@@ -243,7 +249,7 @@ function CreatorView({
         placeholder="Type your question here…"
         onChange={(e) => setQuestion(e.target.value)}
         onBlur={flush}
-        className="w-full resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+        className="w-full resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-base font-medium text-gray-900 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
       />
 
       {/* Choice list */}
@@ -292,6 +298,8 @@ interface BlockAnswer {
   selected: number[]; // chosen indices
   submitted: boolean; // has user submitted?
   aiFeedback?: string;
+  feedbackThread?: FeedbackThreadMessage[];
+  threadOpen?: boolean;
 }
 
 function ViewerView({ attrs }: ViewerViewProps) {
@@ -313,7 +321,34 @@ function ViewerView({ attrs }: ViewerViewProps) {
   const [aiFeedback, setAiFeedback] = useState<string>(
     savedAnswer?.aiFeedback ?? "",
   );
+  const [feedbackThread, setFeedbackThread] = useState<FeedbackThreadMessage[]>(
+    savedAnswer?.feedbackThread ?? [],
+  );
+  const [threadOpen, setThreadOpen] = useState(savedAnswer?.threadOpen ?? false);
+  const [isThreadLoading, setIsThreadLoading] = useState(false);
   const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
+
+  const persistAnswer = useCallback(
+    (next: Partial<BlockAnswer>) => {
+      setAnswer(blockId, {
+        selected: selectedIndices,
+        submitted,
+        aiFeedback,
+        feedbackThread,
+        threadOpen,
+        ...next,
+      });
+    },
+    [
+      aiFeedback,
+      blockId,
+      feedbackThread,
+      selectedIndices,
+      setAnswer,
+      submitted,
+      threadOpen,
+    ],
+  );
 
   // ── Sync from store on load (when answers load after component mounts) ──
   useEffect(() => {
@@ -321,6 +356,8 @@ function ViewerView({ attrs }: ViewerViewProps) {
       setSelectedIndices(savedAnswer.selected ?? []);
       setSubmitted(savedAnswer.submitted ?? false);
       setAiFeedback(savedAnswer.aiFeedback ?? "");
+      setFeedbackThread(savedAnswer.feedbackThread ?? []);
+      setThreadOpen(savedAnswer.threadOpen ?? false);
     }
   }, [answers[blockId]]); // re-sync when this block's answer changes
 
@@ -341,17 +378,29 @@ function ViewerView({ attrs }: ViewerViewProps) {
     setSelectedIndices(next);
 
     // Save selection instantly (not submitted yet)
-    setAnswer(blockId, { selected: next, submitted: false, aiFeedback: "" });
+    setFeedbackThread([]);
+    setThreadOpen(false);
+    persistAnswer({
+      selected: next,
+      submitted: false,
+      aiFeedback: "",
+      feedbackThread: [],
+      threadOpen: false,
+    });
   };
 
   const handleSubmit = async () => {
     setSubmitted(true);
     setAiFeedback("");
+    setFeedbackThread([]);
+    setThreadOpen(false);
     // Save with submitted: true — this triggers 30s sync to DB
-    setAnswer(blockId, {
+    persistAnswer({
       selected: selectedIndices,
       submitted: true,
       aiFeedback: "",
+      feedbackThread: [],
+      threadOpen: false,
     });
 
     setIsFeedbackLoading(true);
@@ -401,10 +450,12 @@ function ViewerView({ attrs }: ViewerViewProps) {
         diagnostics: `missedCorrect=${missedCorrect || "(none)"}; wrongSelected=${wrongSelected || "(none)"}`,
       });
       setAiFeedback(feedback);
-      setAnswer(blockId, {
+      persistAnswer({
         selected: selectedIndices,
         submitted: true,
         aiFeedback: feedback,
+        feedbackThread: [],
+        threadOpen: false,
       });
     } finally {
       setIsFeedbackLoading(false);
@@ -415,17 +466,75 @@ function ViewerView({ attrs }: ViewerViewProps) {
     setSelectedIndices([]);
     setSubmitted(false);
     setAiFeedback("");
-    setAnswer(blockId, { selected: [], submitted: false, aiFeedback: "" });
+    setFeedbackThread([]);
+    setThreadOpen(false);
+    persistAnswer({
+      selected: [],
+      submitted: false,
+      aiFeedback: "",
+      feedbackThread: [],
+      threadOpen: false,
+    });
   };
 
   const isFullyCorrect =
     submitted && choices.every((c, i) => c.correct === isSelected(i));
 
+  const handleSendThreadMessage = useCallback(
+    async (message: string) => {
+      if (!aiFeedback.trim()) return;
+      const studentMessage: FeedbackThreadMessage = {
+        role: "student",
+        text: message,
+        createdAt: new Date().toISOString(),
+      };
+      const threadWithStudent = [...feedbackThread, studentMessage];
+      setFeedbackThread(threadWithStudent);
+      persistAnswer({ feedbackThread: threadWithStudent, threadOpen: true });
+
+      const correctAnswer = choices
+        .filter((choice) => choice.correct)
+        .map((choice) => choice.text.trim())
+        .filter(Boolean)
+        .join(" | ");
+      const userAnswer = selectedIndices
+        .map((idx) => choices[idx]?.text?.trim() ?? "")
+        .filter(Boolean)
+        .join(" | ");
+
+      setIsThreadLoading(true);
+      try {
+        const aiReply = await requestFeedbackFollowup({
+          topic: question || "Choice question",
+          studentAnswer: userAnswer,
+          initialFeedback: aiFeedback,
+          followupQuestion: message,
+          expectedAnswer: correctAnswer,
+          thread: threadWithStudent.map((entry) => ({
+            role: entry.role,
+            text: entry.text,
+          })),
+        });
+        const aiMessage: FeedbackThreadMessage = {
+          role: "ai",
+          text: aiReply,
+          createdAt: new Date().toISOString(),
+        };
+        const nextThread = [...threadWithStudent, aiMessage];
+        setFeedbackThread(nextThread);
+        persistAnswer({ feedbackThread: nextThread, threadOpen: true });
+      } finally {
+        setIsThreadLoading(false);
+      }
+    },
+    [aiFeedback, choices, feedbackThread, persistAnswer, question, selectedIndices],
+  );
+
   // ── Rest of your existing JSX — just replace state references ──
   return (
     <div className="flex flex-col gap-3">
       {/* Question */}
-      <p className="text-sm font-semibold text-gray-900">
+      <p className="text-base font-semibold text-gray-900">
         {question || (
           <span className="italic text-gray-400">No question set</span>
         )}
@@ -477,7 +586,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
               onClick={() => handleSelect(i)}
               disabled={submitted}
               className={[
-                "flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm transition",
+                "flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left text-base transition",
                 rowStyle,
                 submitted ? "cursor-default" : "cursor-pointer",
               ].join(" ")}
@@ -531,7 +640,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
             type="button"
             onClick={() => void handleSubmit()} // 👈 updated
             disabled={!hasSelection}
-            className="rounded-lg bg-violet-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Submit
           </button>
@@ -539,7 +648,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
           <>
             <span
               className={[
-                "text-xs font-semibold",
+                "text-sm font-semibold",
                 isFullyCorrect ? "text-green-600" : "text-red-500",
               ].join(" ")}
             >
@@ -550,7 +659,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
             <button
               type="button"
               onClick={handleReset} // 👈 also resets store
-              className="ml-auto text-xs text-gray-400 underline transition hover:text-gray-600"
+              className="ml-auto text-sm text-gray-400 underline transition hover:text-gray-600"
             >
               Try again
             </button>
@@ -562,12 +671,25 @@ function ViewerView({ attrs }: ViewerViewProps) {
           <p className="text-xs font-semibold uppercase tracking-wide text-violet-500">
             AI feedback
           </p>
-          <p className="mt-1 text-sm text-violet-900">
+          <p className="mt-1 text-base text-violet-900">
             {isFeedbackLoading
               ? "AI กำลังเขียนคำแนะนำแบบละเอียดให้..."
               : aiFeedback || "ยังไม่มีคำแนะนำ"}
           </p>
         </div>
+      )}
+      {submitted && aiFeedback && (
+        <FeedbackDiscussionPanel
+          messages={feedbackThread}
+          open={threadOpen}
+          loading={isThreadLoading}
+          onToggle={() => {
+            const next = !threadOpen;
+            setThreadOpen(next);
+            persistAnswer({ threadOpen: next });
+          }}
+          onSend={handleSendThreadMessage}
+        />
       )}
     </div>
   );
@@ -612,7 +734,7 @@ export default function QuestionChoiceView({
   }, [getPos, editor]);
 
   return (
-    <NodeViewWrapper>
+    <NodeViewWrapper className="text-base">
       <div
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) selectNode();
@@ -621,22 +743,16 @@ export default function QuestionChoiceView({
           selected ? "" : "border-accent-foreground shadow-md"
         }`}
       >
-        {/* Block header */}
-        <div className="mb-3 flex items-center gap-2">
-          <span className="flex h-5 w-5 items-center justify-center rounded bg-violet-100">
-            <HelpCircle className="h-3 w-3 text-violet-600" />
-          </span>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-            {isEditable
-              ? previewMode
-                ? "Choice question — preview"
-                : "Choice question — creator"
-              : "Choice question"}
-          </span>
+        {isEditable && (
+          <div className="mb-3 flex items-center gap-2">
+            <span className="flex h-5 w-5 items-center justify-center rounded bg-violet-100">
+              <HelpCircle className="h-3 w-3 text-violet-600" />
+            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              {previewMode ? "Choice question — preview" : "Choice question — creator"}
+            </span>
 
-          {isEditable && (
             <div className="ml-auto flex items-center gap-1">
-              {/* Preview toggle */}
               <button
                 type="button"
                 onMouseDown={(e) => e.stopPropagation()}
@@ -658,7 +774,6 @@ export default function QuestionChoiceView({
                 )}
               </button>
 
-              {/* Select block */}
               <button
                 type="button"
                 onMouseDown={(e) => {
@@ -671,8 +786,8 @@ export default function QuestionChoiceView({
                 <SquareDashedMousePointer className="h-3.5 w-3.5" />
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {isEditable && !previewMode ? (
           <CreatorView

@@ -2,7 +2,13 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
 import { useAnswerStore } from "@/stores/content-answer.store";
-import { requestQuestionFeedback } from "./questionFeedbackApi";
+import FeedbackDiscussionPanel, {
+  type FeedbackThreadMessage,
+} from "./FeedbackDiscussionPanel";
+import {
+  requestFeedbackFollowup,
+  requestQuestionFeedback,
+} from "./questionFeedbackApi";
 import { Check, Eye, EyeOff, HelpCircle, SquareDashedMousePointer, X } from "lucide-react";
 import type { QuestionBlankChoiceAttrs } from "./QuestionBlankChoiceNode";
 
@@ -10,6 +16,8 @@ interface BlockAnswer {
   placedByBlank: Array<number | null>;
   submitted: boolean;
   aiFeedback?: string;
+  feedbackThread?: FeedbackThreadMessage[];
+  threadOpen?: boolean;
 }
 
 const BLANK_TOKEN_REGEX = /\[Q-(\d+)\]|\{\{(\d+)\}\}/g;
@@ -168,14 +176,14 @@ function CreatorView({
           setCorrectByBlank(nextCorrect);
         }}
         onBlur={() => flush(template, choices, correctByBlank)}
-        className="w-full resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+        className="w-full resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-base text-gray-900 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
       />
 
       <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
           Preview
         </p>
-        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-900">
+        <div className="flex flex-wrap items-center gap-2 text-base text-gray-900">
           {previewPieces.map((piece, idx) =>
             piece.text !== undefined ? (
               <span key={`t-${idx}`} className="whitespace-pre-wrap">
@@ -218,7 +226,7 @@ function CreatorView({
                 setChoices(next);
               }}
               onBlur={() => flush(template, choices, correctByBlank)}
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-base text-gray-800 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
             />
             {choices.length > 1 && (
               <button
@@ -239,7 +247,7 @@ function CreatorView({
             Correct answer mapping
           </p>
           {blankIndices.map((blankTokenIdx, pos) => (
-            <label key={blankTokenIdx} className="flex items-center gap-2 text-sm">
+            <label key={blankTokenIdx} className="flex items-center gap-2 text-base">
               <span className="w-20 text-gray-600">[Q-{blankTokenIdx}]</span>
               <select
                 value={correctByBlank[pos] ?? -1}
@@ -249,7 +257,7 @@ function CreatorView({
                   setCorrectByBlank(next);
                   onFlush(template, choices, next);
                 }}
-                className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-800 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+                className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-base text-gray-800 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
               >
                 <option value={-1}>Select choice</option>
                 {choices.map((c, i) => (
@@ -285,14 +293,43 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
   );
   const [submitted, setSubmitted] = useState<boolean>(saved?.submitted ?? false);
   const [aiFeedback, setAiFeedback] = useState<string>(saved?.aiFeedback ?? "");
+  const [feedbackThread, setFeedbackThread] = useState<FeedbackThreadMessage[]>(
+    saved?.feedbackThread ?? [],
+  );
+  const [threadOpen, setThreadOpen] = useState(saved?.threadOpen ?? false);
+  const [isThreadLoading, setIsThreadLoading] = useState(false);
   const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
   const [dragChoiceIdx, setDragChoiceIdx] = useState<number | null>(null);
+
+  const persistAnswer = useCallback(
+    (next: Partial<BlockAnswer>) => {
+      setAnswer(blockId, {
+        placedByBlank,
+        submitted,
+        aiFeedback,
+        feedbackThread,
+        threadOpen,
+        ...next,
+      });
+    },
+    [
+      aiFeedback,
+      blockId,
+      feedbackThread,
+      placedByBlank,
+      setAnswer,
+      submitted,
+      threadOpen,
+    ],
+  );
 
   useEffect(() => {
     const next = saved?.placedByBlank ?? blankIndices.map(() => null);
     setPlacedByBlank(blankIndices.map((_, i) => next[i] ?? null));
     setSubmitted(saved?.submitted ?? false);
     setAiFeedback(saved?.aiFeedback ?? "");
+    setFeedbackThread(saved?.feedbackThread ?? []);
+    setThreadOpen(saved?.threadOpen ?? false);
   }, [answers[blockId], blankIndices]);
 
   const usedChoiceSet = new Set(placedByBlank.filter((v): v is number => v !== null));
@@ -316,7 +353,15 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
       const prevPos = next.findIndex((v) => v === choiceIdx);
       if (choiceIdx !== null && prevPos !== -1) next[prevPos] = null;
       next[blankPos] = choiceIdx;
-      setAnswer(blockId, { placedByBlank: next, submitted: false, aiFeedback: "" });
+      setFeedbackThread([]);
+      setThreadOpen(false);
+      persistAnswer({
+        placedByBlank: next,
+        submitted: false,
+        aiFeedback: "",
+        feedbackThread: [],
+        threadOpen: false,
+      });
       return next;
     });
   };
@@ -324,7 +369,15 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
   const handleSubmit = async () => {
     setSubmitted(true);
     setAiFeedback("");
-    setAnswer(blockId, { placedByBlank, submitted: true, aiFeedback: "" });
+    setFeedbackThread([]);
+    setThreadOpen(false);
+    persistAnswer({
+      placedByBlank,
+      submitted: true,
+      aiFeedback: "",
+      feedbackThread: [],
+      threadOpen: false,
+    });
 
     setIsFeedbackLoading(true);
     try {
@@ -351,14 +404,14 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
       const userAnswer = blankIndices
         .map((token, i) => {
           const placed = placedByBlank[i];
-          const text = placed !== null ? choices[placed] ?? "" : "(empty)";
+          const text = typeof placed === "number" ? choices[placed] ?? "" : "(empty)";
           return `[Q-${token}] = ${text}`;
         })
         .join(" | ");
       const diagnostics = blankIndices
         .map((token, i) => {
           const placed = placedByBlank[i];
-          const user = placed !== null ? choices[placed] ?? "(empty)" : "(empty)";
+          const user = typeof placed === "number" ? choices[placed] ?? "(empty)" : "(empty)";
           const correctIdx = correctByBlank[i] ?? -1;
           const expected = correctIdx >= 0 ? choices[correctIdx] ?? "" : "(none)";
           if (placed === correctIdx) return "";
@@ -376,7 +429,13 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
         diagnostics,
       });
       setAiFeedback(feedback);
-      setAnswer(blockId, { placedByBlank, submitted: true, aiFeedback: feedback });
+      persistAnswer({
+        placedByBlank,
+        submitted: true,
+        aiFeedback: feedback,
+        feedbackThread: [],
+        threadOpen: false,
+      });
     } finally {
       setIsFeedbackLoading(false);
     }
@@ -387,16 +446,88 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
     setPlacedByBlank(empty);
     setSubmitted(false);
     setAiFeedback("");
-    setAnswer(blockId, { placedByBlank: empty, submitted: false, aiFeedback: "" });
+    setFeedbackThread([]);
+    setThreadOpen(false);
+    persistAnswer({
+      placedByBlank: empty,
+      submitted: false,
+      aiFeedback: "",
+      feedbackThread: [],
+      threadOpen: false,
+    });
   };
 
+  const handleSendThreadMessage = useCallback(
+    async (message: string) => {
+      if (!aiFeedback.trim()) return;
+      const studentMessage: FeedbackThreadMessage = {
+        role: "student",
+        text: message,
+        createdAt: new Date().toISOString(),
+      };
+      const threadWithStudent = [...feedbackThread, studentMessage];
+      setFeedbackThread(threadWithStudent);
+      persistAnswer({ feedbackThread: threadWithStudent, threadOpen: true });
+
+      const expectedAnswer = blankIndices
+        .map((token, i) => {
+          const correctIdx = correctByBlank[i] ?? -1;
+          const text = correctIdx >= 0 ? choices[correctIdx] ?? "" : "";
+          return `[Q-${token}] = ${text || "(none)"}`;
+        })
+        .join(" | ");
+      const userAnswer = blankIndices
+        .map((token, i) => {
+          const placed = placedByBlank[i];
+          const text = typeof placed === "number" ? choices[placed] ?? "" : "(empty)";
+          return `[Q-${token}] = ${text}`;
+        })
+        .join(" | ");
+
+      setIsThreadLoading(true);
+      try {
+        const aiReply = await requestFeedbackFollowup({
+          topic: template || "Fill blank choice question",
+          studentAnswer: userAnswer,
+          initialFeedback: aiFeedback,
+          followupQuestion: message,
+          expectedAnswer,
+          thread: threadWithStudent.map((entry) => ({
+            role: entry.role,
+            text: entry.text,
+          })),
+        });
+        const aiMessage: FeedbackThreadMessage = {
+          role: "ai",
+          text: aiReply,
+          createdAt: new Date().toISOString(),
+        };
+        const nextThread = [...threadWithStudent, aiMessage];
+        setFeedbackThread(nextThread);
+        persistAnswer({ feedbackThread: nextThread, threadOpen: true });
+      } finally {
+        setIsThreadLoading(false);
+      }
+    },
+    [
+      aiFeedback,
+      blankIndices,
+      choices,
+      correctByBlank,
+      feedbackThread,
+      persistAnswer,
+      placedByBlank,
+      template,
+    ],
+  );
+
   if (blankIndices.length === 0) {
-    return <p className="text-sm italic text-gray-400">No blanks configured.</p>;
+    return <p className="text-base italic text-gray-400">No blanks configured.</p>;
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-900">
+      <div className="flex flex-wrap items-center gap-2 text-base text-gray-900">
         {pieces.map((piece, idx) =>
           piece.text !== undefined ? (
             <span key={`t-${idx}`} className="whitespace-pre-wrap">
@@ -407,7 +538,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
               const token = piece.blank ?? 0;
               const blankPos = tokenToPos.get(token) ?? 0;
               const placedIdx = placedByBlank[blankPos];
-              const placedText = placedIdx !== null ? choices[placedIdx] : "";
+              const placedText = typeof placedIdx === "number" ? choices[placedIdx] : "";
               const isCorrect = isCorrectPerBlank[blankPos];
               return (
                 <div
@@ -434,7 +565,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
                     <span className="text-xs text-gray-400">[Q-{token}]</span>
                   ) : (
                     <>
-                      <span className="text-sm text-gray-800">{placedText}</span>
+                      <span className="text-base text-gray-800">{placedText}</span>
                       {!submitted && (
                         <button
                           type="button"
@@ -470,7 +601,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
               onDragEnd={() => setDragChoiceIdx(null)}
               disabled={submitted}
               className={[
-                "rounded-md border px-2.5 py-1 text-sm transition",
+                "rounded-md border px-2.5 py-1 text-base transition",
                 dragChoiceIdx === choice.idx
                   ? "border-violet-400 bg-violet-50 text-violet-700"
                   : "border-gray-300 bg-white text-gray-700 hover:border-violet-300",
@@ -489,7 +620,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
             type="button"
             onClick={() => void handleSubmit()}
             disabled={placedByBlank.some((v) => v === null)}
-            className="rounded-lg bg-violet-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Submit
           </button>
@@ -497,7 +628,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
           <>
             <span
               className={[
-                "text-xs font-semibold",
+                "text-sm font-semibold",
                 isAllCorrect ? "text-green-600" : "text-red-500",
               ].join(" ")}
             >
@@ -506,7 +637,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
             <button
               type="button"
               onClick={handleReset}
-              className="ml-auto text-xs text-gray-400 underline transition hover:text-gray-600"
+              className="ml-auto text-sm text-gray-400 underline transition hover:text-gray-600"
             >
               Try again
             </button>
@@ -518,12 +649,25 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
           <p className="text-xs font-semibold uppercase tracking-wide text-violet-500">
             AI feedback
           </p>
-          <p className="mt-1 text-sm text-violet-900">
+          <p className="mt-1 text-base text-violet-900">
             {isFeedbackLoading
               ? "AI กำลังเขียนคำแนะนำแบบละเอียดให้..."
               : aiFeedback || "ยังไม่มีคำแนะนำ"}
           </p>
         </div>
+      )}
+      {submitted && aiFeedback && (
+        <FeedbackDiscussionPanel
+          messages={feedbackThread}
+          open={threadOpen}
+          loading={isThreadLoading}
+          onToggle={() => {
+            const next = !threadOpen;
+            setThreadOpen(next);
+            persistAnswer({ threadOpen: next });
+          }}
+          onSend={handleSendThreadMessage}
+        />
       )}
     </div>
   );
@@ -556,7 +700,7 @@ export default function QuestionBlankChoiceView({
   }, [getPos, editor]);
 
   return (
-    <NodeViewWrapper>
+    <NodeViewWrapper className="text-base">
       <div
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) selectNode();
@@ -565,19 +709,17 @@ export default function QuestionBlankChoiceView({
           selected ? "" : "border-accent-foreground shadow-md"
         }`}
       >
-        <div className="mb-3 flex items-center gap-2">
-          <span className="flex h-5 w-5 items-center justify-center rounded bg-violet-100">
-            <HelpCircle className="h-3 w-3 text-violet-600" />
-          </span>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-            {isEditable
-              ? previewMode
+        {isEditable && (
+          <div className="mb-3 flex items-center gap-2">
+            <span className="flex h-5 w-5 items-center justify-center rounded bg-violet-100">
+              <HelpCircle className="h-3 w-3 text-violet-600" />
+            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              {previewMode
                 ? "Fill blank (choice) - preview"
-                : "Fill blank (choice) - creator"
-              : "Fill blank (choice)"}
-          </span>
+                : "Fill blank (choice) - creator"}
+            </span>
 
-          {isEditable && (
             <div className="ml-auto flex items-center gap-1">
               <button
                 type="button"
@@ -610,8 +752,8 @@ export default function QuestionBlankChoiceView({
                 <SquareDashedMousePointer className="h-3.5 w-3.5" />
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {isEditable && !previewMode ? (
           <CreatorView

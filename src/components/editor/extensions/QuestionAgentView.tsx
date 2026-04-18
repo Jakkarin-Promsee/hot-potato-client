@@ -164,7 +164,7 @@ export default function QuestionAgentView({
   };
 
   return (
-    <NodeViewWrapper>
+    <NodeViewWrapper className="text-base">
       <div
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) selectNode();
@@ -173,11 +173,11 @@ export default function QuestionAgentView({
           selected ? "" : "border-accent-foreground shadow-md"
         }`}
       >
-        <div className="mb-3 flex items-center gap-2">
-          <span className="flex h-5 w-5 items-center justify-center rounded bg-violet-100">
-            <Bot className="h-3 w-3 text-violet-600" />
-          </span>
-          {isEditable ? (
+        {isEditable && (
+          <div className="mb-3 flex items-center gap-2">
+            <span className="flex h-5 w-5 items-center justify-center rounded bg-violet-100">
+              <Bot className="h-3 w-3 text-violet-600" />
+            </span>
             <input
               type="text"
               value={title}
@@ -186,13 +186,7 @@ export default function QuestionAgentView({
               onMouseDown={(e) => e.stopPropagation()}
               className="w-40 rounded border border-transparent bg-transparent px-1 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 outline-none focus:border-violet-200 focus:bg-white"
             />
-          ) : (
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-              {title || "Ask AI"}
-            </span>
-          )}
 
-          {isEditable && (
             <button
               type="button"
               onMouseDown={(e) => {
@@ -204,8 +198,8 @@ export default function QuestionAgentView({
             >
               <SquareDashedMousePointer className="h-3.5 w-3.5" />
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         {!hasAsked ? (
           <div className="flex items-start gap-2">
@@ -222,14 +216,14 @@ export default function QuestionAgentView({
                 }
               }}
               placeholder="Ask AI something..."
-              className="flex-1 resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+              className="flex-1 resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-base text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
             />
             <button
               type="button"
               onMouseDown={(e) => e.stopPropagation()}
               onClick={() => void handleAsk()}
               disabled={isAsking || !questionInput.trim()}
-              className="flex h-9 items-center gap-1 rounded-lg bg-violet-600 px-3 text-xs font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-9 items-center gap-1 rounded-lg bg-violet-600 px-3 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <SendHorizontal className="h-3.5 w-3.5" />
               Ask
@@ -241,12 +235,12 @@ export default function QuestionAgentView({
               {chatHistory.map((msg, i) => (
                 <div key={`${msg.createdAt}-${i}`} className="space-y-1">
                   <div className="flex justify-end">
-                    <div className="max-w-[85%] rounded-2xl rounded-br-md border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-900 shadow-sm">
+                    <div className="max-w-[85%] rounded-2xl rounded-br-md border border-violet-200 bg-violet-50 px-3 py-2 text-base text-violet-900 shadow-sm">
                       {msg.question}
                     </div>
                   </div>
                   <div className="flex justify-start -mt-1">
-                    <div className="max-w-[85%] rounded-2xl rounded-bl-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 shadow-sm">
+                    <div className="max-w-[85%] rounded-2xl rounded-bl-md border border-gray-200 bg-gray-50 px-3 py-2 text-base text-gray-800 shadow-sm">
                       {msg.answer}
                     </div>
                   </div>
@@ -268,14 +262,14 @@ export default function QuestionAgentView({
                   }
                 }}
                 placeholder="Ask AI something..."
-                className="flex-1 resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+                className="flex-1 resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-base text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
               />
               <button
                 type="button"
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={() => void handleAsk()}
                 disabled={isAsking || !questionInput.trim()}
-                className="flex h-9 items-center gap-1 rounded-lg bg-violet-600 px-3 text-xs font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-9 items-center gap-1 rounded-lg bg-violet-600 px-3 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <SendHorizontal className="h-3.5 w-3.5" />
                 Ask
@@ -287,18 +281,18 @@ export default function QuestionAgentView({
             {latestMessage ? (
               <div className="space-y-1.5">
                 <div className="flex justify-end">
-                  <p className="max-w-[85%] rounded-2xl rounded-br-md border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-900 shadow-sm">
+                  <p className="max-w-[85%] rounded-2xl rounded-br-md border border-violet-200 bg-violet-50 px-3 py-2 text-base text-violet-900 shadow-sm">
                     {latestMessage.question}
                   </p>
                 </div>
                 <div className="flex justify-start -mt-1">
-                  <p className="max-w-[85%] rounded-2xl rounded-bl-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 shadow-sm">
+                  <p className="max-w-[85%] rounded-2xl rounded-bl-md border border-gray-200 bg-gray-50 px-3 py-2 text-base text-gray-800 shadow-sm">
                     {latestMessage.answer}
                   </p>
                 </div>
               </div>
             ) : (
-              <p className="text-xs italic text-gray-400">
+              <p className="text-sm italic text-gray-400">
                 No chat yet. Expand to ask AI.
               </p>
             )}
@@ -311,7 +305,7 @@ export default function QuestionAgentView({
               type="button"
               onMouseDown={(e) => e.stopPropagation()}
               onClick={toggleCollapsed}
-              className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 underline transition hover:text-gray-700"
+              className="inline-flex items-center gap-1 text-sm font-medium text-gray-500 underline transition hover:text-gray-700"
             >
               {collapsed ? (
                 <>
@@ -330,7 +324,7 @@ export default function QuestionAgentView({
               type="button"
               onMouseDown={(e) => e.stopPropagation()}
               onClick={clearHistory}
-              className="inline-flex items-center gap-1 text-xs font-medium text-gray-400 underline transition hover:text-red-500"
+              className="inline-flex items-center gap-1 text-sm font-medium text-gray-400 underline transition hover:text-red-500"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Clear history
