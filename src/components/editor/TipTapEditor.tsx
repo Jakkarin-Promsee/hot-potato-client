@@ -335,7 +335,7 @@ const TipTapEditor = () => {
           >
             {/* Editor (default 400px) */}
             <div
-              className="tiptap-editor mx-auto pt-16 pb-40"
+              className="tiptap-editor tiptap-editor--editor mx-auto pt-16 pb-40"
               style={{ width: "400px" }}
             >
               <EditorContent editor={editor} />

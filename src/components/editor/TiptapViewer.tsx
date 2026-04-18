@@ -28,7 +28,7 @@ function TiptapViewer({ onScrollDirectionChange }: TiptapViewerProps) {
   const { tiptapJson } = useCanvasStore();
 
   const editor = useEditor({
-    extensions: createEditorExtensions(true),
+    extensions: createEditorExtensions(false),
     editable: false,
     content: tiptapJson && tiptapJson !== "{}" ? JSON.parse(tiptapJson) : "",
   });
@@ -130,13 +130,11 @@ function TiptapViewer({ onScrollDirectionChange }: TiptapViewerProps) {
           }}
           className="w-fit mx-auto editor-card shadow-sm"
         >
-          <div className="editor-card shadow-sm">
-            <div
-              className="tiptap-editor mx-auto py-8"
-              style={{ width: "400px" }}
-            >
-              <EditorContent editor={editor} />
-            </div>
+          <div
+            className="tiptap-editor tiptap-editor--viewer mx-auto py-10"
+            style={{ width: "400px" }}
+          >
+            <EditorContent editor={editor} />
           </div>
         </div>
       </main>

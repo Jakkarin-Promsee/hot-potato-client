@@ -27,6 +27,14 @@ export const createEditorExtensions = (editable = true) => [
   StarterKit.configure({
     codeBlock: false,
     heading: { levels: [1, 2, 3] },
+    bulletList: {
+      keepMarks: true,
+      keepAttributes: false,
+    },
+    orderedList: {
+      keepMarks: true,
+      keepAttributes: false,
+    },
     link: false,
     underline: false,
   }),
@@ -46,7 +54,11 @@ export const createEditorExtensions = (editable = true) => [
   Color,
   Highlight.configure({ multicolor: true }),
   ...(editable
-    ? [Placeholder.configure({ placeholder: "Tell your story..." })]
+    ? [
+        Placeholder.configure({
+          placeholder: "Start writing your lesson...",
+        }),
+      ]
     : []),
   Image.configure({}).extend({
     addAttributes() {

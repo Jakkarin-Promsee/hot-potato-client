@@ -474,59 +474,90 @@ button.bg-editor-highlight {
   background: var(--editor-surface);
 }
 
+.editor-card {
+  background: var(--editor-surface);
+  border-radius: 18px;
+  border: 1px solid color-mix(in oklab, var(--color-border) 60%, transparent);
+  box-shadow:
+    0 1px 1px color-mix(in oklab, black 6%, transparent),
+    0 12px 36px color-mix(in oklab, black 10%, transparent);
+}
+
 .tiptap-editor .ProseMirror {
-  font-family: var(--font-serif);
-  font-size: var(--editor-body-size);
-  line-height: var(--editor-body-height);
+  font-family: var(--font-sans);
+  font-size: clamp(1rem, 0.94rem + 0.2vw, 1.07rem);
+  line-height: 1.8;
   color: var(--editor-ink);
   outline: none;
   max-width: var(--editor-max-width);
   margin: 0 auto;
   padding: 0;
+  letter-spacing: -0.006em;
+  text-wrap: pretty;
+}
+
+.tiptap-editor--editor .ProseMirror {
   min-height: 60vh;
 }
 
+.tiptap-editor--viewer .ProseMirror {
+  min-height: 0;
+  font-size: clamp(1rem, 0.95rem + 0.25vw, 1.1rem);
+}
+
+.tiptap-editor .ProseMirror > * {
+  margin: 0;
+}
+
+.tiptap-editor .ProseMirror > * + * {
+  margin-top: 0.8em;
+}
+
 .tiptap-editor .ProseMirror p {
-  margin-bottom: 0.25em; /* feels like a single enter */
-  letter-spacing: -0.003em;
+  color: color-mix(in oklab, var(--editor-ink) 96%, white);
   word-break: break-word;
 }
 
+.tiptap-editor .ProseMirror p + p {
+  margin-top: 0.95em;
+}
+
+.tiptap-editor .ProseMirror strong {
+  font-weight: 650;
+}
+
+.tiptap-editor .ProseMirror em {
+  color: color-mix(in oklab, var(--editor-ink) 86%, white);
+}
+
 /* ── Headings ── */
+.tiptap-editor .ProseMirror h1,
+.tiptap-editor .ProseMirror h2,
+.tiptap-editor .ProseMirror h3 {
+  font-family: var(--font-sans);
+  letter-spacing: -0.03em;
+  line-height: 1.22;
+  color: color-mix(in oklab, var(--editor-ink) 100%, black 2%);
+}
 
 .tiptap-editor .ProseMirror h1 {
-  font-family: var(--font-serif);
-  font-size: 2.5em;
-  font-weight: 700;
-  line-height: 1.15;
-  margin-top: 0.7em; /* was 1em */
-  margin-bottom: 0.15em; /* was 0.25em */
-  letter-spacing: -0.02em;
-  color: var(--editor-ink);
+  font-size: clamp(1.95rem, 1.5rem + 1.45vw, 2.55rem);
+  font-weight: 760;
+  margin-top: 1.5em;
 }
 
 .tiptap-editor .ProseMirror h2 {
-  font-family: var(--font-serif);
-  font-size: 1.6em;
-  font-weight: 600;
-  line-height: 1.25;
-  margin-top: 0.6em; /* was 0.9em */
-  margin-bottom: 0.12em; /* was 0.2em */
-  letter-spacing: -0.015em;
-  color: var(--editor-ink);
+  font-size: clamp(1.45rem, 1.2rem + 0.95vw, 1.9rem);
+  font-weight: 700;
+  margin-top: 1.25em;
 }
 
 .tiptap-editor .ProseMirror h3 {
-  font-family: var(--font-serif);
-  font-size: 1.25em;
-  font-weight: 600;
-  line-height: 1.3;
-  margin-top: 0.8em; /* was 1.2em */
-  margin-bottom: 0.15em; /* was 0.3em */
-  color: var(--editor-ink);
+  font-size: clamp(1.2rem, 1.08rem + 0.55vw, 1.45rem);
+  font-weight: 680;
+  margin-top: 1.1em;
 }
 
-/* Remove top margin when a heading is the very first element */
 .tiptap-editor .ProseMirror > h1:first-child,
 .tiptap-editor .ProseMirror > h2:first-child,
 .tiptap-editor .ProseMirror > h3:first-child {
@@ -534,27 +565,29 @@ button.bg-editor-highlight {
 }
 
 /* ── Blockquote ── */
-
 .tiptap-editor .ProseMirror blockquote {
-  border-left: 3px solid color-mix(in oklab, var(--editor-ink) 20%, transparent);
-  padding-left: 1.2em;
-  margin: 0.75em 0; /* was implicit browser default — now explicit and tighter */
-  font-style: italic;
+  position: relative;
+  margin: 1.15em 0;
+  padding: 0.85em 1em 0.85em 1.2em;
+  border-left: 3px solid color-mix(in oklab, var(--color-primary) 44%, white);
+  background: color-mix(in oklab, var(--editor-code-bg) 35%, white);
+  border-radius: 0 12px 12px 0;
   color: var(--editor-ink-muted);
+  font-style: normal;
 }
 
 /* ── Links ── */
-
 .tiptap-editor .ProseMirror a {
-  color: hsl(252 70% 50%);
+  color: hsl(252 70% 46%);
   text-decoration: underline;
-  text-decoration-color: color-mix(in oklab, hsl(252 70% 50%) 40%, transparent);
+  text-decoration-color: color-mix(in oklab, hsl(252 70% 46%) 36%, transparent);
   text-underline-offset: 3px;
+  text-decoration-thickness: 1.5px;
   transition: text-decoration-color 0.2s ease;
 }
 
 .tiptap-editor .ProseMirror a:hover {
-  text-decoration-color: hsl(252 70% 50%);
+  text-decoration-color: hsl(252 70% 46%);
 }
 
 .tiptap-editor .ProseMirror ::selection {
@@ -562,14 +595,14 @@ button.bg-editor-highlight {
 }
 
 /* ── Placeholder ── */
-
 .tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
   color: var(--editor-placeholder);
   pointer-events: none;
   height: 0;
-  font-style: italic;
+  font-style: normal;
+  letter-spacing: 0;
 }
 
 .tiptap-editor .ProseMirror .is-empty::before {
@@ -581,15 +614,15 @@ button.bg-editor-highlight {
 }
 
 /* ── Code ── */
-
 .tiptap-editor .ProseMirror pre {
   background: var(--editor-code-bg);
-  border-radius: 6px;
-  padding: 0.85em 1.1em; /* was 1em 1.2em — slightly tighter */
-  margin: 1em 0; /* was 1.5em — less vertical separation */
+  border-radius: 10px;
+  border: 1px solid color-mix(in oklab, var(--color-border) 50%, white);
+  padding: 0.9em 1.1em;
+  margin: 1.05em 0;
   overflow-x: auto;
   font-family: var(--font-mono);
-  font-size: 0.85em;
+  font-size: 0.87em;
   line-height: 1.6;
 }
 
@@ -603,48 +636,52 @@ button.bg-editor-highlight {
 .tiptap-editor .ProseMirror code {
   background: var(--editor-code-bg);
   color: var(--editor-code-fg);
-  padding: 0.15em 0.4em;
-  border-radius: 3px;
+  padding: 0.16em 0.42em;
+  border-radius: 5px;
   font-family: var(--font-mono);
-  font-size: 0.88em;
+  font-size: 0.86em;
 }
 
 /* ── Syntax highlighting ── */
-
 .tiptap-editor .ProseMirror pre .hljs-comment,
 .tiptap-editor .ProseMirror pre .hljs-quote {
   color: hsl(220 8% 50%);
   font-style: italic;
 }
+
 .tiptap-editor .ProseMirror pre .hljs-keyword,
 .tiptap-editor .ProseMirror pre .hljs-selector-tag {
   color: hsl(280 60% 55%);
 }
+
 .tiptap-editor .ProseMirror pre .hljs-string,
 .tiptap-editor .ProseMirror pre .hljs-attr {
   color: hsl(142 50% 38%);
 }
+
 .tiptap-editor .ProseMirror pre .hljs-number,
 .tiptap-editor .ProseMirror pre .hljs-literal {
   color: hsl(25 80% 50%);
 }
+
 .tiptap-editor .ProseMirror pre .hljs-built_in,
 .tiptap-editor .ProseMirror pre .hljs-type {
   color: hsl(200 70% 42%);
 }
+
 .tiptap-editor .ProseMirror pre .hljs-title,
 .tiptap-editor .ProseMirror pre .hljs-function {
   color: hsl(210 60% 48%);
 }
 
 /* ── Images ── */
-
 .tiptap-editor .ProseMirror img {
   max-width: 100%;
   height: auto;
-  border-radius: 4px;
-  margin: 1em 0; /* was 1.5em */
+  border-radius: 10px;
+  margin: 1.1em 0;
   display: block;
+  border: 1px solid color-mix(in oklab, var(--color-border) 45%, white);
 }
 
 .tiptap-editor .ProseMirror img[data-align="center"] {
@@ -663,54 +700,91 @@ button.bg-editor-highlight {
 }
 
 /* ── Video embed ── */
-
 .tiptap-editor .ProseMirror div[data-youtube-video] {
-  margin: 1em 0; /* was 1.5em */
+  margin: 1.1em 0;
 }
 
 .tiptap-editor .ProseMirror div[data-youtube-video] iframe {
-  border-radius: 6px;
+  border-radius: 12px;
   width: 100%;
   aspect-ratio: 16 / 9;
+  border: 1px solid color-mix(in oklab, var(--color-border) 45%, white);
 }
 
 /* ── HR ── */
-
 .tiptap-editor .ProseMirror hr {
   border: none;
-  border-top: 1px solid hsl(220 12% 85%);
-  margin: 1.25em 0; /* was 2em — much less aggressive */
+  height: 1px;
+  margin: 1.4em 0;
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in oklab, var(--color-border) 70%, white) 20% 80%,
+    transparent
+  );
 }
 
 /* ── Lists ── */
-
 .tiptap-editor .ProseMirror ul,
 .tiptap-editor .ProseMirror ol {
-  padding-left: 1.5em;
-  margin-bottom: 0.85em; /* was 1.2em — matches paragraph spacing */
+  padding-left: 1.75em;
+  margin: 0.6em 0 0.8em;
+  list-style-position: outside;
+}
+
+.tiptap-editor .ProseMirror ul {
+  list-style: disc;
+}
+
+.tiptap-editor .ProseMirror ol {
+  list-style: decimal;
 }
 
 .tiptap-editor .ProseMirror li {
-  margin-bottom: 0.2em; /* was 0.3em */
+  margin: 0.28em 0;
+  padding-left: 0.15em;
+}
+
+.tiptap-editor .ProseMirror ul > li:first-child,
+.tiptap-editor .ProseMirror ol > li:first-child {
+  margin-top: 0;
+}
+
+.tiptap-editor .ProseMirror > ul,
+.tiptap-editor .ProseMirror > ol {
+  margin-top: 0.45em;
+}
+
+.tiptap-editor .ProseMirror li::marker {
+  color: color-mix(in oklab, var(--editor-ink-muted) 85%, white);
+}
+
+.tiptap-editor .ProseMirror li > ul,
+.tiptap-editor .ProseMirror li > ol {
+  margin-top: 0.45em;
 }
 
 /* ── Task list ── */
-
 .tiptap-editor .ProseMirror ul[data-type="taskList"] {
   list-style: none;
-  padding-left: 0.25em;
+  padding-left: 0.2em;
 }
 
 .tiptap-editor .ProseMirror ul[data-type="taskList"] li {
   display: flex;
   align-items: flex-start;
   gap: 0.5em;
+  padding-left: 0;
+}
+
+.tiptap-editor .ProseMirror ul[data-type="taskList"] li::marker {
+  content: none;
 }
 
 .tiptap-editor .ProseMirror ul[data-type="taskList"] li > label {
   display: flex;
   align-items: center;
-  margin-top: 0.1em;
+  margin-top: 0.14em;
   flex-shrink: 0;
 }
 
@@ -726,27 +800,26 @@ button.bg-editor-highlight {
   ul[data-type="taskList"]
   li[data-checked="true"]
   > div {
-  opacity: 0.5;
+  opacity: 0.55;
   text-decoration: line-through;
 }
 
 /* ── Table ── */
-
 .tiptap-editor .ProseMirror table {
   border-collapse: collapse;
   width: 100%;
-  margin: 1em 0; /* was 1.5em */
-  font-size: 0.9em;
+  margin: 1.1em 0;
+  font-size: 0.92em;
   overflow: hidden;
-  border-radius: 6px;
+  border-radius: 12px;
   border: 1px solid hsl(220 12% 85%);
 }
 
 .tiptap-editor .ProseMirror th {
   background: hsl(220 14% 94%);
-  font-weight: 600;
+  font-weight: 640;
   text-align: left;
-  padding: 0.5em 0.75em;
+  padding: 0.58em 0.8em;
   border: 1px solid hsl(220 12% 85%);
   font-size: 0.8em;
   letter-spacing: 0.02em;
@@ -754,7 +827,7 @@ button.bg-editor-highlight {
 }
 
 .tiptap-editor .ProseMirror td {
-  padding: 0.5em 0.75em;
+  padding: 0.58em 0.8em;
   border: 1px solid hsl(220 12% 88%);
   vertical-align: top;
   color: var(--editor-ink);
@@ -784,13 +857,12 @@ button.bg-editor-highlight {
 }
 
 /* ── Custom nodes ── */
-
 .tiptap-editor .ProseMirror [data-fabric-canvas] {
-  margin: 1em 0; /* was 1.5em */
+  margin: 1em 0;
 }
 
 .tiptap-editor .ProseMirror [data-question-answer] {
-  margin: 0.75em 0; /* was 1em */
+  margin: 0.9em 0;
 }
 
 /* ─────────────────────────────────────────
