@@ -2,7 +2,13 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
 import { useAnswerStore } from "@/stores/content-answer.store";
-import { Check, Eye, EyeOff, HelpCircle, SquareDashedMousePointer } from "lucide-react";
+import {
+  Check,
+  Eye,
+  EyeOff,
+  HelpCircle,
+  SquareDashedMousePointer,
+} from "lucide-react";
 import { requestWriteEvaluation } from "./questionFeedbackApi";
 
 export interface QuestionWriteAttrs {
@@ -121,7 +127,11 @@ function ViewerView({ attrs }: ViewerViewProps) {
         studentAnswer: input,
       });
       setAiFeedback(feedback);
-      setAnswer(blockId, { answer: input, submitted: true, aiFeedback: feedback });
+      setAnswer(blockId, {
+        answer: input,
+        submitted: true,
+        aiFeedback: feedback,
+      });
     } finally {
       setIsEvaluating(false);
     }
@@ -151,7 +161,11 @@ function ViewerView({ attrs }: ViewerViewProps) {
           const next = e.target.value;
           setInput(next);
           setAiFeedback("");
-          setAnswer(blockId, { answer: next, submitted: false, aiFeedback: "" });
+          setAnswer(blockId, {
+            answer: next,
+            submitted: false,
+            aiFeedback: "",
+          });
         }}
         className={[
           "w-full resize-y rounded-lg border bg-white px-3 py-2 text-sm outline-none transition",
@@ -173,9 +187,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
           </button>
         ) : (
           <>
-            <span
-              className="flex items-center gap-1 text-xs font-semibold text-violet-700"
-            >
+            <span className="flex items-center gap-1 text-xs font-semibold text-violet-700">
               <Check className="h-3.5 w-3.5" />
               Submitted - AI deep review ready
             </span>
@@ -265,7 +277,9 @@ export default function QuestionWriteView({
                     ? "bg-violet-100 text-violet-600"
                     : "text-gray-300 hover:bg-violet-100 hover:text-violet-500",
                 ].join(" ")}
-                aria-label={previewMode ? "Switch to creator" : "Preview as viewer"}
+                aria-label={
+                  previewMode ? "Switch to creator" : "Preview as viewer"
+                }
               >
                 {previewMode ? (
                   <EyeOff className="h-3.5 w-3.5" />

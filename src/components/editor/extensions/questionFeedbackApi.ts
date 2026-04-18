@@ -24,7 +24,10 @@ export async function requestQuestionFeedback(
   payload: FeedbackRequestPayload,
 ): Promise<string> {
   try {
-    const response = await api.post<{ feedback?: string }>("/chat/feedback", payload);
+    const response = await api.post<{ feedback?: string }>(
+      "/chat/feedback",
+      payload,
+    );
     const feedback = response.data?.feedback?.trim();
     return feedback || FALLBACK_FEEDBACK;
   } catch {
