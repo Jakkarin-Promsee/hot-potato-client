@@ -2,7 +2,8 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
 import { useAnswerStore } from "@/stores/content-answer.store";
-import { Check, Eye, EyeOff, HelpCircle, SquareDashedMousePointer, X } from "lucide-react";
+import { Check, Eye, EyeOff, HelpCircle, SquareDashedMousePointer } from "lucide-react";
+import { requestWriteEvaluation } from "./questionFeedbackApi";
 
 export interface QuestionWriteAttrs {
   id: string;
@@ -13,6 +14,7 @@ export interface QuestionWriteAttrs {
 interface BlockAnswer {
   answer: string;
   submitted: boolean;
+  aiFeedback?: string;
 }
 
 function useAutoGrow(value: string) {
@@ -86,12 +88,6 @@ interface ViewerViewProps {
   attrs: QuestionWriteAttrs;
 }
 
-const normalize = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
-
 function ViewerView({ attrs }: ViewerViewProps) {
   const { id: blockId, question, answer } = attrs;
   const answers = useAnswerStore((s) => s.answers);
@@ -100,25 +96,42 @@ function ViewerView({ attrs }: ViewerViewProps) {
   const savedAnswer = answers[blockId] as BlockAnswer | undefined;
   const [input, setInput] = useState(savedAnswer?.answer ?? "");
   const [submitted, setSubmitted] = useState(savedAnswer?.submitted ?? false);
+  const [aiFeedback, setAiFeedback] = useState(savedAnswer?.aiFeedback ?? "");
+  const [isEvaluating, setIsEvaluating] = useState(false);
 
   useEffect(() => {
     if (!savedAnswer) return;
     setInput(savedAnswer.answer ?? "");
     setSubmitted(savedAnswer.submitted ?? false);
+    setAiFeedback(savedAnswer.aiFeedback ?? "");
   }, [answers[blockId]]);
 
   const canSubmit = input.trim().length > 0;
-  const isCorrect = submitted && normalize(input) === normalize(answer);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setSubmitted(true);
-    setAnswer(blockId, { answer: input, submitted: true });
+    setAiFeedback("");
+    setAnswer(blockId, { answer: input, submitted: true, aiFeedback: "" });
+
+    setIsEvaluating(true);
+    try {
+      const feedback = await requestWriteEvaluation({
+        question: question || "Writing question",
+        guideAnswer: answer,
+        studentAnswer: input,
+      });
+      setAiFeedback(feedback);
+      setAnswer(blockId, { answer: input, submitted: true, aiFeedback: feedback });
+    } finally {
+      setIsEvaluating(false);
+    }
   };
 
   const handleReset = () => {
     setInput("");
     setSubmitted(false);
-    setAnswer(blockId, { answer: "", submitted: false });
+    setAiFeedback("");
+    setAnswer(blockId, { answer: "", submitted: false, aiFeedback: "" });
   };
 
   return (
@@ -137,14 +150,13 @@ function ViewerView({ attrs }: ViewerViewProps) {
         onChange={(e) => {
           const next = e.target.value;
           setInput(next);
-          setAnswer(blockId, { answer: next, submitted: false });
+          setAiFeedback("");
+          setAnswer(blockId, { answer: next, submitted: false, aiFeedback: "" });
         }}
         className={[
           "w-full resize-y rounded-lg border bg-white px-3 py-2 text-sm outline-none transition",
           submitted
-            ? isCorrect
-              ? "border-green-400 text-green-900"
-              : "border-red-400 text-red-900"
+            ? "border-violet-300 text-gray-900"
             : "border-gray-200 text-gray-800 focus:border-violet-400 focus:ring-2 focus:ring-violet-100",
         ].join(" ")}
       />
@@ -153,7 +165,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
         {!submitted ? (
           <button
             type="button"
-            onClick={handleSubmit}
+            onClick={() => void handleSubmit()}
             disabled={!canSubmit}
             className="rounded-lg bg-violet-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -162,28 +174,11 @@ function ViewerView({ attrs }: ViewerViewProps) {
         ) : (
           <>
             <span
-              className={[
-                "flex items-center gap-1 text-xs font-semibold",
-                isCorrect ? "text-green-600" : "text-red-500",
-              ].join(" ")}
+              className="flex items-center gap-1 text-xs font-semibold text-violet-700"
             >
-              {isCorrect ? (
-                <>
-                  <Check className="h-3.5 w-3.5" />
-                  Correct answer
-                </>
-              ) : (
-                <>
-                  <X className="h-3.5 w-3.5" />
-                  Not correct
-                </>
-              )}
+              <Check className="h-3.5 w-3.5" />
+              Submitted - AI deep review ready
             </span>
-            {!isCorrect && answer.trim() && (
-              <span className="text-xs text-gray-500">
-                Correct: <span className="font-medium text-gray-700">{answer}</span>
-              </span>
-            )}
             <button
               type="button"
               onClick={handleReset}
@@ -194,6 +189,18 @@ function ViewerView({ attrs }: ViewerViewProps) {
           </>
         )}
       </div>
+      {submitted && (
+        <div className="rounded-lg border border-violet-100 bg-violet-50 px-3 py-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-violet-600">
+            AI deep evaluation
+          </p>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-violet-900">
+            {isEvaluating
+              ? "AI กำลังวิเคราะห์คำตอบแบบละเอียด..."
+              : aiFeedback || "ยังไม่มีผลวิเคราะห์"}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
