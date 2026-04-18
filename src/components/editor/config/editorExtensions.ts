@@ -1,7 +1,6 @@
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
-import Image from "@tiptap/extension-image";
 import Youtube from "@tiptap/extension-youtube";
 import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
@@ -22,6 +21,7 @@ import { QuestionWriteNode } from "../extensions/QuestionWriteNode";
 import { QuestionBlankWriteNode } from "../extensions/QuestionBlankWriteNode";
 import { QuestionBlankChoiceNode } from "../extensions/QuestionBlankChoiceNode";
 import { QuestionAgentNode } from "../extensions/QuestionAgentNode";
+import { createResizableImage } from "../extensions/ResizableImage";
 
 export const createEditorExtensions = (editable = true) => [
   StarterKit.configure({
@@ -60,17 +60,7 @@ export const createEditorExtensions = (editable = true) => [
         }),
       ]
     : []),
-  Image.configure({}).extend({
-    addAttributes() {
-      return {
-        ...this.parent?.(),
-        "data-align": { default: "left" },
-        "data-href": { default: null },
-        width: { default: null },
-        height: { default: null },
-      };
-    },
-  }),
+  createResizableImage(editable),
   Youtube.configure({ width: 560, height: 315 }),
   Table.configure({ resizable: editable }),
   TableRow,
