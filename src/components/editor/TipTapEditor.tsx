@@ -25,7 +25,7 @@ const TipTapEditor = () => {
   const [dynamicUpdate, setDynamicUpdate] = useState(true);
   const [linkClickMode, setLinkClickMode] = useState<"ctrl" | "direct">("ctrl");
   const [sidebarCategory, setSidebarCategory] = useState<
-    "text" | "media" | "other" | "special"
+    "text" | "media" | "special"
   >("text");
   const [zoom, setZoom] = useState(1.0);
   const mainRef = useRef<HTMLDivElement>(null);

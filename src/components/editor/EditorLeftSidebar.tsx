@@ -50,7 +50,7 @@ const ALIGN_OPTIONS = [
   { icon: AlignJustify, align: "justify" },
 ] as const;
 
-type CategoryKey = "text" | "media" | "other" | "special";
+type CategoryKey = "text" | "media" | "special";
 type TextAlign = "left" | "center" | "right" | "justify";
 
 interface LeftActiveFormats {
@@ -84,7 +84,6 @@ const CATEGORIES: {
 }[] = [
   { key: "text", icon: Type, label: "Text" },
   { key: "media", icon: Images, label: "Media" },
-  { key: "other", icon: List, label: "Other" },
   { key: "special", icon: LayoutDashboard, label: "Special" },
 ];
 
@@ -134,8 +133,8 @@ const QuickInsertBtn = memo(
       title={label}
       className={`flex items-center justify-center gap-2 rounded-lg border px-2.5 py-2.5 text-xs font-semibold transition-colors ${
         active
-          ? "border-primary bg-primary/12 text-primary"
-          : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
+          ? "border-border bg-accent/70 text-foreground"
+          : "border-border/80 bg-background/60 text-muted-foreground hover:border-border hover:bg-accent/45 hover:text-foreground"
       }`}
     >
       <Icon size={14} strokeWidth={1.9} />
@@ -601,17 +600,6 @@ const TextPanel = memo(
           <PanelLabel>Quick Insert</PanelLabel>
           <div className="grid grid-cols-1 gap-1.5 px-2 py-1">
             <QuickInsertBtn
-              icon={LayoutDashboard}
-              label="Add canvas board"
-              onClick={() =>
-                editor
-                  .chain()
-                  .focus()
-                  .insertContent({ type: "fabricCanvas" })
-                  .run()
-              }
-            />
-            <QuickInsertBtn
               icon={Minus}
               label="Add line"
               onClick={() => editor.chain().focus().setHorizontalRule().run()}
@@ -629,35 +617,42 @@ const TextPanel = memo(
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
             />
           </div>
+
+          <PanelLabel>Other Insert</PanelLabel>
+          <div className="grid grid-cols-1 gap-1.5 px-2 py-0.5">
+            <QuickInsertBtn
+              icon={Table}
+              label="Add table"
+              onClick={() =>
+                editor
+                  .chain()
+                  .focus()
+                  .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+                  .run()
+              }
+            />
+            <QuickInsertBtn
+              icon={ListTodo}
+              label="Add checklist"
+              active={active.taskList}
+              onClick={() => editor.chain().focus().toggleTaskList().run()}
+            />
+            <QuickInsertBtn
+              icon={LayoutDashboard}
+              label="Add canvas board"
+              onClick={() =>
+                editor
+                  .chain()
+                  .focus()
+                  .insertContent({ type: "fabricCanvas" })
+                  .run()
+              }
+            />
+          </div>
         </div>
       </div>
     );
   },
-);
-
-const OtherPanel = memo(
-  ({ editor, taskListActive }: { editor: Editor; taskListActive: boolean }) => (
-    <div className="flex flex-col gap-0.5">
-      <PanelLabel>Elements</PanelLabel>
-      <ToolBtn
-        icon={Table}
-        label="Table"
-        onClick={() =>
-          editor
-            .chain()
-            .focus()
-            .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-            .run()
-        }
-      />
-      <ToolBtn
-        icon={ListTodo}
-        label="Task List"
-        active={taskListActive}
-        onClick={() => editor.chain().focus().toggleTaskList().run()}
-      />
-    </div>
-  ),
 );
 
 const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
@@ -749,8 +744,6 @@ const EditorLeftSidebar = ({
         return <TextPanel editor={editor} active={active} />;
       case "media":
         return <MediaPanel editor={editor} />;
-      case "other":
-        return <OtherPanel editor={editor} taskListActive={active.taskList} />;
       case "special":
         return <SpecialPanel editor={editor} />;
     }
