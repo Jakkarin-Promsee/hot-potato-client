@@ -16,15 +16,11 @@ import {
   Table,
   ListTodo,
   LayoutDashboard,
-  HelpCircle,
   List,
   ListOrdered,
   Minus,
   X,
   ExternalLink,
-  PenSquare,
-  BetweenHorizonalStart,
-  Bot,
   Sigma,
   ChevronDown,
   ChevronRight,
@@ -154,37 +150,25 @@ const QuickInsertBtn = memo(
 
 const SpecialBlockBtn = memo(
   ({
-    icon: Icon,
     label,
-    description,
-    tip,
+    preview,
     onClick,
   }: {
-    icon: React.ElementType;
     label: string;
-    description: string;
-    tip: string;
+    preview: React.ReactNode;
     onClick: () => void;
   }) => (
     <button
       onClick={onClick}
       title={label}
-      className="w-full rounded-lg border border-border/80 bg-background/60 px-3 py-2.5 text-left transition-colors hover:border-border hover:bg-accent/40"
+      className="w-full rounded-lg border-2 border-border/90 bg-background/25 px-3 py-2.5 text-left transition-colors hover:border-border hover:bg-accent/20"
     >
-      <div className="flex items-start gap-2.5">
-        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent text-muted-foreground">
-          <Icon size={14} strokeWidth={1.9} />
-        </div>
-        <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-foreground leading-tight">
-            {label}
-          </p>
-          <p className="mt-0.5 text-[12px] text-muted-foreground leading-snug">
-            {description}
-          </p>
-          <p className="mt-1 text-[11px] font-medium text-muted-foreground">
-            {tip}
-          </p>
+      <div className="min-w-0">
+        <p className="text-[13px] font-semibold text-foreground leading-tight">
+          {label}
+        </p>
+        <div className="mt-2 rounded-md border border-border/50 bg-background/20 px-2 py-1.5">
+          {preview}
         </div>
       </div>
     </button>
@@ -254,7 +238,9 @@ const FormulaGroup = memo(
             <ChevronRight size={13} className="text-muted-foreground" />
           )}
         </button>
-        {open && <div className="grid grid-cols-3 gap-1.5 px-2 pb-2">{children}</div>}
+        {open && (
+          <div className="grid grid-cols-3 gap-1.5 px-2 pb-2">{children}</div>
+        )}
       </div>
     );
   },
@@ -797,9 +783,7 @@ const FormularPanel = memo(({ editor }: { editor: Editor }) => {
       <FormulaGroup title="Structure" defaultOpen>
         <FormulaBtn
           label="√"
-          onClick={() =>
-            sendAction({ type: "insert-structure", kind: "sqrt" })
-          }
+          onClick={() => sendAction({ type: "insert-structure", kind: "sqrt" })}
         />
         <FormulaBtn
           label="ⁿ√"
@@ -865,8 +849,14 @@ const FormularPanel = memo(({ editor }: { editor: Editor }) => {
       </FormulaGroup>
 
       <FormulaGroup title="Logarithms" defaultOpen={false}>
-        <FormulaBtn label="log" onClick={() => sendAction({ type: "insert-log" })} />
-        <FormulaBtn label="ln" onClick={() => sendAction({ type: "insert-ln" })} />
+        <FormulaBtn
+          label="log"
+          onClick={() => sendAction({ type: "insert-log" })}
+        />
+        <FormulaBtn
+          label="ln"
+          onClick={() => sendAction({ type: "insert-ln" })}
+        />
       </FormulaGroup>
 
       <FormulaGroup title="Constants" defaultOpen={false}>
@@ -952,40 +942,85 @@ const FormularPanel = memo(({ editor }: { editor: Editor }) => {
 const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
   <div className="flex flex-col gap-1.5">
     <PanelLabel>Choose Block Type</PanelLabel>
-    <div className="grid grid-cols-1 gap-1.5 px-2 py-0.5">
+    <div className="grid grid-cols-1 gap-3 px-2 py-0.5">
       <SpecialBlockBtn
-        icon={HelpCircle}
         label="Multiple Choice Question"
-        description="Students pick one answer from options."
-        tip="Best for: quick concept checks"
+        preview={
+          <div className="space-y-1.5 text-[11px]">
+            <p className="line-clamp-1 font-medium text-muted-foreground">
+              The force makes speed...
+            </p>
+            <div className="rounded border border-border bg-background/80 px-2 py-1 text-muted-foreground">
+              ○ increase
+            </div>
+            <div className="rounded border border-border bg-background/80 px-2 py-1 text-muted-foreground">
+              ○ decrease
+            </div>
+          </div>
+        }
         onClick={() => editor.chain().focus().insertQuestionChoice().run()}
       />
       <SpecialBlockBtn
-        icon={PenSquare}
         label="Written Reflection"
-        description="Students type a short answer in their own words."
-        tip="Best for: understanding and reasoning"
+        preview={
+          <div className="space-y-1.5 text-[11px]">
+            <p className="line-clamp-1 font-medium text-muted-foreground">
+              Explain why this happens:
+            </p>
+            <div className="rounded border border-border bg-background/80 px-2 py-1 text-muted-foreground">
+              Your answer...
+            </div>
+          </div>
+        }
         onClick={() => editor.chain().focus().insertQuestionWrite().run()}
       />
       <SpecialBlockBtn
-        icon={BetweenHorizonalStart}
-        label="Fill in the Blank (Write)"
-        description="Students type the missing word or phrase."
-        tip="Best for: recall and vocabulary"
-        onClick={() => editor.chain().focus().insertQuestionBlankWrite().run()}
-      />
-      <SpecialBlockBtn
-        icon={HelpCircle}
         label="Fill in the Blank (Choice)"
-        description="Students choose the missing word from options."
-        tip="Best for: scaffolded practice"
+        preview={
+          <div className="space-y-1.5 text-[11px] text-muted-foreground">
+            <p className="line-clamp-1">
+              Force and motion are{" "}
+              <span className="inline-block h-[1.1em] w-14 rounded-sm border-b-2 border-border/80 align-middle" />
+            </p>
+            <div className="flex flex-wrap gap-1">
+              <span className="rounded border border-border px-1.5 py-0.5">
+                related
+              </span>
+              <span className="rounded border border-border px-1.5 py-0.5">
+                random
+              </span>
+            </div>
+          </div>
+        }
         onClick={() => editor.chain().focus().insertQuestionBlankChoice().run()}
       />
       <SpecialBlockBtn
-        icon={Bot}
+        label="Fill in the Blank (Write)"
+        preview={
+          <div className="space-y-1.5 text-[11px] text-muted-foreground">
+            <p className="line-clamp-1">
+              The formula is{" "}
+              <span className="inline-block h-[1.1em] w-14 rounded-sm border-b-2 border-border/80 align-middle" />
+            </p>
+            <div className="rounded border border-border bg-background/80 px-2 py-1">
+              Type missing word...
+            </div>
+          </div>
+        }
+        onClick={() => editor.chain().focus().insertQuestionBlankWrite().run()}
+      />
+      <SpecialBlockBtn
         label="Ask AI Helper"
-        description="Student can ask AI for hint or explanation."
-        tip="Best for: self-study support"
+        preview={
+          <div className="space-y-1.5 text-[11px]">
+            <p className="line-clamp-1 font-medium text-muted-foreground">
+              Ask for a hint:
+            </p>
+            <div className="rounded border border-border bg-background/80 px-2 py-1 text-muted-foreground">
+              Why does this answer work?
+            </div>
+          </div>
+        }
         onClick={() => editor.chain().focus().insertQuestionAgent().run()}
       />
     </div>

@@ -25,8 +25,10 @@ export default function FeedbackDiscussionPanel({
   const [draft, setDraft] = useState("");
   const hasMessages = messages.length > 0;
   const buttonLabel = useMemo(() => {
-    if (open) return "Hide discussion";
-    return hasMessages ? `Talk with AI again (${messages.length})` : "Talk with AI";
+    if (open) return "Hide follow-up";
+    return hasMessages
+      ? `Submit another answer? (${messages.length})`
+      : "Submit another answer?";
   }, [hasMessages, messages.length, open]);
 
   const submit = async () => {
@@ -71,7 +73,7 @@ export default function FeedbackDiscussionPanel({
             </div>
           ) : (
             <p className="text-sm text-gray-400">
-              Ask a follow-up question to discuss this feedback more deeply.
+              Improve your answer and ask for another quick feedback round.
             </p>
           )}
 
@@ -86,7 +88,7 @@ export default function FeedbackDiscussionPanel({
                   void submit();
                 }
               }}
-              placeholder="Reply to AI feedback..."
+              placeholder="Try another answer or ask follow-up..."
               className="flex-1 resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-base text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
             />
             <button
@@ -96,7 +98,7 @@ export default function FeedbackDiscussionPanel({
               className="flex h-10 items-center gap-1 rounded-lg bg-violet-600 px-3 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <SendHorizontal className="h-3.5 w-3.5" />
-              Send
+              Submit
             </button>
           </div>
           <div className="flex justify-end">
