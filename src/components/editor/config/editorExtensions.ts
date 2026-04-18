@@ -22,6 +22,7 @@ import { QuestionBlankWriteNode } from "../extensions/QuestionBlankWriteNode";
 import { QuestionBlankChoiceNode } from "../extensions/QuestionBlankChoiceNode";
 import { QuestionAgentNode } from "../extensions/QuestionAgentNode";
 import { createResizableImage } from "../extensions/ResizableImage";
+import { FormulaBlockNode } from "../FormulaBlock";
 
 export const createEditorExtensions = (editable = true) => [
   StarterKit.configure({
@@ -70,6 +71,7 @@ export const createEditorExtensions = (editable = true) => [
   TaskItem.configure({ nested: true }),
   SearchHighlightExtension,
   FabricCanvasNode,
+  FormulaBlockNode,
   QuestionChoiceNode,
   QuestionWriteNode,
   QuestionBlankWriteNode,

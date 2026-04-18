@@ -65,14 +65,15 @@ function startImageResize(
     const dy = moveEvent.clientY - startY;
 
     if (nearRight && nearBottom) {
-      // Lock ratio while corner dragging by scaling both dimensions
-      // from the same factor (prevents skew during movement).
-      const scaleFromX = (safeStartWidth + dx) / safeStartWidth;
-      const scaleFromY = (safeStartHeight + dy) / safeStartHeight;
-      const scale = Math.max(scaleFromX, scaleFromY, MIN_IMAGE_SIZE_PX / safeStartWidth);
-
-      nextWidth = clampSize(safeStartWidth * scale);
-      nextHeight = clampSize(nextWidth / aspectRatio);
+      // Keep aspect ratio even for corner drag by using
+      // whichever axis changed more as the driving dimension.
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        nextWidth = clampSize(safeStartWidth + dx);
+        nextHeight = clampSize(nextWidth / aspectRatio);
+      } else {
+        nextHeight = clampSize(safeStartHeight + dy);
+        nextWidth = clampSize(nextHeight * aspectRatio);
+      }
     } else if (nearRight) {
       nextWidth = clampSize(safeStartWidth + dx);
       nextHeight = clampSize(nextWidth / aspectRatio);

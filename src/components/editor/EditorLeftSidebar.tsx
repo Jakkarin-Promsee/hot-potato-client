@@ -25,10 +25,14 @@ import {
   PenSquare,
   BetweenHorizonalStart,
   Bot,
+  Sigma,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { useUploadStore } from "@/stores/cloudinary.store";
 import { useCategoryStore } from "@/stores/category.store";
 import CloudinaryUpload from "@/components/CloudinaryUpload";
+import { emitFormulaToolbarAction } from "./FormulaBlock/formulaToolbarBus";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -50,7 +54,7 @@ const ALIGN_OPTIONS = [
   { icon: AlignJustify, align: "justify" },
 ] as const;
 
-type CategoryKey = "text" | "media" | "special";
+type CategoryKey = "text" | "media" | "formular" | "special";
 type TextAlign = "left" | "center" | "right" | "justify";
 
 interface LeftActiveFormats {
@@ -84,6 +88,7 @@ const CATEGORIES: {
 }[] = [
   { key: "text", icon: Type, label: "Text" },
   { key: "media", icon: Images, label: "Media" },
+  { key: "formular", icon: Sigma, label: "Formlar" },
   { key: "special", icon: LayoutDashboard, label: "Special" },
 ];
 
@@ -218,6 +223,58 @@ const PanelLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="px-2 pt-2 pb-0.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 block">
     {children}
   </span>
+);
+
+const FormulaGroup = memo(
+  ({
+    title,
+    defaultOpen = true,
+    children,
+  }: {
+    title: string;
+    defaultOpen?: boolean;
+    children: React.ReactNode;
+  }) => {
+    const [open, setOpen] = useState(defaultOpen);
+    return (
+      <div className="rounded-md border border-border/70 bg-background/50">
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          className="flex w-full items-center justify-between px-2.5 py-2 text-left text-[11px] font-semibold text-foreground"
+        >
+          <span>{title}</span>
+          {open ? (
+            <ChevronDown size={13} className="text-muted-foreground" />
+          ) : (
+            <ChevronRight size={13} className="text-muted-foreground" />
+          )}
+        </button>
+        {open && <div className="grid grid-cols-3 gap-1.5 px-2 pb-2">{children}</div>}
+      </div>
+    );
+  },
+);
+
+const FormulaBtn = memo(
+  ({
+    label,
+    onClick,
+    title,
+  }: {
+    label: string;
+    onClick: () => void;
+    title?: string;
+  }) => (
+    <button
+      type="button"
+      title={title ?? label}
+      onClick={onClick}
+      className="rounded-md border border-border/70 bg-background/60 px-1.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border hover:bg-accent/45 hover:text-foreground"
+    >
+      {label}
+    </button>
+  ),
 );
 
 // ─── Gallery modal ────────────────────────────────────────────────────────────
@@ -655,6 +712,214 @@ const TextPanel = memo(
   },
 );
 
+const FormularPanel = memo(({ editor }: { editor: Editor }) => {
+  const ensureFormulaBlock = useCallback(() => {
+    if (editor.isActive("formulaBlock")) return;
+    editor.chain().focus().insertFormulaBlock().run();
+  }, [editor]);
+
+  const sendAction = useCallback(
+    (action: Parameters<typeof emitFormulaToolbarAction>[0]) => {
+      ensureFormulaBlock();
+      emitFormulaToolbarAction(action);
+    },
+    [ensureFormulaBlock],
+  );
+
+  return (
+    <div className="flex flex-col gap-2 px-1 pb-1">
+      <div className="px-1 pb-1">
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().insertFormulaBlock().run()}
+          className="w-full rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
+        >
+          Add Formula Block
+        </button>
+      </div>
+
+      <FormulaGroup title="Powers & indices" defaultOpen>
+        <FormulaBtn
+          label="x²"
+          onClick={() =>
+            sendAction({ type: "insert-power", position: "top-right" })
+          }
+        />
+        <FormulaBtn
+          label="x₂"
+          onClick={() =>
+            sendAction({ type: "insert-power", position: "bottom-right" })
+          }
+        />
+        <FormulaBtn
+          label="²x"
+          onClick={() =>
+            sendAction({ type: "insert-power", position: "top-left" })
+          }
+        />
+        <FormulaBtn
+          label="₂x"
+          onClick={() =>
+            sendAction({ type: "insert-power", position: "bottom-left" })
+          }
+        />
+      </FormulaGroup>
+
+      <FormulaGroup title="Structure" defaultOpen>
+        <FormulaBtn
+          label="√"
+          onClick={() =>
+            sendAction({ type: "insert-structure", kind: "sqrt" })
+          }
+        />
+        <FormulaBtn
+          label="ⁿ√"
+          onClick={() =>
+            sendAction({ type: "insert-structure", kind: "nth-root" })
+          }
+        />
+        <FormulaBtn
+          label="a/b"
+          onClick={() =>
+            sendAction({ type: "insert-structure", kind: "fraction" })
+          }
+        />
+        <FormulaBtn
+          label="|x|"
+          onClick={() => sendAction({ type: "insert-structure", kind: "abs" })}
+        />
+        <FormulaBtn
+          label="( )"
+          onClick={() =>
+            sendAction({ type: "insert-structure", kind: "paren" })
+          }
+        />
+        <FormulaBtn
+          label="[ ]"
+          onClick={() =>
+            sendAction({ type: "insert-structure", kind: "bracket" })
+          }
+        />
+        <FormulaBtn
+          label="Σ"
+          onClick={() =>
+            sendAction({ type: "insert-structure", kind: "summation" })
+          }
+        />
+      </FormulaGroup>
+
+      <FormulaGroup title="Trig" defaultOpen={false}>
+        {["sin", "cos", "tan", "cot", "sec", "csc"].map((fn) => (
+          <FormulaBtn
+            key={fn}
+            label={fn}
+            onClick={() =>
+              sendAction({
+                type: "insert-trig",
+                name: fn as "sin" | "cos" | "tan" | "cot" | "sec" | "csc",
+              })
+            }
+          />
+        ))}
+        {["sin", "cos", "tan"].map((fn) => (
+          <FormulaBtn
+            key={`${fn}-1`}
+            label={`${fn}⁻¹`}
+            onClick={() =>
+              sendAction({
+                type: "insert-invtrig",
+                name: fn as "sin" | "cos" | "tan",
+              })
+            }
+          />
+        ))}
+      </FormulaGroup>
+
+      <FormulaGroup title="Logarithms" defaultOpen={false}>
+        <FormulaBtn label="log" onClick={() => sendAction({ type: "insert-log" })} />
+        <FormulaBtn label="ln" onClick={() => sendAction({ type: "insert-ln" })} />
+      </FormulaGroup>
+
+      <FormulaGroup title="Constants" defaultOpen={false}>
+        {["π", "e", "∞", "φ", "i"].map((s) => (
+          <FormulaBtn
+            key={s}
+            label={s}
+            onClick={() => sendAction({ type: "insert-symbol", value: s })}
+          />
+        ))}
+      </FormulaGroup>
+
+      <FormulaGroup title="Operators & relations" defaultOpen={false}>
+        {[
+          "+",
+          "−",
+          "×",
+          "÷",
+          "±",
+          "=",
+          "≠",
+          "<",
+          ">",
+          "≤",
+          "≥",
+          "≈",
+          "∝",
+          "→",
+          "⇒",
+          "⟺",
+        ].map((s) => (
+          <FormulaBtn
+            key={s}
+            label={s}
+            onClick={() => sendAction({ type: "insert-symbol", value: s })}
+          />
+        ))}
+      </FormulaGroup>
+
+      <FormulaGroup title="Physics symbols" defaultOpen={false}>
+        <FormulaBtn
+          label="∫"
+          onClick={() =>
+            sendAction({ type: "insert-structure", kind: "integral" })
+          }
+        />
+        <FormulaBtn
+          label="∮"
+          onClick={() =>
+            sendAction({ type: "insert-structure", kind: "line-integral" })
+          }
+        />
+        {["Δ", "∂", "∇", "ℏ", "F_g", "v_x", "a_y"].map((s) => (
+          <FormulaBtn
+            key={s}
+            label={s}
+            onClick={() => sendAction({ type: "insert-symbol", value: s })}
+          />
+        ))}
+      </FormulaGroup>
+
+      <FormulaGroup title="Wrap selected" defaultOpen={false}>
+        <FormulaBtn
+          label="/"
+          title="Wrap selected node in fraction"
+          onClick={() => sendAction({ type: "wrap-fraction" })}
+        />
+        <FormulaBtn
+          label="^"
+          title="Wrap selected node in power"
+          onClick={() => sendAction({ type: "wrap-power-top-right" })}
+        />
+        <FormulaBtn
+          label="(x)"
+          title="Wrap selected node in parentheses"
+          onClick={() => sendAction({ type: "wrap-paren" })}
+        />
+      </FormulaGroup>
+    </div>
+  );
+});
+
 const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
   <div className="flex flex-col gap-1.5">
     <PanelLabel>Choose Block Type</PanelLabel>
@@ -744,6 +1009,8 @@ const EditorLeftSidebar = ({
         return <TextPanel editor={editor} active={active} />;
       case "media":
         return <MediaPanel editor={editor} />;
+      case "formular":
+        return <FormularPanel editor={editor} />;
       case "special":
         return <SpecialPanel editor={editor} />;
     }
