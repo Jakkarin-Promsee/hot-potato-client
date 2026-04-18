@@ -1,4 +1,5 @@
 import api from "@/lib/axios";
+import type { QuestionFeedbackMode } from "./questionMode";
 
 export interface FeedbackRequestPayload {
   question: string;
@@ -7,12 +8,14 @@ export interface FeedbackRequestPayload {
   evaluationLevel: "correct" | "almost" | "incorrect";
   accuracyPercent: number;
   diagnostics?: string;
+  feedbackMode?: QuestionFeedbackMode;
 }
 
 export interface WriteEvaluationPayload {
   question: string;
   guideAnswer: string;
   studentAnswer: string;
+  feedbackMode?: QuestionFeedbackMode;
 }
 
 export interface FeedbackFollowupMessage {
@@ -27,6 +30,7 @@ export interface FeedbackFollowupPayload {
   followupQuestion: string;
   thread: FeedbackFollowupMessage[];
   expectedAnswer?: string;
+  feedbackMode?: QuestionFeedbackMode;
 }
 
 const FALLBACK_FEEDBACK =
@@ -90,5 +94,6 @@ export async function requestFeedbackFollowup(
     ]
       .filter(Boolean)
       .join("\n\n"),
+    feedbackMode: payload.feedbackMode,
   });
 }

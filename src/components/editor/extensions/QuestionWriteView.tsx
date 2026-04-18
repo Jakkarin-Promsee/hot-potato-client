@@ -11,6 +11,8 @@ import {
 import FeedbackDiscussionPanel, {
   type FeedbackThreadMessage,
 } from "./FeedbackDiscussionPanel";
+import QuestionFeedbackModeToggle from "./QuestionFeedbackModeToggle";
+import type { QuestionFeedbackMode } from "./questionMode";
 import {
   requestFeedbackFollowup,
   requestWriteEvaluation,
@@ -20,6 +22,7 @@ export interface QuestionWriteAttrs {
   id: string;
   question: string;
   answer: string;
+  feedbackMode: QuestionFeedbackMode;
 }
 
 interface BlockAnswer {
@@ -53,34 +56,52 @@ function useAutoGrow(value: string) {
 interface CreatorViewProps {
   initialQuestion: string;
   initialAnswer: string;
-  onFlush: (question: string, answer: string) => void;
+  initialFeedbackMode: QuestionFeedbackMode;
+  onFlush: (
+    question: string,
+    answer: string,
+    feedbackMode: QuestionFeedbackMode,
+  ) => void;
 }
 
 function CreatorView({
   initialQuestion,
   initialAnswer,
+  initialFeedbackMode,
   onFlush,
 }: CreatorViewProps) {
   const [question, setQuestion] = useState(initialQuestion);
   const [answer, setAnswer] = useState(initialAnswer);
+  const [feedbackMode, setFeedbackMode] = useState<QuestionFeedbackMode>(
+    initialFeedbackMode,
+  );
   const questionRef = useAutoGrow(question);
   const answerRef = useAutoGrow(answer);
 
   useEffect(() => setQuestion(initialQuestion), [initialQuestion]);
   useEffect(() => setAnswer(initialAnswer), [initialAnswer]);
+  useEffect(() => setFeedbackMode(initialFeedbackMode), [initialFeedbackMode]);
 
   return (
     <div
       className="flex flex-col gap-3"
       onMouseDown={(e) => e.stopPropagation()}
     >
+      <QuestionFeedbackModeToggle
+        mode={feedbackMode}
+        onChange={(nextMode) => {
+          setFeedbackMode(nextMode);
+          onFlush(question, answer, nextMode);
+        }}
+      />
+
       <textarea
         ref={questionRef}
         rows={1}
         value={question}
         placeholder="Type your writing question here..."
         onChange={(e) => setQuestion(e.target.value)}
-        onBlur={() => onFlush(question, answer)}
+        onBlur={() => onFlush(question, answer, feedbackMode)}
         className="w-full resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-base font-medium text-gray-900 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
       />
 
@@ -90,7 +111,7 @@ function CreatorView({
         value={answer}
         placeholder="Set the correct writing answer..."
         onChange={(e) => setAnswer(e.target.value)}
-        onBlur={() => onFlush(question, answer)}
+        onBlur={() => onFlush(question, answer, feedbackMode)}
         className="w-full resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-base text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
       />
     </div>
@@ -102,7 +123,7 @@ interface ViewerViewProps {
 }
 
 function ViewerView({ attrs }: ViewerViewProps) {
-  const { id: blockId, question, answer } = attrs;
+  const { id: blockId, question, answer, feedbackMode } = attrs;
   const answers = useAnswerStore((s) => s.answers);
   const setAnswer = useAnswerStore((s) => s.setAnswer);
 
@@ -162,6 +183,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
         question: question || "Writing question",
         guideAnswer: answer,
         studentAnswer: input,
+        feedbackMode,
       });
       setAiFeedback(feedback);
       persistAnswer({
@@ -211,6 +233,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
           initialFeedback: aiFeedback,
           followupQuestion: message,
           expectedAnswer: answer,
+          feedbackMode,
           thread: threadWithStudent.map((entry) => ({
             role: entry.role,
             text: entry.text,
@@ -228,7 +251,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
         setIsThreadLoading(false);
       }
     },
-    [aiFeedback, answer, feedbackThread, input, persistAnswer, question],
+    [aiFeedback, answer, feedbackMode, feedbackThread, input, persistAnswer, question],
   );
 
   return (
@@ -330,8 +353,12 @@ export default function QuestionWriteView({
   const [previewMode, setPreviewMode] = useState(false);
 
   const handleFlush = useCallback(
-    (question: string, answer: string) => {
-      updateAttributes({ question, answer });
+    (
+      question: string,
+      answer: string,
+      feedbackMode: QuestionFeedbackMode,
+    ) => {
+      updateAttributes({ question, answer, feedbackMode });
     },
     [updateAttributes],
   );
@@ -404,6 +431,7 @@ export default function QuestionWriteView({
           <CreatorView
             initialQuestion={attrs.question}
             initialAnswer={attrs.answer}
+            initialFeedbackMode={attrs.feedbackMode}
             onFlush={handleFlush}
           />
         ) : (

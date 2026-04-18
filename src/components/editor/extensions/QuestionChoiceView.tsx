@@ -5,6 +5,8 @@ import { useAnswerStore } from "@/stores/content-answer.store";
 import FeedbackDiscussionPanel, {
   type FeedbackThreadMessage,
 } from "./FeedbackDiscussionPanel";
+import QuestionFeedbackModeToggle from "./QuestionFeedbackModeToggle";
+import type { QuestionFeedbackMode } from "./questionMode";
 import {
   requestFeedbackFollowup,
   requestQuestionFeedback,
@@ -34,6 +36,7 @@ export interface QuestionChoiceAttrs {
   question: string;
   choices: Choice[];
   answerType: "single" | "multi";
+  feedbackMode: QuestionFeedbackMode;
 }
 
 // ─── Auto-grow hook ───────────────────────────────────────────────────────────
@@ -127,15 +130,18 @@ interface CreatorViewProps {
   initialQuestion: string;
   initialChoices: Choice[];
   initialAnswerType: "single" | "multi";
+  initialFeedbackMode: QuestionFeedbackMode;
   onFlush: (
     question: string,
     choices: Choice[],
     answerType: "single" | "multi",
+    feedbackMode: QuestionFeedbackMode,
   ) => void;
   onCommit: (
     question: string,
     choices: Choice[],
     answerType: "single" | "multi",
+    feedbackMode: QuestionFeedbackMode,
   ) => void;
 }
 
@@ -143,12 +149,15 @@ function CreatorView({
   initialQuestion,
   initialChoices,
   initialAnswerType,
+  initialFeedbackMode,
   onFlush,
   onCommit,
 }: CreatorViewProps) {
   const [question, setQuestion] = useState(initialQuestion);
   const [choices, setChoices] = useState(initialChoices);
   const [answerType, setAnswerType] = useState(initialAnswerType);
+  const [feedbackMode, setFeedbackMode] =
+    useState<QuestionFeedbackMode>(initialFeedbackMode);
   const questionRef = useAutoGrow(question);
 
   // Re-sync on undo/redo
@@ -161,8 +170,11 @@ function CreatorView({
   useEffect(() => {
     setAnswerType(initialAnswerType);
   }, [initialAnswerType]);
+  useEffect(() => {
+    setFeedbackMode(initialFeedbackMode);
+  }, [initialFeedbackMode]);
 
-  const flush = () => onFlush(question, choices, answerType);
+  const flush = () => onFlush(question, choices, answerType, feedbackMode);
 
   const handleToggleAnswerType = () => {
     const next = answerType === "single" ? "multi" : "single";
@@ -182,7 +194,7 @@ function CreatorView({
         : choices;
     setAnswerType(next);
     setChoices(nextChoices);
-    onCommit(question, nextChoices, next);
+    onCommit(question, nextChoices, next, feedbackMode);
   };
 
   const handleToggleCorrect = (index: number) => {
@@ -193,7 +205,7 @@ function CreatorView({
             i === index ? { ...c, correct: !c.correct } : c,
           );
     setChoices(next);
-    onCommit(question, next, answerType);
+    onCommit(question, next, answerType, feedbackMode);
   };
 
   const handleAddChoice = () => {
@@ -202,13 +214,13 @@ function CreatorView({
       { text: `Option ${choices.length + 1}`, correct: false },
     ];
     setChoices(next);
-    onCommit(question, next, answerType);
+    onCommit(question, next, answerType, feedbackMode);
   };
 
   const handleRemoveChoice = (index: number) => {
     const next = choices.filter((_, i) => i !== index);
     setChoices(next);
-    onCommit(question, next, answerType);
+    onCommit(question, next, answerType, feedbackMode);
   };
 
   return (
@@ -216,6 +228,14 @@ function CreatorView({
       className="flex flex-col gap-3"
       onMouseDown={(e) => e.stopPropagation()}
     >
+      <QuestionFeedbackModeToggle
+        mode={feedbackMode}
+        onChange={(nextMode) => {
+          setFeedbackMode(nextMode);
+          onCommit(question, choices, answerType, nextMode);
+        }}
+      />
+
       {/* Answer type toggle */}
       <div className="flex items-center gap-2">
         <span className="text-xs text-gray-400">Answer type:</span>
@@ -303,7 +323,7 @@ interface BlockAnswer {
 }
 
 function ViewerView({ attrs }: ViewerViewProps) {
-  const { question, choices, answerType } = attrs;
+  const { question, choices, answerType, feedbackMode } = attrs;
   const blockId = (attrs as any).id as string;
 
   // ── Store ──────────────────────────────────────────────────────
@@ -448,6 +468,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
         evaluationLevel,
         accuracyPercent,
         diagnostics: `missedCorrect=${missedCorrect || "(none)"}; wrongSelected=${wrongSelected || "(none)"}`,
+        feedbackMode,
       });
       setAiFeedback(feedback);
       persistAnswer({
@@ -510,6 +531,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
           initialFeedback: aiFeedback,
           followupQuestion: message,
           expectedAnswer: correctAnswer,
+          feedbackMode,
           thread: threadWithStudent.map((entry) => ({
             role: entry.role,
             text: entry.text,
@@ -527,7 +549,15 @@ function ViewerView({ attrs }: ViewerViewProps) {
         setIsThreadLoading(false);
       }
     },
-    [aiFeedback, choices, feedbackThread, persistAnswer, question, selectedIndices],
+    [
+      aiFeedback,
+      choices,
+      feedbackMode,
+      feedbackThread,
+      persistAnswer,
+      question,
+      selectedIndices,
+    ],
   );
 
   // ── Rest of your existing JSX — just replace state references ──
@@ -712,15 +742,25 @@ export default function QuestionChoiceView({
   const [previewMode, setPreviewMode] = useState(false);
 
   const handleFlush = useCallback(
-    (question: string, choices: Choice[], answerType: "single" | "multi") => {
-      updateAttributes({ question, choices, answerType });
+    (
+      question: string,
+      choices: Choice[],
+      answerType: "single" | "multi",
+      feedbackMode: QuestionFeedbackMode,
+    ) => {
+      updateAttributes({ question, choices, answerType, feedbackMode });
     },
     [updateAttributes],
   );
 
   const handleCommit = useCallback(
-    (question: string, choices: Choice[], answerType: "single" | "multi") => {
-      updateAttributes({ question, choices, answerType });
+    (
+      question: string,
+      choices: Choice[],
+      answerType: "single" | "multi",
+      feedbackMode: QuestionFeedbackMode,
+    ) => {
+      updateAttributes({ question, choices, answerType, feedbackMode });
     },
     [updateAttributes],
   );
@@ -794,6 +834,7 @@ export default function QuestionChoiceView({
             initialQuestion={attrs.question}
             initialChoices={attrs.choices}
             initialAnswerType={attrs.answerType}
+            initialFeedbackMode={attrs.feedbackMode}
             onFlush={handleFlush}
             onCommit={handleCommit}
           />

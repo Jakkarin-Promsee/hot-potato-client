@@ -5,10 +5,12 @@ import { useAnswerStore } from "@/stores/content-answer.store";
 import FeedbackDiscussionPanel, {
   type FeedbackThreadMessage,
 } from "./FeedbackDiscussionPanel";
+import QuestionFeedbackModeToggle from "./QuestionFeedbackModeToggle";
 import {
   requestFeedbackFollowup,
   requestQuestionFeedback,
 } from "./questionFeedbackApi";
+import type { QuestionFeedbackMode } from "./questionMode";
 import { Check, Eye, EyeOff, HelpCircle, SquareDashedMousePointer, X } from "lucide-react";
 import type { QuestionBlankChoiceAttrs } from "./QuestionBlankChoiceNode";
 
@@ -85,10 +87,12 @@ interface CreatorViewProps {
   initialTemplate: string;
   initialChoices: string[];
   initialCorrectByBlank: number[];
+  initialFeedbackMode: QuestionFeedbackMode;
   onFlush: (
     template: string,
     choices: string[],
     correctByBlank: number[],
+    feedbackMode: QuestionFeedbackMode,
   ) => void;
 }
 
@@ -96,16 +100,21 @@ function CreatorView({
   initialTemplate,
   initialChoices,
   initialCorrectByBlank,
+  initialFeedbackMode,
   onFlush,
 }: CreatorViewProps) {
   const [template, setTemplate] = useState(initialTemplate);
   const [choices, setChoices] = useState(initialChoices);
   const [correctByBlank, setCorrectByBlank] = useState(initialCorrectByBlank);
+  const [feedbackMode, setFeedbackMode] = useState<QuestionFeedbackMode>(
+    initialFeedbackMode,
+  );
   const templateRef = useAutoGrow(template);
 
   useEffect(() => setTemplate(initialTemplate), [initialTemplate]);
   useEffect(() => setChoices(initialChoices), [initialChoices]);
   useEffect(() => setCorrectByBlank(initialCorrectByBlank), [initialCorrectByBlank]);
+  useEffect(() => setFeedbackMode(initialFeedbackMode), [initialFeedbackMode]);
 
   const blankIndices = useMemo(() => getBlankIndices(template), [template]);
   const previewPieces = useMemo(() => renderTemplatePieces(template), [template]);
@@ -115,9 +124,9 @@ function CreatorView({
       const safeCorrect = remapCorrectByBlank(template, nextCorrect, nextTemplate).map(
         (v) => (v >= 0 && v < nextChoices.length ? v : -1),
       );
-      onFlush(nextTemplate, nextChoices, safeCorrect);
+      onFlush(nextTemplate, nextChoices, safeCorrect, feedbackMode);
     },
-    [onFlush, template],
+    [feedbackMode, onFlush, template],
   );
 
   const insertTokenAtCursor = (token: string) => {
@@ -146,11 +155,19 @@ function CreatorView({
     );
     setChoices(nextChoices);
     setCorrectByBlank(nextCorrect);
-    onFlush(template, nextChoices, nextCorrect);
+    onFlush(template, nextChoices, nextCorrect, feedbackMode);
   };
 
   return (
     <div className="flex flex-col gap-3" onMouseDown={(e) => e.stopPropagation()}>
+      <QuestionFeedbackModeToggle
+        mode={feedbackMode}
+        onChange={(nextMode) => {
+          setFeedbackMode(nextMode);
+          onFlush(template, choices, correctByBlank, nextMode);
+        }}
+      />
+
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -255,7 +272,7 @@ function CreatorView({
                   const next = [...correctByBlank];
                   next[pos] = Number(e.target.value);
                   setCorrectByBlank(next);
-                  onFlush(template, choices, next);
+                  onFlush(template, choices, next, feedbackMode);
                 }}
                 className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-base text-gray-800 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
               >
@@ -275,7 +292,7 @@ function CreatorView({
 }
 
 function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
-  const { id: blockId, template, choices, correctByBlank } = attrs;
+  const { id: blockId, template, choices, correctByBlank, feedbackMode } = attrs;
   const answers = useAnswerStore((s) => s.answers);
   const setAnswer = useAnswerStore((s) => s.setAnswer);
 
@@ -427,6 +444,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
         evaluationLevel,
         accuracyPercent,
         diagnostics,
+        feedbackMode,
       });
       setAiFeedback(feedback);
       persistAnswer({
@@ -492,6 +510,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
           initialFeedback: aiFeedback,
           followupQuestion: message,
           expectedAnswer,
+          feedbackMode,
           thread: threadWithStudent.map((entry) => ({
             role: entry.role,
             text: entry.text,
@@ -514,6 +533,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
       blankIndices,
       choices,
       correctByBlank,
+      feedbackMode,
       feedbackThread,
       persistAnswer,
       placedByBlank,
@@ -685,8 +705,13 @@ export default function QuestionBlankChoiceView({
   const [previewMode, setPreviewMode] = useState(false);
 
   const handleFlush = useCallback(
-    (template: string, choices: string[], correctByBlank: number[]) => {
-      updateAttributes({ template, choices, correctByBlank });
+    (
+      template: string,
+      choices: string[],
+      correctByBlank: number[],
+      feedbackMode: QuestionFeedbackMode,
+    ) => {
+      updateAttributes({ template, choices, correctByBlank, feedbackMode });
     },
     [updateAttributes],
   );
@@ -760,6 +785,7 @@ export default function QuestionBlankChoiceView({
             initialTemplate={attrs.template}
             initialChoices={attrs.choices}
             initialCorrectByBlank={attrs.correctByBlank}
+            initialFeedbackMode={attrs.feedbackMode}
             onFlush={handleFlush}
           />
         ) : (

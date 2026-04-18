@@ -5,10 +5,12 @@ import { useAnswerStore } from "@/stores/content-answer.store";
 import FeedbackDiscussionPanel, {
   type FeedbackThreadMessage,
 } from "./FeedbackDiscussionPanel";
+import QuestionFeedbackModeToggle from "./QuestionFeedbackModeToggle";
 import {
   requestFeedbackFollowup,
   requestQuestionFeedback,
 } from "./questionFeedbackApi";
+import type { QuestionFeedbackMode } from "./questionMode";
 import { Eye, EyeOff, HelpCircle, SquareDashedMousePointer } from "lucide-react";
 import type { QuestionBlankWriteAttrs } from "./QuestionBlankWriteNode";
 
@@ -124,29 +126,39 @@ const renderTemplatePieces = (template: string) => {
 interface CreatorViewProps {
   initialTemplate: string;
   initialBlankAnswers: string[];
-  onFlush: (template: string, blankAnswers: string[]) => void;
+  initialFeedbackMode: QuestionFeedbackMode;
+  onFlush: (
+    template: string,
+    blankAnswers: string[],
+    feedbackMode: QuestionFeedbackMode,
+  ) => void;
 }
 
 function CreatorView({
   initialTemplate,
   initialBlankAnswers,
+  initialFeedbackMode,
   onFlush,
 }: CreatorViewProps) {
   const [template, setTemplate] = useState(initialTemplate);
   const [blankAnswers, setBlankAnswers] = useState(initialBlankAnswers);
+  const [feedbackMode, setFeedbackMode] = useState<QuestionFeedbackMode>(
+    initialFeedbackMode,
+  );
   const templateRef = useAutoGrow(template);
 
   useEffect(() => setTemplate(initialTemplate), [initialTemplate]);
   useEffect(() => setBlankAnswers(initialBlankAnswers), [initialBlankAnswers]);
+  useEffect(() => setFeedbackMode(initialFeedbackMode), [initialFeedbackMode]);
 
   const indices = useMemo(() => getBlankIndices(template), [template]);
 
   const flush = useCallback(
     (nextTemplate: string, nextAnswers: string[]) => {
       const fixedAnswers = buildAnswers(template, nextAnswers, nextTemplate);
-      onFlush(nextTemplate, fixedAnswers);
+      onFlush(nextTemplate, fixedAnswers, feedbackMode);
     },
-    [onFlush, template],
+    [feedbackMode, onFlush, template],
   );
 
   const insertTokenAtCursor = useCallback(
@@ -180,6 +192,14 @@ function CreatorView({
 
   return (
     <div className="flex flex-col gap-3" onMouseDown={(e) => e.stopPropagation()}>
+      <QuestionFeedbackModeToggle
+        mode={feedbackMode}
+        onChange={(nextMode) => {
+          setFeedbackMode(nextMode);
+          onFlush(template, blankAnswers, nextMode);
+        }}
+      />
+
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -275,7 +295,7 @@ function CreatorView({
 }
 
 function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
-  const { id: blockId, template, blankAnswers } = attrs;
+  const { id: blockId, template, blankAnswers, feedbackMode } = attrs;
   const answers = useAnswerStore((s) => s.answers);
   const setAnswer = useAnswerStore((s) => s.setAnswer);
 
@@ -370,6 +390,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
         accuracyPercent: 0,
         diagnostics:
           "Open-ended blank writing response; avoid exact correctness judgement.",
+        feedbackMode,
       });
       setAiFeedback(feedback);
       persistAnswer({
@@ -432,6 +453,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
           initialFeedback: aiFeedback,
           followupQuestion: message,
           expectedAnswer,
+          feedbackMode,
           thread: threadWithStudent.map((entry) => ({
             role: entry.role,
             text: entry.text,
@@ -449,7 +471,16 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
         setIsThreadLoading(false);
       }
     },
-    [aiFeedback, blankAnswers, blankIndices, feedbackThread, inputs, persistAnswer, template],
+    [
+      aiFeedback,
+      blankAnswers,
+      blankIndices,
+      feedbackMode,
+      feedbackThread,
+      inputs,
+      persistAnswer,
+      template,
+    ],
   );
 
   if (blankIndices.length === 0) {
@@ -545,8 +576,12 @@ export default function QuestionBlankWriteView({
   const [previewMode, setPreviewMode] = useState(false);
 
   const handleFlush = useCallback(
-    (template: string, blankAnswers: string[]) => {
-      updateAttributes({ template, blankAnswers });
+    (
+      template: string,
+      blankAnswers: string[],
+      feedbackMode: QuestionFeedbackMode,
+    ) => {
+      updateAttributes({ template, blankAnswers, feedbackMode });
     },
     [updateAttributes],
   );
@@ -617,6 +652,7 @@ export default function QuestionBlankWriteView({
           <CreatorView
             initialTemplate={attrs.template}
             initialBlankAnswers={attrs.blankAnswers}
+            initialFeedbackMode={attrs.feedbackMode}
             onFlush={handleFlush}
           />
         ) : (

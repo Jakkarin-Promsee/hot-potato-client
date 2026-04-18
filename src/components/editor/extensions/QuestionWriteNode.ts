@@ -1,11 +1,13 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import QuestionWriteView from "./QuestionWriteView";
+import { DEFAULT_QUESTION_FEEDBACK_MODE, type QuestionFeedbackMode } from "./questionMode";
 
 export interface QuestionWriteAttrs {
   id: string;
   question: string;
   answer: string;
+  feedbackMode: QuestionFeedbackMode;
 }
 
 export const QuestionWriteNode = Node.create({
@@ -34,6 +36,14 @@ export const QuestionWriteNode = Node.create({
         default: "",
         parseHTML: (el) => el.getAttribute("data-answer") ?? "",
         renderHTML: (attrs) => ({ "data-answer": attrs.answer }),
+      },
+
+      feedbackMode: {
+        default: DEFAULT_QUESTION_FEEDBACK_MODE,
+        parseHTML: (el) =>
+          (el.getAttribute("data-feedback-mode") ??
+            DEFAULT_QUESTION_FEEDBACK_MODE) as QuestionFeedbackMode,
+        renderHTML: (attrs) => ({ "data-feedback-mode": attrs.feedbackMode }),
       },
     };
   },
@@ -65,6 +75,7 @@ export const QuestionWriteNode = Node.create({
                 id: crypto.randomUUID(),
                 question: "",
                 answer: "",
+                feedbackMode: DEFAULT_QUESTION_FEEDBACK_MODE,
               } satisfies QuestionWriteAttrs,
             },
             { type: "paragraph" },

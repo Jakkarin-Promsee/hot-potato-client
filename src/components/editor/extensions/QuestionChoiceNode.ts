@@ -1,6 +1,10 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import QuestionChoiceView, { type Choice } from "./QuestionChoiceView";
+import {
+  DEFAULT_QUESTION_FEEDBACK_MODE,
+  type QuestionFeedbackMode,
+} from "./questionMode";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -9,6 +13,7 @@ export interface QuestionChoiceAttrs {
   question: string;
   choices: Choice[];
   answerType: "single" | "multi";
+  feedbackMode: QuestionFeedbackMode;
 }
 
 // ─── Node Definition ──────────────────────────────────────────────────────────
@@ -64,6 +69,14 @@ export const QuestionChoiceNode = Node.create({
             | "multi",
         renderHTML: (attrs) => ({ "data-answer-type": attrs.answerType }),
       },
+
+      feedbackMode: {
+        default: DEFAULT_QUESTION_FEEDBACK_MODE,
+        parseHTML: (el) =>
+          (el.getAttribute("data-feedback-mode") ??
+            DEFAULT_QUESTION_FEEDBACK_MODE) as QuestionFeedbackMode,
+        renderHTML: (attrs) => ({ "data-feedback-mode": attrs.feedbackMode }),
+      },
     };
   },
 
@@ -104,6 +117,7 @@ export const QuestionChoiceNode = Node.create({
                   { text: "Option 2", correct: false },
                 ],
                 answerType: "single",
+                feedbackMode: DEFAULT_QUESTION_FEEDBACK_MODE,
               } satisfies QuestionChoiceAttrs,
             },
             { type: "paragraph" },

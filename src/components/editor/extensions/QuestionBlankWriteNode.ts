@@ -1,11 +1,13 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import QuestionBlankWriteView from "./QuestionBlankWriteView";
+import { DEFAULT_QUESTION_FEEDBACK_MODE, type QuestionFeedbackMode } from "./questionMode";
 
 export interface QuestionBlankWriteAttrs {
   id: string;
   template: string;
   blankAnswers: string[];
+  feedbackMode: QuestionFeedbackMode;
 }
 
 export const QuestionBlankWriteNode = Node.create({
@@ -45,6 +47,13 @@ export const QuestionBlankWriteNode = Node.create({
           "data-blank-answers": JSON.stringify(attrs.blankAnswers),
         }),
       },
+      feedbackMode: {
+        default: DEFAULT_QUESTION_FEEDBACK_MODE,
+        parseHTML: (el) =>
+          (el.getAttribute("data-feedback-mode") ??
+            DEFAULT_QUESTION_FEEDBACK_MODE) as QuestionFeedbackMode,
+        renderHTML: (attrs) => ({ "data-feedback-mode": attrs.feedbackMode }),
+      },
     };
   },
 
@@ -78,6 +87,7 @@ export const QuestionBlankWriteNode = Node.create({
                 id: crypto.randomUUID(),
                 template: "The capital of [Q-0] is [Q-1].",
                 blankAnswers: ["", ""],
+                feedbackMode: DEFAULT_QUESTION_FEEDBACK_MODE,
               } satisfies QuestionBlankWriteAttrs,
             },
             { type: "paragraph" },

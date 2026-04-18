@@ -1,12 +1,17 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import QuestionBlankChoiceView from "./QuestionBlankChoiceView";
+import {
+  DEFAULT_QUESTION_FEEDBACK_MODE,
+  type QuestionFeedbackMode,
+} from "./questionMode";
 
 export interface QuestionBlankChoiceAttrs {
   id: string;
   template: string;
   choices: string[];
   correctByBlank: number[];
+  feedbackMode: QuestionFeedbackMode;
 }
 
 export const QuestionBlankChoiceNode = Node.create({
@@ -57,6 +62,13 @@ export const QuestionBlankChoiceNode = Node.create({
           "data-correct-by-blank": JSON.stringify(attrs.correctByBlank),
         }),
       },
+      feedbackMode: {
+        default: DEFAULT_QUESTION_FEEDBACK_MODE,
+        parseHTML: (el) =>
+          (el.getAttribute("data-feedback-mode") ??
+            DEFAULT_QUESTION_FEEDBACK_MODE) as QuestionFeedbackMode,
+        renderHTML: (attrs) => ({ "data-feedback-mode": attrs.feedbackMode }),
+      },
     };
   },
 
@@ -88,6 +100,7 @@ export const QuestionBlankChoiceNode = Node.create({
                 template: "The capital of [Q-0] is [Q-1].",
                 choices: ["France", "Paris", "Japan", "Tokyo"],
                 correctByBlank: [0, 1],
+                feedbackMode: DEFAULT_QUESTION_FEEDBACK_MODE,
               } satisfies QuestionBlankChoiceAttrs,
             },
             { type: "paragraph" },
