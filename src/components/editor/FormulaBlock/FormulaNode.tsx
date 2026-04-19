@@ -1,6 +1,7 @@
 import { memo, type Dispatch, type FormEvent } from "react";
 import { createFormulaNode } from "./formulaReducer";
 import type { FormulaAction, FormulaNode as FormulaNodeType } from "./types";
+import { useEditorI18n } from "../editor.i18n";
 
 type FormulaNodeProps = {
   node: FormulaNodeType;
@@ -50,6 +51,7 @@ const FormulaSlot = memo(function FormulaSlot({
   onInsertAfterInRow,
   editable = true,
 }: SlotProps) {
+  const { t } = useEditorI18n();
   const slotNode = parent.slots?.[slot];
   const targetKey = `slot:${parent.id}:${slot}`;
   const isActive = focusedSlotId === targetKey;
@@ -79,7 +81,7 @@ const FormulaSlot = memo(function FormulaSlot({
   return (
     <button
       type="button"
-      title={`Insert into ${slot}`}
+      title={t(`Insert into ${slot}`, `แทรกในช่อง ${slot}`)}
       className={`${slotBaseClass} ${slotStateClass} ${className ?? ""} relative`}
       disabled={!editable}
       onMouseDown={(event) => {
@@ -113,6 +115,7 @@ const FormulaNode = memo(function FormulaNode({
   onInsertAfterInRow,
   editable = true,
 }: FormulaNodeProps) {
+  const { t } = useEditorI18n();
   if (node.type === "row") {
     return (
       <div className={`inline-flex flex-wrap items-end gap-1 ${className ?? ""}`}>
@@ -134,7 +137,7 @@ const FormulaNode = memo(function FormulaNode({
                   event.stopPropagation();
                   onInsertAfterInRow?.(node.id, index);
                 }}
-                title="Insert here"
+                title={t("Insert here", "แทรกที่นี่")}
               />
             )}
           </div>

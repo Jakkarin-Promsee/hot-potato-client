@@ -14,6 +14,7 @@ import type { QuestionFeedbackMode } from "./questionMode";
 import { Check, Eye, EyeOff, HelpCircle, SquareDashedMousePointer, X } from "lucide-react";
 import type { QuestionBlankChoiceAttrs } from "./QuestionBlankChoiceNode";
 import BlockMoveControls from "./BlockMoveControls";
+import { useEditorI18n } from "../editor.i18n";
 
 interface BlockAnswer {
   placedByBlank: Array<number | null>;
@@ -104,6 +105,7 @@ function CreatorView({
   initialFeedbackMode,
   onFlush,
 }: CreatorViewProps) {
+  const { t } = useEditorI18n();
   const [template, setTemplate] = useState(initialTemplate);
   const [choices, setChoices] = useState(initialChoices);
   const [correctByBlank, setCorrectByBlank] = useState(initialCorrectByBlank);
@@ -175,10 +177,13 @@ function CreatorView({
           onClick={addBlank}
           className="rounded-md border border-violet-300 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 transition hover:border-violet-400 hover:bg-violet-100"
         >
-          Add blank
+          {t("Add blank", "เพิ่มช่องว่าง")}
         </button>
         <span className="text-[11px] text-gray-400">
-          Use [Q-0], [Q-1], ... automatically.
+          {t(
+            "Use [Q-0], [Q-1], ... automatically.",
+            "ใช้ [Q-0], [Q-1], ... อัตโนมัติ",
+          )}
         </span>
       </div>
 
@@ -186,7 +191,7 @@ function CreatorView({
         ref={templateRef}
         rows={2}
         value={template}
-        placeholder="Type sentence and insert blanks."
+        placeholder={t("Type sentence and insert blanks.", "พิมพ์ประโยคและแทรกช่องว่าง")}
         onChange={(e) => {
           const nextTemplate = e.target.value;
           const nextCorrect = remapCorrectByBlank(template, correctByBlank, nextTemplate);
@@ -199,7 +204,7 @@ function CreatorView({
 
       <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-          Preview
+          {t("Preview", "ตัวอย่าง")}
         </p>
         <div className="flex flex-wrap items-center gap-2 text-base text-gray-900">
           {previewPieces.map((piece, idx) =>
@@ -221,14 +226,14 @@ function CreatorView({
 
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Choice bank
+          {t("Choice bank", "คลังตัวเลือก")}
         </p>
         <button
           type="button"
           onClick={addChoice}
           className="rounded-md border border-dashed border-violet-300 px-2 py-1 text-xs font-semibold text-violet-600 hover:bg-violet-50"
         >
-          Add choice
+          {t("Add choice", "เพิ่มตัวเลือก")}
         </button>
       </div>
 
@@ -252,7 +257,7 @@ function CreatorView({
                 onClick={() => removeChoice(i)}
                 className="rounded-md px-2 py-1 text-xs text-red-500 hover:bg-red-50"
               >
-                Remove
+                {t("Remove", "ลบ")}
               </button>
             )}
           </div>
@@ -262,7 +267,7 @@ function CreatorView({
       {blankIndices.length > 0 && (
         <div className="flex flex-col gap-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Correct answer mapping
+            {t("Correct answer mapping", "การจับคู่คำตอบที่ถูกต้อง")}
           </p>
           {blankIndices.map((blankTokenIdx, pos) => (
             <label key={blankTokenIdx} className="flex items-center gap-2 text-base">
@@ -277,10 +282,10 @@ function CreatorView({
                 }}
                 className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-base text-gray-800 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
               >
-                <option value={-1}>Select choice</option>
+                <option value={-1}>{t("Select choice", "เลือกตัวเลือก")}</option>
                 {choices.map((c, i) => (
                   <option key={`${i}-${c}`} value={i}>
-                    {c || `Choice ${i + 1}`}
+                    {c || t(`Choice ${i + 1}`, `ตัวเลือก ${i + 1}`)}
                   </option>
                 ))}
               </select>
@@ -293,6 +298,7 @@ function CreatorView({
 }
 
 function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
+  const { t } = useEditorI18n();
   const { id: blockId, template, choices, correctByBlank, feedbackMode } = attrs;
   const answers = useAnswerStore((s) => s.answers);
   const setAnswer = useAnswerStore((s) => s.setAnswer);
@@ -543,7 +549,11 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
   );
 
   if (blankIndices.length === 0) {
-    return <p className="text-base italic text-gray-400">No blanks configured.</p>;
+    return (
+      <p className="text-base italic text-gray-400">
+        {t("No blanks configured.", "ยังไม่ได้ตั้งค่าช่องว่าง")}
+      </p>
+    );
   }
 
   return (
@@ -607,7 +617,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
 
       <div className="rounded-lg border border-gray-200 bg-white p-2">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Drag choices
+          {t("Drag choices", "ลากตัวเลือก")}
         </p>
         <div className="flex flex-wrap gap-2">
           {availableChoices.map((choice) => (
@@ -643,7 +653,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
             disabled={placedByBlank.some((v) => v === null)}
             className="rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Submit
+            {t("Submit", "ส่ง")}
           </button>
         ) : (
           <>
@@ -653,14 +663,16 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
                 isAllCorrect ? "text-green-600" : "text-red-500",
               ].join(" ")}
             >
-              {isAllCorrect ? "All blanks are correct." : "Some blanks are not correct."}
+              {isAllCorrect
+                ? t("All blanks are correct.", "ช่องว่างถูกทั้งหมด")
+                : t("Some blanks are not correct.", "ยังมีบางช่องว่างไม่ถูกต้อง")}
             </span>
             <button
               type="button"
               onClick={handleReset}
               className="ml-auto text-sm text-gray-400 underline transition hover:text-gray-600"
             >
-              Try again
+              {t("Try again", "ลองใหม่")}
             </button>
           </>
         )}
@@ -668,12 +680,12 @@ function ViewerView({ attrs }: { attrs: QuestionBlankChoiceAttrs }) {
       {submitted && (
         <div className="rounded-lg border border-violet-100 bg-violet-50 px-3 py-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-violet-500">
-            AI feedback
+            {t("AI feedback", "คำแนะนำจาก AI")}
           </p>
           <p className="mt-1 text-base text-violet-900">
             {isFeedbackLoading
-              ? "AI กำลังเขียนคำแนะนำแบบละเอียดให้..."
-              : aiFeedback || "ยังไม่มีคำแนะนำ"}
+              ? t("AI is generating detailed feedback...", "AI กำลังเขียนคำแนะนำแบบละเอียดให้...")
+              : aiFeedback || t("No feedback yet", "ยังไม่มีคำแนะนำ")}
           </p>
         </div>
       )}
@@ -701,6 +713,7 @@ export default function QuestionBlankChoiceView({
   updateAttributes,
   editor,
 }: NodeViewProps) {
+  const { t } = useEditorI18n();
   const isEditable = editor.isEditable;
   const attrs = node.attrs as QuestionBlankChoiceAttrs;
   const [previewMode, setPreviewMode] = useState(false);
@@ -742,8 +755,8 @@ export default function QuestionBlankChoiceView({
             </span>
             <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
               {previewMode
-                ? "Fill blank (choice) - preview"
-                : "Fill blank (choice) - creator"}
+                ? t("Fill blank (choice) - preview", "เติมคำ (ตัวเลือก) - ตัวอย่าง")
+                : t("Fill blank (choice) - creator", "เติมคำ (ตัวเลือก) - ผู้สร้าง")}
             </span>
 
             <div className="ml-auto flex items-center gap-1">
@@ -759,7 +772,11 @@ export default function QuestionBlankChoiceView({
                     ? "bg-violet-100 text-violet-600"
                     : "text-gray-300 hover:bg-violet-100 hover:text-violet-500",
                 ].join(" ")}
-                aria-label={previewMode ? "Switch to creator" : "Preview as viewer"}
+                aria-label={
+                  previewMode
+                    ? t("Switch to creator", "สลับไปโหมดผู้สร้าง")
+                    : t("Preview as viewer", "ดูตัวอย่างแบบผู้เรียน")
+                }
               >
                 {previewMode ? (
                   <EyeOff className="h-3.5 w-3.5" />
@@ -775,7 +792,7 @@ export default function QuestionBlankChoiceView({
                   selectNode();
                 }}
                 className="flex h-6 w-6 items-center justify-center rounded text-gray-300 transition hover:bg-violet-100 hover:text-violet-500"
-                aria-label="Select block"
+                aria-label={t("Select block", "เลือกบล็อก")}
               >
                 <SquareDashedMousePointer className="h-3.5 w-3.5" />
               </button>

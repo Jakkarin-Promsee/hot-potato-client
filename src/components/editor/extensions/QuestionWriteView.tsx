@@ -18,6 +18,7 @@ import {
   requestWriteEvaluation,
 } from "./questionFeedbackApi";
 import BlockMoveControls from "./BlockMoveControls";
+import { useEditorI18n } from "../editor.i18n";
 
 export interface QuestionWriteAttrs {
   id: string;
@@ -71,6 +72,7 @@ function CreatorView({
   initialFeedbackMode,
   onFlush,
 }: CreatorViewProps) {
+  const { t } = useEditorI18n();
   const [question, setQuestion] = useState(initialQuestion);
   const [answer, setAnswer] = useState(initialAnswer);
   const [feedbackMode, setFeedbackMode] = useState<QuestionFeedbackMode>(
@@ -100,7 +102,7 @@ function CreatorView({
         ref={questionRef}
         rows={1}
         value={question}
-        placeholder="Type your writing question here..."
+        placeholder={t("Type your writing question here...", "พิมพ์คำถามแบบเขียนที่นี่...")}
         onChange={(e) => setQuestion(e.target.value)}
         onBlur={() => onFlush(question, answer, feedbackMode)}
         className="w-full resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-base font-medium text-gray-900 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
@@ -110,7 +112,7 @@ function CreatorView({
         ref={answerRef}
         rows={1}
         value={answer}
-        placeholder="Set the correct writing answer..."
+        placeholder={t("Set the correct writing answer...", "กำหนดคำตอบตัวอย่างที่ถูกต้อง...")}
         onChange={(e) => setAnswer(e.target.value)}
         onBlur={() => onFlush(question, answer, feedbackMode)}
         className="w-full resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-base text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
@@ -124,6 +126,7 @@ interface ViewerViewProps {
 }
 
 function ViewerView({ attrs }: ViewerViewProps) {
+  const { t } = useEditorI18n();
   const { id: blockId, question, answer, feedbackMode } = attrs;
   const answers = useAnswerStore((s) => s.answers);
   const setAnswer = useAnswerStore((s) => s.setAnswer);
@@ -259,7 +262,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
     <div className="flex flex-col gap-3">
       <p className="text-base font-semibold text-gray-900">
         {question || (
-          <span className="italic text-gray-400">No question set</span>
+          <span className="italic text-gray-400">{t("No question set", "ยังไม่ได้ตั้งคำถาม")}</span>
         )}
       </p>
 
@@ -268,7 +271,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
         rows={2}
         disabled={submitted}
         value={input}
-        placeholder="Write your answer..."
+        placeholder={t("Write your answer...", "เขียนคำตอบของคุณ...")}
         onChange={(e) => {
           const next = e.target.value;
           setInput(next);
@@ -299,7 +302,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
             disabled={!canSubmit}
             className="rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Submit
+            {t("Submit", "ส่ง")}
           </button>
         ) : (
           <>
@@ -308,7 +311,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
               onClick={handleReset}
               className="text-sm text-gray-400 underline transition hover:text-gray-600"
             >
-              Try again
+              {t("Try again", "ลองใหม่")}
             </button>
           </>
         )}
@@ -316,12 +319,12 @@ function ViewerView({ attrs }: ViewerViewProps) {
       {submitted && (
         <div className="rounded-lg border border-violet-100 bg-violet-50 px-3 py-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-violet-600">
-            AI deep evaluation
+            {t("AI deep evaluation", "การประเมินเชิงลึกจาก AI")}
           </p>
           <p className="mt-1 whitespace-pre-wrap text-base text-violet-900">
             {isEvaluating
-              ? "AI กำลังวิเคราะห์คำตอบแบบละเอียด..."
-              : aiFeedback || "ยังไม่มีผลวิเคราะห์"}
+              ? t("AI is deeply evaluating your answer...", "AI กำลังวิเคราะห์คำตอบแบบละเอียด...")
+              : aiFeedback || t("No evaluation yet", "ยังไม่มีผลวิเคราะห์")}
           </p>
         </div>
       )}
@@ -349,6 +352,7 @@ export default function QuestionWriteView({
   updateAttributes,
   editor,
 }: NodeViewProps) {
+  const { t } = useEditorI18n();
   const isEditable = editor.isEditable;
   const attrs = node.attrs as QuestionWriteAttrs;
   const [previewMode, setPreviewMode] = useState(false);
@@ -388,7 +392,9 @@ export default function QuestionWriteView({
               <HelpCircle className="h-3 w-3 text-violet-600" />
             </span>
             <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-              {previewMode ? "Writing question - preview" : "Writing question - creator"}
+              {previewMode
+                ? t("Writing question - preview", "คำถามแบบเขียน - ตัวอย่าง")
+                : t("Writing question - creator", "คำถามแบบเขียน - ผู้สร้าง")}
             </span>
 
             <div className="ml-auto flex items-center gap-1">
@@ -405,7 +411,9 @@ export default function QuestionWriteView({
                     : "text-gray-300 hover:bg-violet-100 hover:text-violet-500",
                 ].join(" ")}
                 aria-label={
-                  previewMode ? "Switch to creator" : "Preview as viewer"
+                  previewMode
+                    ? t("Switch to creator", "สลับไปโหมดผู้สร้าง")
+                    : t("Preview as viewer", "ดูตัวอย่างแบบผู้เรียน")
                 }
               >
                 {previewMode ? (
@@ -422,7 +430,7 @@ export default function QuestionWriteView({
                   selectNode();
                 }}
                 className="flex h-6 w-6 items-center justify-center rounded text-gray-300 transition hover:bg-violet-100 hover:text-violet-500"
-                aria-label="Select block"
+                aria-label={t("Select block", "เลือกบล็อก")}
               >
                 <SquareDashedMousePointer className="h-3.5 w-3.5" />
               </button>

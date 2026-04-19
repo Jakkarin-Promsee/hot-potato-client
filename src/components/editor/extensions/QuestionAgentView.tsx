@@ -17,6 +17,7 @@ import {
   getQuestionAgentContextAbove,
 } from "./questionAgentContext";
 import BlockMoveControls from "./BlockMoveControls";
+import { useEditorI18n } from "../editor.i18n";
 
 export interface ChatMessage {
   question: string;
@@ -78,6 +79,7 @@ export default function QuestionAgentView({
   updateAttributes,
   editor,
 }: NodeViewProps) {
+  const { t } = useEditorI18n();
   const attrs = node.attrs as QuestionAgentAttrs;
   const isEditable = editor.isEditable;
   const blockId = attrs.id as string;
@@ -86,7 +88,7 @@ export default function QuestionAgentView({
   const setAnswer = useAnswerStore((s) => s.setAnswer);
   const savedAnswer = answers[blockId] as BlockAnswer | undefined;
 
-  const [title, setTitle] = useState(attrs.title ?? "Ask AI");
+  const [title, setTitle] = useState(attrs.title ?? t("Ask AI", "ถาม AI"));
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>(
     savedAnswer?.chatHistory ?? attrs.chatHistory ?? [],
   );
@@ -98,7 +100,7 @@ export default function QuestionAgentView({
   const inputRef = useAutoGrow(questionInput);
   const hasAsked = chatHistory.length > 0;
 
-  useEffect(() => setTitle(attrs.title ?? "Ask AI"), [attrs.title]);
+  useEffect(() => setTitle(attrs.title ?? t("Ask AI", "ถาม AI")), [attrs.title, t]);
   useEffect(() => {
     if (!savedAnswer) return;
     setChatHistory(savedAnswer.chatHistory ?? []);
@@ -197,7 +199,7 @@ export default function QuestionAgentView({
                   selectNode();
                 }}
                 className="flex h-6 w-6 items-center justify-center rounded text-gray-300 transition hover:bg-violet-100 hover:text-violet-500"
-                aria-label="Select block"
+                aria-label={t("Select block", "เลือกบล็อก")}
               >
                 <SquareDashedMousePointer className="h-3.5 w-3.5" />
               </button>
@@ -219,7 +221,7 @@ export default function QuestionAgentView({
                   void handleAsk();
                 }
               }}
-              placeholder="Ask AI something..."
+              placeholder={t("Ask AI something...", "ถาม AI ได้เลย...")}
               className="flex-1 resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-base text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
             />
             <button
@@ -230,7 +232,7 @@ export default function QuestionAgentView({
               className="flex h-9 items-center gap-1 rounded-lg bg-violet-600 px-3 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <SendHorizontal className="h-3.5 w-3.5" />
-              Ask
+              {t("Ask", "ถาม")}
             </button>
           </div>
         ) : !collapsed ? (
@@ -265,7 +267,7 @@ export default function QuestionAgentView({
                     void handleAsk();
                   }
                 }}
-                placeholder="Ask AI something..."
+                placeholder={t("Ask AI something...", "ถาม AI ได้เลย...")}
                 className="flex-1 resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-base text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
               />
               <button
@@ -276,7 +278,7 @@ export default function QuestionAgentView({
                 className="flex h-9 items-center gap-1 rounded-lg bg-violet-600 px-3 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <SendHorizontal className="h-3.5 w-3.5" />
-                Ask
+                {t("Ask", "ถาม")}
               </button>
             </div>
           </div>
@@ -297,7 +299,7 @@ export default function QuestionAgentView({
               </div>
             ) : (
               <p className="text-sm italic text-gray-400">
-                No chat yet. Expand to ask AI.
+                {t("No chat yet. Expand to ask AI.", "ยังไม่มีแชต ขยายเพื่อถาม AI")}
               </p>
             )}
           </div>
@@ -314,12 +316,12 @@ export default function QuestionAgentView({
               {collapsed ? (
                 <>
                   <ChevronDown className="h-3.5 w-3.5" />
-                  Show chat
+                  {t("Show chat", "แสดงแชต")}
                 </>
               ) : (
                 <>
                   <ChevronUp className="h-3.5 w-3.5" />
-                  Hide chat
+                  {t("Hide chat", "ซ่อนแชต")}
                 </>
               )}
             </button>
@@ -331,7 +333,7 @@ export default function QuestionAgentView({
               className="inline-flex items-center gap-1 text-sm font-medium text-gray-400 underline transition hover:text-red-500"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Clear history
+              {t("Clear history", "ล้างประวัติ")}
             </button>
           </div>
         )}

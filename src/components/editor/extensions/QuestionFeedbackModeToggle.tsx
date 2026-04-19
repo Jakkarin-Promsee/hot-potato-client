@@ -1,4 +1,5 @@
 import type { QuestionFeedbackMode } from "./questionMode";
+import { useEditorI18n } from "../editor.i18n";
 
 interface QuestionFeedbackModeToggleProps {
   mode: QuestionFeedbackMode;
@@ -9,9 +10,12 @@ export default function QuestionFeedbackModeToggle({
   mode,
   onChange,
 }: QuestionFeedbackModeToggleProps) {
+  const { t } = useEditorI18n();
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs text-gray-400">Feedback mode:</span>
+      <span className="text-xs text-gray-400">
+        {t("Feedback mode:", "โหมดคำแนะนำ:")}
+      </span>
       <button
         type="button"
         onClick={() => onChange("quick_check")}
@@ -22,7 +26,7 @@ export default function QuestionFeedbackModeToggle({
             : "border-gray-200 bg-white text-gray-500 hover:border-gray-300",
         ].join(" ")}
       >
-        Simple understand
+        {t("Simple understand", "เข้าใจแบบย่อ")}
       </button>
       <button
         type="button"
@@ -34,7 +38,7 @@ export default function QuestionFeedbackModeToggle({
             : "border-gray-200 bg-white text-gray-500 hover:border-gray-300",
         ].join(" ")}
       >
-        Full reflection
+        {t("Full reflection", "สะท้อนความคิดแบบละเอียด")}
       </button>
     </div>
   );

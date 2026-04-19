@@ -13,6 +13,7 @@ import {
   Unlock,
   RotateCcw,
 } from "lucide-react";
+import { useEditorI18n } from "./editor.i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -252,6 +253,7 @@ interface CropOverlayProps {
 
 const CropOverlay = memo(
   ({ imgEl, aspectRatio, onConfirm, onCancel }: CropOverlayProps) => {
+    const { t } = useEditorI18n();
     const containerRef = useRef<HTMLDivElement>(null);
     const isDragging = useRef(false);
     const dragMode = useRef<
@@ -730,7 +732,7 @@ const CropOverlay = memo(
             }}
           >
             <Check size={13} />
-            Apply
+            {t("Apply", "ยืนยัน")}
           </button>
           <button
             onMouseDown={(e) => e.stopPropagation()}
@@ -753,7 +755,7 @@ const CropOverlay = memo(
             }}
           >
             <X size={13} />
-            Cancel
+            {t("Cancel", "ยกเลิก")}
           </button>
         </div>
       </div>
@@ -827,6 +829,7 @@ const IconBtn = memo(
 
 export const ImagePanel = memo(
   ({ editor, imageAttrs }: { editor: Editor; imageAttrs: ImageAttrs }) => {
+    const { t } = useEditorI18n();
     const [isCropping, setIsCropping] = useState(false);
     const [aspectRatio, setAspectRatio] = useState<AspectRatio>("free");
     const [resizePct, setResizePct] = useState(100);
@@ -965,10 +968,12 @@ export const ImagePanel = memo(
               }`}
             >
               <Crop size={15} strokeWidth={2} />
-              {isCropping ? "Cropping — drag handles or move" : "Crop image"}
+              {isCropping
+                ? t("Cropping — drag handles or move", "กำลังครอป — ลากจุดจับหรือเลื่อนภาพ")
+                : t("Crop image", "ครอปรูปภาพ")}
               {!isCropping && (
                 <span className="ml-auto text-[10px] font-normal text-muted-foreground">
-                  adjust frame
+                  {t("adjust frame", "ปรับกรอบ")}
                 </span>
               )}
             </button>
@@ -977,14 +982,14 @@ export const ImagePanel = memo(
               className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
             >
               <RotateCcw size={13} strokeWidth={1.8} />
-              Reset to original
+              {t("Reset to original", "รีเซ็ตเป็นต้นฉบับ")}
             </button>
           </div>
 
           {/* ── CROP RATIO PRESETS (shown when cropping) ────── */}
           {isCropping && (
             <div>
-              <SectionLabel>Aspect ratio</SectionLabel>
+              <SectionLabel>{t("Aspect ratio", "อัตราส่วน")}</SectionLabel>
               <div className="flex flex-wrap gap-1">
                 {ASPECT_RATIOS.map(({ label, value }) => (
                   <button
@@ -996,7 +1001,7 @@ export const ImagePanel = memo(
                         : "text-muted-foreground border-border/50 hover:bg-accent/50"
                     }`}
                   >
-                    {label}
+                    {label === "Free" ? t("Free", "อิสระ") : label}
                   </button>
                 ))}
               </div>
@@ -1007,10 +1012,12 @@ export const ImagePanel = memo(
 
           {/* ── RESIZE ──────────────────────────────────────── */}
           <div>
-            <SectionLabel>Resize</SectionLabel>
+            <SectionLabel>{t("Resize", "ปรับขนาด")}</SectionLabel>
             {/* Percentage badge */}
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground">Scale</span>
+              <span className="text-xs text-muted-foreground">
+                {t("Scale", "สเกล")}
+              </span>
               <span
                 className="text-xs font-semibold tabular-nums px-2 py-0.5 rounded-md"
                 style={{
@@ -1045,7 +1052,7 @@ export const ImagePanel = memo(
                 value={resizePct}
                 onChange={(e) => handleResizeChange(Number(e.target.value))}
                 className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                aria-label="Resize image scale"
+                aria-label={t("Resize image scale", "ปรับสเกลรูปภาพ")}
               />
             </div>
             <div className="flex justify-between text-[10px] text-muted-foreground/50 mt-1 px-0.5">
@@ -1057,8 +1064,8 @@ export const ImagePanel = memo(
 
           {/* ── ALIGNMENT ───────────────────────────────────── */}
           <div>
-            <SectionLabel>Alignment</SectionLabel>
-            <Row label="Position">
+            <SectionLabel>{t("Alignment", "การจัดวาง")}</SectionLabel>
+            <Row label={t("Position", "ตำแหน่ง")}>
               <div className="flex gap-0.5">
                 {IMAGE_ALIGNS.map(({ Icon, align }) => (
                   <IconBtn
@@ -1082,11 +1089,13 @@ export const ImagePanel = memo(
           {/* ── SIZE (manual) ───────────────────────────────── */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <SectionLabel>Size (px)</SectionLabel>
+              <SectionLabel>{t("Size (px)", "ขนาด (px)")}</SectionLabel>
               <button
                 onClick={() => setAspectLocked((v) => !v)}
                 title={
-                  aspectLocked ? "Unlock aspect ratio" : "Lock aspect ratio"
+                  aspectLocked
+                    ? t("Unlock aspect ratio", "ปลดล็อกอัตราส่วน")
+                    : t("Lock aspect ratio", "ล็อกอัตราส่วน")
                 }
                 className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] transition-colors border ${
                   aspectLocked
@@ -1100,17 +1109,17 @@ export const ImagePanel = memo(
                 }}
               >
                 {aspectLocked ? <Lock size={9} /> : <Unlock size={9} />}
-                {aspectLocked ? "Locked" : "Unlocked"}
+                {aspectLocked ? t("Locked", "ล็อกอยู่") : t("Unlocked", "ปลดล็อก")}
               </button>
             </div>
             {/* Width */}
             <div className="mb-1.5">
               <label className="text-[10px] text-muted-foreground/60 mb-1 block">
-                Width
+                {t("Width", "ความกว้าง")}
               </label>
               <input
                 type="number"
-                placeholder="e.g. 600"
+                placeholder={t("e.g. 600", "เช่น 600")}
                 defaultValue={
                   typeof imageAttrs.width === "number"
                     ? imageAttrs.width
@@ -1144,11 +1153,11 @@ export const ImagePanel = memo(
             {/* Height */}
             <div>
               <label className="text-[10px] text-muted-foreground/60 mb-1 block">
-                Height
+                {t("Height", "ความสูง")}
               </label>
               <input
                 type="number"
-                placeholder="e.g. 400"
+                placeholder={t("e.g. 400", "เช่น 400")}
                 defaultValue={
                   typeof imageAttrs.height === "number"
                     ? imageAttrs.height
@@ -1183,10 +1192,10 @@ export const ImagePanel = memo(
 
           {/* ── ALT TEXT ────────────────────────────────────── */}
           <div>
-            <SectionLabel>Alt text</SectionLabel>
+            <SectionLabel>{t("Alt text", "ข้อความกำกับภาพ")}</SectionLabel>
             <textarea
               defaultValue={imageAttrs.alt}
-              placeholder="Describe the image…"
+              placeholder={t("Describe the image…", "อธิบายรูปภาพ…")}
               rows={2}
               className="w-full resize-none rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/40 leading-relaxed"
               onChange={(e) =>
@@ -1201,13 +1210,13 @@ export const ImagePanel = memo(
 
           {/* ── LINK ────────────────────────────────────────── */}
           <div>
-            <SectionLabel>Link</SectionLabel>
+            <SectionLabel>{t("Link", "ลิงก์")}</SectionLabel>
             <button
               onClick={() => setShowLink((v) => !v)}
               className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
             >
               <Link size={14} strokeWidth={1.8} />
-              {showLink ? "Remove link" : "Add link"}
+              {showLink ? t("Remove link", "ลบลิงก์") : t("Add link", "เพิ่มลิงก์")}
             </button>
             {showLink && (
               <input
@@ -1236,7 +1245,7 @@ export const ImagePanel = memo(
             className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
           >
             <Trash2 size={13} strokeWidth={1.8} />
-            Remove image
+            {t("Remove image", "ลบรูปภาพ")}
           </button>
         </div>
       </>

@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 
 import { ImagePanel } from "./ImagePanel";
+import { useEditorI18n } from "./editor.i18n";
 
 import {
   searchHighlightKey,
@@ -39,7 +40,7 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type PanelMode = keyof typeof MODE_LABELS;
+type PanelMode = keyof typeof MODE_LABELS_EN;
 type SectionKey = "document" | "outline" | "search" | "text";
 type TextAlign = "left" | "center" | "right" | "justify";
 
@@ -100,12 +101,12 @@ const IMAGE_ALIGNS = [
 ] as const;
 
 const TABLE_ACTIONS = [
-  { label: "+ Row After", method: "addRowAfter" },
-  { label: "− Row", method: "deleteRow" },
-  { label: "+ Col After", method: "addColumnAfter" },
-  { label: "− Col", method: "deleteColumn" },
-  { label: "Merge Cells", method: "mergeCells" },
-  { label: "Split Cell", method: "splitCell" },
+  { label: "+ Row After", labelTh: "+ แถวถัดไป", method: "addRowAfter" },
+  { label: "− Row", labelTh: "− แถว", method: "deleteRow" },
+  { label: "+ Col After", labelTh: "+ คอลัมน์ถัดไป", method: "addColumnAfter" },
+  { label: "− Col", labelTh: "− คอลัมน์", method: "deleteColumn" },
+  { label: "Merge Cells", labelTh: "รวมเซลล์", method: "mergeCells" },
+  { label: "Split Cell", labelTh: "แยกเซลล์", method: "splitCell" },
 ] as const;
 
 const CODE_LANGS = [
@@ -120,7 +121,7 @@ const CODE_LANGS = [
   "sql",
 ] as const;
 
-const MODE_LABELS = {
+const MODE_LABELS_EN = {
   document: "Document",
   text: "Text Selected",
   image: "Image",
@@ -129,6 +130,16 @@ const MODE_LABELS = {
   heading: "Heading",
   codeBlock: "Code Block",
 } as const;
+
+const MODE_LABELS_TH: Record<keyof typeof MODE_LABELS_EN, string> = {
+  document: "เอกสาร",
+  text: "ข้อความที่เลือก",
+  image: "รูปภาพ",
+  table: "ตาราง",
+  link: "ลิงก์",
+  heading: "หัวข้อ",
+  codeBlock: "โค้ดบล็อก",
+};
 
 const DEFAULT_ACTIVE_FORMATS: ActiveFormats = {
   paragraph: false,
@@ -335,13 +346,23 @@ const PillGroup = memo(
 // ─── Document Panel ───────────────────────────────────────────────────────────
 
 const DocumentPanel = memo(
-  ({ wordCount, readTime }: { wordCount: number; readTime: number }) => (
-    <Section title="Document">
-      <Row label="Words">
+  ({
+    wordCount,
+    readTime,
+    isThai,
+  }: {
+    wordCount: number;
+    readTime: number;
+    isThai: boolean;
+  }) => (
+    <Section title={isThai ? "เอกสาร" : "Document"}>
+      <Row label={isThai ? "คำ" : "Words"}>
         <span className="text-xs font-medium">{wordCount}</span>
       </Row>
-      <Row label="Read time">
-        <span className="text-xs font-medium">{readTime} min</span>
+      <Row label={isThai ? "เวลาอ่าน" : "Read time"}>
+        <span className="text-xs font-medium">
+          {readTime} {isThai ? "นาที" : "min"}
+        </span>
       </Row>
     </Section>
   ),
@@ -351,6 +372,7 @@ const DocumentPanel = memo(
 
 const TextPanel = memo(
   ({ editor, active }: { editor: Editor; active: ActiveFormats }) => {
+    const { t } = useEditorI18n();
     const setColor = useCallback(
       (color: string) => editor.chain().focus().setColor(color).run(),
       [editor],
@@ -364,17 +386,17 @@ const TextPanel = memo(
     return (
       <div className="mb-2 flex flex-col gap-0.5 pl-1">
         <span className="px-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-          Structure
+          {t("Structure", "โครงสร้าง")}
         </span>
         <ToolBtn
           icon={Type}
-          label="Normal Text"
+          label={t("Normal Text", "ข้อความปกติ")}
           active={active.paragraph}
           onClick={() => editor.chain().focus().setParagraph().run()}
         />
         <ToolBtn
           icon={Heading1}
-          label="Heading 1"
+          label={t("Heading 1", "หัวข้อ 1")}
           active={active.h1}
           onClick={() =>
             editor.chain().focus().toggleHeading({ level: 1 }).run()
@@ -382,7 +404,7 @@ const TextPanel = memo(
         />
         <ToolBtn
           icon={Heading2}
-          label="Heading 2"
+          label={t("Heading 2", "หัวข้อ 2")}
           active={active.h2}
           onClick={() =>
             editor.chain().focus().toggleHeading({ level: 2 }).run()
@@ -390,7 +412,7 @@ const TextPanel = memo(
         />
         <ToolBtn
           icon={Heading3}
-          label="Heading 3"
+          label={t("Heading 3", "หัวข้อ 3")}
           active={active.h3}
           onClick={() =>
             editor.chain().focus().toggleHeading({ level: 3 }).run()
@@ -398,61 +420,61 @@ const TextPanel = memo(
         />
 
         <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-          Format
+          {t("Format", "รูปแบบ")}
         </span>
         <ToolBtn
           icon={Bold}
-          label="Bold"
+          label={t("Bold", "ตัวหนา")}
           active={active.bold}
           onClick={() => editor.chain().focus().toggleBold().run()}
         />
         <ToolBtn
           icon={Italic}
-          label="Italic"
+          label={t("Italic", "ตัวเอียง")}
           active={active.italic}
           onClick={() => editor.chain().focus().toggleItalic().run()}
         />
         <ToolBtn
           icon={Underline}
-          label="Underline"
+          label={t("Underline", "ขีดเส้นใต้")}
           active={active.underline}
           onClick={() => editor.chain().focus().toggleUnderline().run()}
         />
         <ToolBtn
           icon={Strikethrough}
-          label="Strikethrough"
+          label={t("Strikethrough", "ขีดทับ")}
           active={active.strike}
           onClick={() => editor.chain().focus().toggleStrike().run()}
         />
         <ToolBtn
           icon={Quote}
-          label="Blockquote"
+          label={t("Blockquote", "บล็อกอ้างอิง")}
           active={active.blockquote}
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
         />
         <ToolBtn
           icon={Link}
-          label="Link"
+          label={t("Link", "ลิงก์")}
           active={active.link}
           onClick={() => {
             if (active.link) {
               editor.chain().focus().unsetLink().run();
               return;
             }
-            const url = window.prompt("Enter URL");
+            const url = window.prompt(t("Enter URL", "ใส่ URL"));
             if (url) editor.chain().focus().setLink({ href: url }).run();
           }}
         />
 
         <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-          Alignment
+          {t("Alignment", "การจัดวาง")}
         </span>
         <div className="flex gap-1 px-2 py-1">
           {ALIGN_OPTIONS.map(({ Icon, align }) => (
             <button
               key={align}
               onClick={() => editor.chain().focus().setTextAlign(align).run()}
-              title={`Align ${align}`}
+              title={t(`Align ${align}`, `จัดแนว ${align}`)}
               className={`flex-1 flex items-center justify-center rounded py-1.5 transition-colors ${
                 active.textAlign === align
                   ? "bg-accent text-foreground"
@@ -465,7 +487,7 @@ const TextPanel = memo(
         </div>
 
         <span className="px-2 pt-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-          Text Color
+          {t("Text Color", "สีข้อความ")}
         </span>
         <div className="flex flex-wrap gap-1.5 px-2 py-1">
           {COLORS.map((c) => (
@@ -487,7 +509,7 @@ const TextPanel = memo(
         </div>
 
         <span className="px-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-          Highlight
+          {t("Highlight", "ไฮไลต์")}
         </span>
         <div className="flex flex-wrap gap-1.5 px-2 py-1">
           {HIGHLIGHTS.map((c) => (
@@ -514,6 +536,7 @@ const TextPanel = memo(
 
 const TextTogglePanel = memo(
   ({ editor, active }: { editor: Editor; active: ActiveFormats }) => {
+    const { t } = useEditorI18n();
     const [openSections, setOpenSections] = useState({
       search: false,
       text: true,
@@ -529,7 +552,7 @@ const TextTogglePanel = memo(
         <SectionHeader
           sectionKey="search"
           icon={Search}
-          label="Search & Replace"
+          label={t("Search & Replace", "ค้นหาและแทนที่")}
           isOpen={openSections.search}
           onToggle={toggle as any}
         />
@@ -541,7 +564,7 @@ const TextTogglePanel = memo(
         <SectionHeader
           sectionKey="text"
           icon={Text}
-          label="Text"
+          label={t("Text", "ข้อความ")}
           isOpen={openSections.text}
           onToggle={toggle as any}
         />
@@ -567,6 +590,7 @@ const LinkPanel = memo(
     setLinkUrl: (v: string) => void;
     setLinkNewTab: (v: boolean) => void;
   }) => {
+    const { isThai } = useEditorI18n();
     const applyLink = useCallback(
       (url: string, newTab: boolean) =>
         editor
@@ -584,7 +608,7 @@ const LinkPanel = memo(
     }, [linkNewTab, linkUrl, applyLink, setLinkNewTab]);
 
     return (
-      <Section title="Link">
+      <Section title={isThai ? "ลิงก์" : "Link"}>
         <div className="mb-2">
           <label className="mb-1 block text-xs text-muted-foreground">
             URL
@@ -597,7 +621,7 @@ const LinkPanel = memo(
             className="w-full rounded border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/40"
           />
         </div>
-        <Row label="New tab">
+        <Row label={isThai ? "แท็บใหม่" : "New tab"}>
           <button
             onClick={toggleNewTab}
             className={`relative h-5 w-9 rounded-full transition-colors ${linkNewTab ? "bg-primary" : "bg-muted"}`}
@@ -611,7 +635,7 @@ const LinkPanel = memo(
           onClick={() => editor.chain().focus().unsetLink().run()}
           className="mt-1 flex w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-red-500 hover:bg-red-50 transition-colors"
         >
-          <Trash2 size={12} /> Remove Link
+          <Trash2 size={12} /> {isThai ? "ลบลิงก์" : "Remove Link"}
         </button>
       </Section>
     );
@@ -620,16 +644,18 @@ const LinkPanel = memo(
 
 // ─── Table Panel ──────────────────────────────────────────────────────────────
 
-const TablePanel = memo(({ editor }: { editor: Editor }) => (
-  <Section title="Table">
+const TablePanel = memo(({ editor }: { editor: Editor }) => {
+  const { t } = useEditorI18n();
+  return (
+  <Section title={t("Table", "ตาราง")}>
     <div className="grid grid-cols-2 gap-1.5">
-      {TABLE_ACTIONS.map(({ label, method }) => (
+      {TABLE_ACTIONS.map(({ label, labelTh, method }) => (
         <button
           key={label}
           onClick={() => (editor.chain().focus() as any)[method]().run()}
           className="rounded-md border border-border px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent/50 transition-colors"
         >
-          {label}
+          {t(label, labelTh)}
         </button>
       ))}
     </div>
@@ -637,18 +663,21 @@ const TablePanel = memo(({ editor }: { editor: Editor }) => (
       onClick={() => editor.chain().focus().deleteTable().run()}
       className="mt-2 flex w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-red-500 hover:bg-red-50 transition-colors"
     >
-      <Trash2 size={12} /> Delete Table
+      <Trash2 size={12} /> {t("Delete Table", "ลบตาราง")}
     </button>
   </Section>
-));
+  );
+});
 
 // ─── Code Panel ───────────────────────────────────────────────────────────────
 
 const CodePanel = memo(
-  ({ editor, codeAttrs }: { editor: Editor; codeAttrs: CodeAttrs }) => (
-    <Section title="Code Block">
+  ({ editor, codeAttrs }: { editor: Editor; codeAttrs: CodeAttrs }) => {
+    const { t } = useEditorI18n();
+    return (
+    <Section title={t("Code Block", "โค้ดบล็อก")}>
       <label className="mb-1 block text-xs text-muted-foreground">
-        Language
+        {t("Language", "ภาษา")}
       </label>
       <select
         value={codeAttrs.language}
@@ -668,12 +697,14 @@ const CodePanel = memo(
         ))}
       </select>
     </Section>
-  ),
+    );
+  },
 );
 
 // ─── Search Panel ─────────────────────────────────────────────────────────────
 
 const SearchPanel = memo(({ editor }: { editor: Editor }) => {
+  const { isThai } = useEditorI18n();
   const [searchQuery, setSearchQuery] = useState("");
   const [replaceQuery, setReplaceQuery] = useState("");
   const [matches, setMatches] = useState<SearchMatch[]>([]);
@@ -825,7 +856,7 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
       <div className="flex gap-1">
         <input
           type="text"
-          placeholder="Find…"
+          placeholder={isThai ? "ค้นหา…" : "Find…"}
           value={searchQuery}
           onChange={(e) => {
             setSearchQuery(e.target.value);
@@ -842,14 +873,16 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
               : "bg-accent text-foreground hover:bg-accent/70"
           }`}
         >
-          {matches.length > 0 ? "✕" : "Search"}
+          {matches.length > 0 ? "✕" : isThai ? "ค้นหา" : "Search"}
         </button>
       </div>
       {isSearchActive && (
         <div className="flex items-center justify-between px-0.5">
           <span className="text-[11px] text-muted-foreground">
             {matches.length === 0
-              ? "No matches"
+              ? isThai
+                ? "ไม่พบผลลัพธ์"
+                : "No matches"
               : `${currentIndex + 1} / ${matches.length}`}
           </span>
           {matches.length > 1 && (
@@ -872,7 +905,7 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
       )}
       <input
         type="text"
-        placeholder="Replace with…"
+        placeholder={isThai ? "แทนที่ด้วย…" : "Replace with…"}
         value={replaceQuery}
         onChange={(e) => setReplaceQuery(e.target.value)}
         className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/40"
@@ -887,7 +920,13 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
               : "bg-accent text-foreground hover:bg-accent/70"
           }`}
         >
-          {replaceOnceStage === "preview" ? "Confirm Replace" : "Replace Once"}
+          {replaceOnceStage === "preview"
+            ? isThai
+              ? "ยืนยันการแทนที่"
+              : "Confirm Replace"
+            : isThai
+              ? "แทนที่ครั้งเดียว"
+              : "Replace Once"}
         </button>
         <button
           onClick={handleReplaceAll}
@@ -899,8 +938,12 @@ const SearchPanel = memo(({ editor }: { editor: Editor }) => {
           }`}
         >
           {replaceAllStage === "preview"
-            ? `Confirm All (${matches.length})`
-            : "Replace All"}
+            ? isThai
+              ? `ยืนยันทั้งหมด (${matches.length})`
+              : `Confirm All (${matches.length})`
+            : isThai
+              ? "แทนที่ทั้งหมด"
+              : "Replace All"}
         </button>
       </div>
     </div>
@@ -916,6 +959,8 @@ const EditorRightSidebar = ({
   editor: Editor;
   dynamicUpdate: Boolean;
 }) => {
+  const { isThai } = useEditorI18n();
+  const modeLabels = isThai ? MODE_LABELS_TH : MODE_LABELS_EN;
   const [mode, setMode] = useState<PanelMode>("document");
   const [linkUrl, setLinkUrl] = useState("");
   const [linkNewTab, setLinkNewTab] = useState(false);
@@ -1005,16 +1050,20 @@ const EditorRightSidebar = ({
     <div className="editor-sidebar-left flex h-full flex-col overflow-y-auto border-l border-border bg-editor-surface">
       <div className="sticky top-0 z-10 border-b border-border/50 bg-editor-surface px-4 py-3">
         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
-          Properties
+          {isThai ? "คุณสมบัติ" : "Properties"}
         </span>
         <p className="text-xs font-medium text-foreground">
-          {MODE_LABELS[mode]}
+          {modeLabels[mode]}
         </p>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
         {mode === "document" && (
-          <DocumentPanel wordCount={wordCount} readTime={readTime} />
+          <DocumentPanel
+            wordCount={wordCount}
+            readTime={readTime}
+            isThai={isThai}
+          />
         )}
         {(mode === "text" || mode === "heading") && (
           <TextTogglePanel editor={editor} active={activeFormats} />

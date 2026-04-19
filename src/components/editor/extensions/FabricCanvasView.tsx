@@ -13,6 +13,7 @@ import { v4 as uuidv4 } from "uuid";
 import { ChevronDown } from "lucide-react";
 import FabricCanvasReadOnly from "../FabricCanvasReadOnly";
 import BlockMoveControls from "./BlockMoveControls";
+import { useEditorI18n } from "../editor.i18n";
 
 const FabricCanvasView = ({
   node,
@@ -21,6 +22,7 @@ const FabricCanvasView = ({
   editor,
   getPos,
 }: any) => {
+  const { t } = useEditorI18n();
   // Setup data
   const { width, height, canvasData } = node.attrs;
   const backgroundColor = "#fafafa";
@@ -223,7 +225,7 @@ const FabricCanvasView = ({
         <div
           onMouseDown={startResizing}
           className="absolute -bottom-4 left-0 right-0 h-4 flex items-center justify-center cursor-ns-resize"
-          title="Drag to resize height"
+          title={t("Drag to resize height", "ลากเพื่อปรับความสูง")}
         >
           {/* Visual button with chevron */}
           <div className="flex items-center justify-center w-10 h-4 rounded-full bg-white border border-border shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted select-none">

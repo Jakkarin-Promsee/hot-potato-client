@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { Editor } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
+import { useEditorI18n } from "../editor.i18n";
 
 type MoveDirection = "up" | "down";
 
@@ -91,6 +92,7 @@ export default function BlockMoveControls({
   getPos,
   className,
 }: BlockMoveControlsProps) {
+  const { t } = useEditorI18n();
   const upDisabled = !canMove(editor, getPos, "up");
   const downDisabled = !canMove(editor, getPos, "down");
 
@@ -108,7 +110,7 @@ export default function BlockMoveControls({
         }}
         disabled={upDisabled}
         className="flex h-6 w-6 items-center justify-center rounded text-gray-300 transition hover:bg-violet-100 hover:text-violet-500 disabled:cursor-not-allowed disabled:opacity-30"
-        aria-label="Move block up"
+        aria-label={t("Move block up", "เลื่อนบล็อกขึ้น")}
       >
         <ChevronUp className="h-3.5 w-3.5" />
       </button>
@@ -125,7 +127,7 @@ export default function BlockMoveControls({
         }}
         disabled={downDisabled}
         className="flex h-6 w-6 items-center justify-center rounded text-gray-300 transition hover:bg-violet-100 hover:text-violet-500 disabled:cursor-not-allowed disabled:opacity-30"
-        aria-label="Move block down"
+        aria-label={t("Move block down", "เลื่อนบล็อกลง")}
       >
         <ChevronDown className="h-3.5 w-3.5" />
       </button>

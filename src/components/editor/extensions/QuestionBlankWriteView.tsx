@@ -14,6 +14,7 @@ import type { QuestionFeedbackMode } from "./questionMode";
 import { Eye, EyeOff, HelpCircle, SquareDashedMousePointer } from "lucide-react";
 import type { QuestionBlankWriteAttrs } from "./QuestionBlankWriteNode";
 import BlockMoveControls from "./BlockMoveControls";
+import { useEditorI18n } from "../editor.i18n";
 
 interface BlockAnswer {
   inputs: string[];
@@ -141,6 +142,7 @@ function CreatorView({
   initialFeedbackMode,
   onFlush,
 }: CreatorViewProps) {
+  const { t } = useEditorI18n();
   const [template, setTemplate] = useState(initialTemplate);
   const [blankAnswers, setBlankAnswers] = useState(initialBlankAnswers);
   const [feedbackMode, setFeedbackMode] = useState<QuestionFeedbackMode>(
@@ -207,11 +209,14 @@ function CreatorView({
           onClick={handleAddBlank}
           className="rounded-md border border-violet-300 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 transition hover:border-violet-400 hover:bg-violet-100"
         >
-          Add blank
+          {t("Add blank", "เพิ่มช่องว่าง")}
         </button>
 
         <span className="text-[11px] text-gray-400">
-          Tip: click inside the text, then press “Add blank”.
+          {t(
+            "Tip: click inside the text, then press “Add blank”.",
+            "เคล็ดลับ: คลิกในข้อความ แล้วกด “เพิ่มช่องว่าง”",
+          )}
         </span>
 
         {indices.length > 0 && (
@@ -222,7 +227,7 @@ function CreatorView({
                 type="button"
                 onClick={() => insertTokenAtCursor(`[Q-${i}]`)}
                 className="rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-gray-500 transition hover:border-violet-300 hover:text-violet-700"
-                title="Insert this blank token at cursor"
+                title={t("Insert this blank token at cursor", "แทรกโทเค็นช่องว่างที่ตำแหน่งเคอร์เซอร์")}
               >
                 {`[Q-${i}]`}
               </button>
@@ -235,7 +240,10 @@ function CreatorView({
         ref={templateRef}
         rows={2}
         value={template}
-        placeholder="Type your sentence here, then use “Add blank” to insert [Q-0], [Q-1], ..."
+        placeholder={t(
+          "Type your sentence here, then use “Add blank” to insert [Q-0], [Q-1], ...",
+          "พิมพ์ประโยคที่นี่ แล้วใช้ “เพิ่มช่องว่าง” เพื่อแทรก [Q-0], [Q-1], ...",
+        )}
         onChange={(e) => {
           const nextTemplate = e.target.value;
           const nextAnswers = buildAnswers(template, blankAnswers, nextTemplate);
@@ -248,7 +256,7 @@ function CreatorView({
 
       <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-          Preview
+          {t("Preview", "ตัวอย่าง")}
         </p>
         <div className="flex flex-wrap items-center gap-2 text-base text-gray-900">
           {previewPieces.map((piece, idx) =>
@@ -261,7 +269,7 @@ function CreatorView({
                 key={`pb-${idx}`}
                 className="inline-flex min-w-16 items-center justify-center rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-700"
               >
-                Blank {piece.blank}
+                {t(`Blank ${piece.blank}`, `ช่องว่าง ${piece.blank}`)}
               </span>
             ),
           )}
@@ -270,7 +278,10 @@ function CreatorView({
 
       {indices.length === 0 ? (
         <p className="text-xs text-amber-600">
-          Add at least one blank using the “Add blank” button.
+          {t(
+            "Add at least one blank using the “Add blank” button.",
+            "เพิ่มช่องว่างอย่างน้อยหนึ่งช่องด้วยปุ่ม “เพิ่มช่องว่าง”",
+          )}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
@@ -279,7 +290,10 @@ function CreatorView({
               key={blankIdx}
               type="text"
               value={blankAnswers[i] ?? ""}
-              placeholder={`Answer for blank [Q-${blankIdx}]`}
+              placeholder={t(
+                `Answer for blank [Q-${blankIdx}]`,
+                `คำตอบสำหรับช่องว่าง [Q-${blankIdx}]`,
+              )}
               onChange={(e) => {
                 const next = [...blankAnswers];
                 next[i] = e.target.value;
@@ -296,6 +310,7 @@ function CreatorView({
 }
 
 function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
+  const { t } = useEditorI18n();
   const { id: blockId, template, blankAnswers, feedbackMode } = attrs;
   const answers = useAnswerStore((s) => s.answers);
   const setAnswer = useAnswerStore((s) => s.setAnswer);
@@ -485,7 +500,11 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
   );
 
   if (blankIndices.length === 0) {
-    return <p className="text-base italic text-gray-400">No blanks configured.</p>;
+    return (
+      <p className="text-base italic text-gray-400">
+        {t("No blanks configured.", "ยังไม่ได้ตั้งค่าช่องว่าง")}
+      </p>
+    );
   }
 
   return (
@@ -522,7 +541,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
             disabled={!hasInput}
             className="rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Submit
+            {t("Submit", "ส่ง")}
           </button>
         ) : (
           <>
@@ -531,7 +550,7 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
               onClick={handleReset}
               className="text-sm text-gray-400 underline transition hover:text-gray-600"
             >
-              Try again
+              {t("Try again", "ลองใหม่")}
             </button>
           </>
         )}
@@ -539,12 +558,12 @@ function ViewerView({ attrs }: { attrs: QuestionBlankWriteAttrs }) {
       {submitted && (
         <div className="rounded-lg border border-violet-100 bg-violet-50 px-3 py-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-violet-500">
-            AI feedback
+            {t("AI feedback", "คำแนะนำจาก AI")}
           </p>
           <p className="mt-1 text-base text-violet-900">
             {isFeedbackLoading
-              ? "AI กำลังเขียนคำแนะนำแบบละเอียดให้..."
-              : aiFeedback || "ยังไม่มีคำแนะนำ"}
+              ? t("AI is generating detailed feedback...", "AI กำลังเขียนคำแนะนำแบบละเอียดให้...")
+              : aiFeedback || t("No feedback yet", "ยังไม่มีคำแนะนำ")}
           </p>
         </div>
       )}
@@ -572,6 +591,7 @@ export default function QuestionBlankWriteView({
   updateAttributes,
   editor,
 }: NodeViewProps) {
+  const { t } = useEditorI18n();
   const isEditable = editor.isEditable;
   const attrs = node.attrs as QuestionBlankWriteAttrs;
   const [previewMode, setPreviewMode] = useState(false);
@@ -611,7 +631,9 @@ export default function QuestionBlankWriteView({
               <HelpCircle className="h-3 w-3 text-violet-600" />
             </span>
             <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-              {previewMode ? "Fill blank (write) - preview" : "Fill blank (write) - creator"}
+              {previewMode
+                ? t("Fill blank (write) - preview", "เติมคำ (เขียน) - ตัวอย่าง")
+                : t("Fill blank (write) - creator", "เติมคำ (เขียน) - ผู้สร้าง")}
             </span>
 
             <div className="ml-auto flex items-center gap-1">
@@ -627,7 +649,11 @@ export default function QuestionBlankWriteView({
                     ? "bg-violet-100 text-violet-600"
                     : "text-gray-300 hover:bg-violet-100 hover:text-violet-500",
                 ].join(" ")}
-                aria-label={previewMode ? "Switch to creator" : "Preview as viewer"}
+                aria-label={
+                  previewMode
+                    ? t("Switch to creator", "สลับไปโหมดผู้สร้าง")
+                    : t("Preview as viewer", "ดูตัวอย่างแบบผู้เรียน")
+                }
               >
                 {previewMode ? (
                   <EyeOff className="h-3.5 w-3.5" />
@@ -643,7 +669,7 @@ export default function QuestionBlankWriteView({
                   selectNode();
                 }}
                 className="flex h-6 w-6 items-center justify-center rounded text-gray-300 transition hover:bg-violet-100 hover:text-violet-500"
-                aria-label="Select block"
+                aria-label={t("Select block", "เลือกบล็อก")}
               >
                 <SquareDashedMousePointer className="h-3.5 w-3.5" />
               </button>

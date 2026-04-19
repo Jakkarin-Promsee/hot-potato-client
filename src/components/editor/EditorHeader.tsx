@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useCanvasStore } from "@/stores/canvas.store";
 import PublishSettingsModal from "./PublishSettingsModal";
+import { useEditorI18n } from "./editor.i18n";
 
 const IconBtn = memo(
   ({
@@ -83,6 +84,7 @@ const EditorHeader = memo(
     const isDirty = useCanvasStore((s) => s.isDirty);
     const setTitle = useCanvasStore((s) => s.setTitle);
     const saveContent = useCanvasStore((s) => s.saveContent);
+    const { isThai } = useEditorI18n();
 
     // Replace triggerSave with real save
     const handleTitleChange = useCallback(
@@ -215,11 +217,11 @@ const EditorHeader = memo(
           <div className="flex items-center gap-1.5">
           <Link
             to="/create"
-            title="Back to create"
+            title={isThai ? "กลับไปหน้าสร้าง" : "Back to create"}
             className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <ChevronLeft size={14} strokeWidth={1.8} />
-            <span>Create</span>
+            <span>{isThai ? "สร้าง" : "Create"}</span>
           </Link>
           <div className="mx-1 h-4 w-px bg-border" />
           <input
@@ -235,37 +237,45 @@ const EditorHeader = memo(
             {isSaving && (
               <>
                 <Loader2 size={12} className="animate-spin" />
-                <span>Saving…</span>
+                <span>{isThai ? "กำลังบันทึก…" : "Saving…"}</span>
               </>
             )}
             {!isSaving && !isDirty && (
               <>
                 <Save size={12} />
-                <span>Saved</span>
+                <span>{isThai ? "บันทึกแล้ว" : "Saved"}</span>
               </>
             )}
             {!isSaving && isDirty && (
               <button
                 onClick={handleSave}
-                title="Save"
+                title={isThai ? "บันทึก" : "Save"}
                 className="flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors hover:bg-accent text-muted-foreground"
               >
                 <Save size={12} />
-                <span>Save?</span>
+                <span>{isThai ? "บันทึก?" : "Save?"}</span>
               </button>
             )}
           </div>
           <div className="mx-1.5 h-4 w-px bg-border" />
-          <IconBtn title="Undo" onClick={handleUndo} disabled={!canUndo}>
+          <IconBtn
+            title={isThai ? "ย้อนกลับ" : "Undo"}
+            onClick={handleUndo}
+            disabled={!canUndo}
+          >
             <div className="flex">
-              <p>Undo</p>
+              <p>{isThai ? "ย้อนกลับ" : "Undo"}</p>
               <Undo2 size={15} strokeWidth={1.8} />
             </div>
           </IconBtn>
-          <IconBtn title="Redo" onClick={handleRedo} disabled={!canRedo}>
+          <IconBtn
+            title={isThai ? "ทำซ้ำ" : "Redo"}
+            onClick={handleRedo}
+            disabled={!canRedo}
+          >
             <div className="flex">
               <Redo2 size={15} strokeWidth={1.8} />
-              <p>Redo</p>
+              <p>{isThai ? "ทำซ้ำ" : "Redo"}</p>
             </div>
           </IconBtn>
           </div>
@@ -279,8 +289,12 @@ const EditorHeader = memo(
             onClick={handleDynamicToggle}
             title={
               dynamicUpdate
-                ? "Live mode: toolbar tracks cursor position. Click to disable."
-                : "Static mode: toolbar won't track cursor. Click to enable."
+                ? isThai
+                  ? "โหมดสด: ทูลบาร์ติดตามตำแหน่งเคอร์เซอร์ คลิกเพื่อปิด"
+                  : "Live mode: toolbar tracks cursor position. Click to disable."
+                : isThai
+                  ? "โหมดคงที่: ทูลบาร์ไม่ติดตามเคอร์เซอร์ คลิกเพื่อเปิด"
+                  : "Static mode: toolbar won't track cursor. Click to enable."
             }
             className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors ${
               dynamicUpdate
@@ -293,20 +307,28 @@ const EditorHeader = memo(
             ) : (
               <ZapOff size={12} strokeWidth={1.8} />
             )}
-            <span>{dynamicUpdate ? "Live" : "Static"}</span>
+            <span>
+              {dynamicUpdate
+                ? isThai
+                  ? "สด"
+                  : "Live"
+                : isThai
+                  ? "คงที่"
+                  : "Static"}
+            </span>
           </button>
 
           <div className="mx-1 h-4 w-px bg-border" />
 
           {/* ── ZOOM CONTROLS ── */}
           <span className="text-xs text-muted-foreground px-1 select-none">
-            Zoom:
+            {isThai ? "ซูม:" : "Zoom:"}
           </span>
           <div className="flex items-center gap-0.5 rounded-md border border-border/60 px-1 py-0.5">
             <button
               onClick={handleZoomOut}
               disabled={zoom <= ZOOM_MIN}
-              title="Zoom out"
+              title={isThai ? "ซูมออก" : "Zoom out"}
               className="flex items-center justify-center w-5 h-5 rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
             >
               <ZoomOut size={12} strokeWidth={1.8} />
@@ -314,7 +336,7 @@ const EditorHeader = memo(
 
             <button
               onClick={handleZoomReset}
-              title="Reset zoom (100%)"
+              title={isThai ? "รีเซ็ตซูม (100%)" : "Reset zoom (100%)"}
               className="relative flex items-center justify-center h-5 rounded px-0.5 transition-colors hover:bg-accent group"
               style={{ minWidth: "2.5rem" }}
             >
@@ -342,7 +364,7 @@ const EditorHeader = memo(
             <button
               onClick={handleZoomIn}
               disabled={zoom >= ZOOM_MAX}
-              title="Zoom in"
+              title={isThai ? "ซูมเข้า" : "Zoom in"}
               className="flex items-center justify-center w-5 h-5 rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
             >
               <ZoomIn size={12} strokeWidth={1.8} />
@@ -355,8 +377,12 @@ const EditorHeader = memo(
             onClick={handleLinkToggle}
             title={
               linkClickMode === "ctrl"
-                ? "Links open on Ctrl+Click"
-                : "Links open on Click"
+                ? isThai
+                  ? "ลิงก์เปิดด้วย Ctrl+คลิก"
+                  : "Links open on Ctrl+Click"
+                : isThai
+                  ? "ลิงก์เปิดด้วยคลิก"
+                  : "Links open on Click"
             }
             className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors ${
               linkClickMode === "direct"
@@ -365,17 +391,21 @@ const EditorHeader = memo(
             }`}
           >
             <Link2 size={12} strokeWidth={1.8} />
-            <p>Link:</p>
+            <p>{isThai ? "ลิงก์:" : "Link:"}</p>
             {linkClickMode === "direct"
-              ? "Open on Click"
-              : "Open on Ctrl+Click"}
+              ? isThai
+                ? "เปิดเมื่อคลิก"
+                : "Open on Click"
+              : isThai
+                ? "เปิดเมื่อ Ctrl+คลิก"
+                : "Open on Ctrl+Click"}
           </button>
           <div className="mx-1.5 h-4 w-px bg-border" />
           <button
             className="rounded-full bg-editor-highlight px-4 py-1.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
             onClick={handlePublic}
           >
-            Publish
+            {isThai ? "เผยแพร่" : "Publish"}
           </button>
           </div>
         </div>

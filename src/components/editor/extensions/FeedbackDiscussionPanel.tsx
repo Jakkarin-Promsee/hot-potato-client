@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { MessageCircle, SendHorizontal } from "lucide-react";
+import { useEditorI18n } from "../editor.i18n";
 
 export interface FeedbackThreadMessage {
   role: "student" | "ai";
@@ -22,14 +23,15 @@ export default function FeedbackDiscussionPanel({
   onToggle,
   onSend,
 }: FeedbackDiscussionPanelProps) {
+  const { t } = useEditorI18n();
   const [draft, setDraft] = useState("");
   const hasMessages = messages.length > 0;
   const buttonLabel = useMemo(() => {
-    if (open) return "Hide follow-up";
+    if (open) return t("Hide follow-up", "ซ่อนคำถามต่อยอด");
     return hasMessages
-      ? `Submit another answer? (${messages.length})`
-      : "Submit another answer?";
-  }, [hasMessages, messages.length, open]);
+      ? `${t("Submit another answer?", "ส่งคำตอบเพิ่มเติม?")} (${messages.length})`
+      : t("Submit another answer?", "ส่งคำตอบเพิ่มเติม?");
+  }, [hasMessages, messages.length, open, t]);
 
   const submit = async () => {
     const next = draft.trim();
@@ -73,7 +75,10 @@ export default function FeedbackDiscussionPanel({
             </div>
           ) : (
             <p className="text-sm text-gray-400">
-              Improve your answer and ask for another quick feedback round.
+              {t(
+                "Improve your answer and ask for another quick feedback round.",
+                "ปรับคำตอบของคุณ แล้วขอคำแนะนำรอบใหม่ได้เลย",
+              )}
             </p>
           )}
 
@@ -88,7 +93,10 @@ export default function FeedbackDiscussionPanel({
                   void submit();
                 }
               }}
-              placeholder="Try another answer or ask follow-up..."
+              placeholder={t(
+                "Try another answer or ask follow-up...",
+                "ลองตอบใหม่หรือถามต่อยอด...",
+              )}
               className="flex-1 resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-base text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
             />
             <button
@@ -98,7 +106,7 @@ export default function FeedbackDiscussionPanel({
               className="flex h-10 items-center gap-1 rounded-lg bg-violet-600 px-3 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <SendHorizontal className="h-3.5 w-3.5" />
-              Submit
+              {t("Submit", "ส่ง")}
             </button>
           </div>
           <div className="flex justify-end">
@@ -107,7 +115,7 @@ export default function FeedbackDiscussionPanel({
               onClick={onToggle}
               className="text-sm font-medium text-gray-400 underline transition hover:text-gray-600"
             >
-              Hide
+              {t("Hide", "ซ่อน")}
             </button>
           </div>
         </div>

@@ -19,6 +19,7 @@ import {
   subscribeFormulaToolbarAction,
 } from "./formulaToolbarBus";
 import type { FormulaNode, FormulaToolbarAction } from "./types";
+import { useEditorI18n } from "../editor.i18n";
 
 type FormulaAttrs = {
   id?: string;
@@ -102,6 +103,7 @@ export default function FormulaCanvas({
   updateAttributes,
   editor,
 }: NodeViewProps) {
+  const { t } = useEditorI18n();
   const attrs = node.attrs as FormulaAttrs;
   const [latexInput, setLatexInput] = useState(() => inferInitialLatex(attrs));
   const [activeToolbarBlockId, setActiveToolbarBlockId] = useState<
@@ -288,8 +290,8 @@ export default function FormulaCanvas({
           <div className="mb-1 flex items-center gap-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
               {previewMode
-                ? "Formula Block (Preview)"
-                : "Formula Block (LaTeX)"}
+                ? t("Formula Block (Preview)", "บล็อกสูตร (ตัวอย่าง)")
+                : t("Formula Block (LaTeX)", "บล็อกสูตร (LaTeX)")}
             </span>
             <div className="ml-auto flex items-center gap-1">
               <BlockMoveControls editor={editor} getPos={getPos} />
@@ -311,8 +313,8 @@ export default function FormulaCanvas({
                 ].join(" ")}
                 aria-label={
                   previewMode
-                    ? "Switch to formula editor"
-                    : "Preview formula as viewer"
+                    ? t("Switch to formula editor", "สลับไปแก้ไขสูตร")
+                    : t("Preview formula as viewer", "แสดงตัวอย่างสูตร")
                 }
               >
                 {previewMode ? (
@@ -334,7 +336,7 @@ export default function FormulaCanvas({
                   selectNode();
                 }}
                 className="flex h-6 w-6 items-center justify-center rounded text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
-                aria-label="Select formula block"
+                aria-label={t("Select formula block", "เลือกบล็อกสูตร")}
               >
                 <SquareDashedMousePointer className="h-3.5 w-3.5" />
               </button>
@@ -353,7 +355,9 @@ export default function FormulaCanvas({
                   dangerouslySetInnerHTML={{ __html: renderResult }}
                 />
               ) : (
-                <p className="text-xs text-slate-400">No formula content.</p>
+                <p className="text-xs text-slate-400">
+                  {t("No formula content.", "ยังไม่มีเนื้อหาสูตร")}
+                </p>
               )}
             </div>
           ) : (
@@ -385,7 +389,10 @@ export default function FormulaCanvas({
                 }}
                 rows={4}
                 spellCheck={false}
-                placeholder="Type LaTeX directly, e.g. \frac{a}{b} + \sqrt{x}"
+                placeholder={t(
+                  "Type LaTeX directly, e.g. \\frac{a}{b} + \\sqrt{x}",
+                  "พิมพ์ LaTeX ได้เลย เช่น \\frac{a}{b} + \\sqrt{x}",
+                )}
                 className="w-full resize-y rounded border border-slate-300 bg-white px-2 py-1.5 text-sm font-mono outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-300"
               />
 
@@ -397,13 +404,19 @@ export default function FormulaCanvas({
                   />
                 ) : (
                   <p className="text-xs text-slate-400">
-                    Start typing LaTeX to see the rendered formula.
+                    {t(
+                      "Start typing LaTeX to see the rendered formula.",
+                      "เริ่มพิมพ์ LaTeX เพื่อดูผลลัพธ์สูตร",
+                    )}
                   </p>
                 )}
               </div>
 
               <p className="text-[10px] text-slate-500">
-                Tip: select text then use left toolbar wrap actions like{" "}
+                {t(
+                  "Tip: select text then use left toolbar wrap actions like ",
+                  "เคล็ดลับ: เลือกข้อความแล้วใช้คำสั่งห่อจากแถบซ้าย เช่น ",
+                )}
                 <code>/</code>, <code>^</code>, and <code>(x)</code>.
               </p>
             </div>

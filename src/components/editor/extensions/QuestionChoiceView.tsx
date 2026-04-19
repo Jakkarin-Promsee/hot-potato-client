@@ -25,6 +25,7 @@ import {
   Layers,
   CircleDot,
 } from "lucide-react";
+import { useEditorI18n } from "../editor.i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,6 +83,7 @@ function ChoiceInput({
   onBlur,
   onRemove,
 }: ChoiceInputProps) {
+  const { t } = useEditorI18n();
   const ref = useAutoGrow(choice.text);
 
   return (
@@ -90,7 +92,11 @@ function ChoiceInput({
       <button
         type="button"
         onClick={onToggleCorrect}
-        aria-label={choice.correct ? "Mark as incorrect" : "Mark as correct"}
+        aria-label={
+          choice.correct
+            ? t("Mark as incorrect", "ทำเครื่องหมายว่าไม่ถูก")
+            : t("Mark as correct", "ทำเครื่องหมายว่าถูก")
+        }
         className={[
           "mt-2 flex h-4 w-4 shrink-0 items-center justify-center border-2 transition",
           answerType === "single" ? "rounded-full" : "rounded",
@@ -116,7 +122,7 @@ function ChoiceInput({
           type="button"
           onClick={onRemove}
           className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-red-50 hover:text-red-500"
-          aria-label="Remove choice"
+          aria-label={t("Remove choice", "ลบตัวเลือก")}
         >
           <Minus className="h-3.5 w-3.5" />
         </button>
@@ -154,6 +160,7 @@ function CreatorView({
   onFlush,
   onCommit,
 }: CreatorViewProps) {
+  const { t } = useEditorI18n();
   const [question, setQuestion] = useState(initialQuestion);
   const [choices, setChoices] = useState(initialChoices);
   const [answerType, setAnswerType] = useState(initialAnswerType);
@@ -239,7 +246,7 @@ function CreatorView({
 
       {/* Answer type toggle */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-400">Answer type:</span>
+        <span className="text-xs text-gray-400">{t("Answer type:", "ประเภทคำตอบ:")}</span>
         <button
           type="button"
           onClick={handleToggleAnswerType}
@@ -252,11 +259,11 @@ function CreatorView({
         >
           {answerType === "single" ? (
             <>
-              <CircleDot className="h-3 w-3" /> Single correct
+              <CircleDot className="h-3 w-3" /> {t("Single correct", "คำตอบเดียว")}
             </>
           ) : (
             <>
-              <Layers className="h-3 w-3" /> Multiple correct
+              <Layers className="h-3 w-3" /> {t("Multiple correct", "หลายคำตอบ")}
             </>
           )}
         </button>
@@ -267,7 +274,7 @@ function CreatorView({
         ref={questionRef}
         rows={1}
         value={question}
-        placeholder="Type your question here…"
+        placeholder={t("Type your question here…", "พิมพ์คำถามของคุณที่นี่…")}
         onChange={(e) => setQuestion(e.target.value)}
         onBlur={flush}
         className="w-full resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-base font-medium text-gray-900 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
@@ -302,7 +309,7 @@ function CreatorView({
         className="flex w-fit items-center gap-1.5 rounded-md border border-dashed border-violet-300 px-3 py-1.5 text-xs font-medium text-violet-600 transition hover:border-violet-400 hover:bg-violet-50"
       >
         <Plus className="h-3.5 w-3.5" />
-        Add choice
+        {t("Add choice", "เพิ่มตัวเลือก")}
       </button>
     </div>
   );
@@ -324,6 +331,7 @@ interface BlockAnswer {
 }
 
 function ViewerView({ attrs }: ViewerViewProps) {
+  const { t } = useEditorI18n();
   const { question, choices, answerType, feedbackMode } = attrs;
   const blockId = (attrs as any).id as string;
 
@@ -567,7 +575,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
       {/* Question */}
       <p className="text-base font-semibold text-gray-900">
         {question || (
-          <span className="italic text-gray-400">No question set</span>
+          <span className="italic text-gray-400">{t("No question set", "ยังไม่ได้ตั้งคำถาม")}</span>
         )}
       </p>
 
@@ -575,8 +583,8 @@ function ViewerView({ attrs }: ViewerViewProps) {
       {!submitted && (
         <p className="text-xs text-gray-400">
           {answerType === "multi"
-            ? "Select all that apply."
-            : "Select one answer."}
+            ? t("Select all that apply.", "เลือกทุกข้อที่ถูกต้อง")
+            : t("Select one answer.", "เลือกหนึ่งคำตอบ")}
         </p>
       )}
 
@@ -649,13 +657,13 @@ function ViewerView({ attrs }: ViewerViewProps) {
               {submitted && (
                 <span className="ml-auto text-xs font-medium">
                   {sel && isCorrectChoice && (
-                    <span className="text-green-600">Correct ✓</span>
+                    <span className="text-green-600">{t("Correct ✓", "ถูก ✓")}</span>
                   )}
                   {sel && !isCorrectChoice && (
-                    <span className="text-red-500">Wrong ✗</span>
+                    <span className="text-red-500">{t("Wrong ✗", "ผิด ✗")}</span>
                   )}
                   {!sel && isCorrectChoice && (
-                    <span className="text-green-500">Correct answer</span>
+                    <span className="text-green-500">{t("Correct answer", "คำตอบที่ถูก")}</span>
                   )}
                 </span>
               )}
@@ -673,7 +681,7 @@ function ViewerView({ attrs }: ViewerViewProps) {
             disabled={!hasSelection}
             className="rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Submit
+            {t("Submit", "ส่ง")}
           </button>
         ) : (
           <>
@@ -684,15 +692,15 @@ function ViewerView({ attrs }: ViewerViewProps) {
               ].join(" ")}
             >
               {isFullyCorrect
-                ? "🎉 All correct!"
-                : "Not quite — review the answers above."}
+                ? t("🎉 All correct!", "🎉 ถูกทั้งหมด!")
+                : t("Not quite — review the answers above.", "ยังไม่ถูกทั้งหมด — ลองดูคำตอบด้านบนอีกครั้ง")}
             </span>
             <button
               type="button"
               onClick={handleReset} // 👈 also resets store
               className="ml-auto text-sm text-gray-400 underline transition hover:text-gray-600"
             >
-              Try again
+              {t("Try again", "ลองใหม่")}
             </button>
           </>
         )}
@@ -700,12 +708,12 @@ function ViewerView({ attrs }: ViewerViewProps) {
       {submitted && (
         <div className="rounded-lg border border-violet-100 bg-violet-50 px-3 py-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-violet-500">
-            AI feedback
+            {t("AI feedback", "คำแนะนำจาก AI")}
           </p>
           <p className="mt-1 text-base text-violet-900">
             {isFeedbackLoading
-              ? "AI กำลังเขียนคำแนะนำแบบละเอียดให้..."
-              : aiFeedback || "ยังไม่มีคำแนะนำ"}
+              ? t("AI is generating detailed feedback...", "AI กำลังเขียนคำแนะนำแบบละเอียดให้...")
+              : aiFeedback || t("No feedback yet", "ยังไม่มีคำแนะนำ")}
           </p>
         </div>
       )}
@@ -735,6 +743,7 @@ export default function QuestionChoiceView({
   updateAttributes,
   editor,
 }: NodeViewProps) {
+  const { t } = useEditorI18n();
   const isEditable = editor.isEditable;
   const attrs = node.attrs as QuestionChoiceAttrs;
 
@@ -790,7 +799,9 @@ export default function QuestionChoiceView({
               <HelpCircle className="h-3 w-3 text-violet-600" />
             </span>
             <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-              {previewMode ? "Choice question — preview" : "Choice question — creator"}
+              {previewMode
+                ? t("Choice question — preview", "คำถามตัวเลือก — ตัวอย่าง")
+                : t("Choice question — creator", "คำถามตัวเลือก — ผู้สร้าง")}
             </span>
 
             <div className="ml-auto flex items-center gap-1">
@@ -807,7 +818,9 @@ export default function QuestionChoiceView({
                     : "text-gray-300 hover:bg-violet-100 hover:text-violet-500",
                 ].join(" ")}
                 aria-label={
-                  previewMode ? "Switch to creator" : "Preview as viewer"
+                  previewMode
+                    ? t("Switch to creator", "สลับไปโหมดผู้สร้าง")
+                    : t("Preview as viewer", "ดูตัวอย่างแบบผู้เรียน")
                 }
               >
                 {previewMode ? (
@@ -824,7 +837,7 @@ export default function QuestionChoiceView({
                   selectNode();
                 }}
                 className="flex h-6 w-6 items-center justify-center rounded text-gray-300 transition hover:bg-violet-100 hover:text-violet-500"
-                aria-label="Select block"
+                aria-label={t("Select block", "เลือกบล็อก")}
               >
                 <SquareDashedMousePointer className="h-3.5 w-3.5" />
               </button>

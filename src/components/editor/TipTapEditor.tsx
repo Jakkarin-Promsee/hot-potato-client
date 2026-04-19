@@ -16,12 +16,14 @@ import {
   rememberPastedImageUrl,
 } from "@/lib/clipboardPasteImageCache";
 import { createEditorExtensions } from "./config/editorExtensions";
+import { useEditorI18n } from "./editor.i18n";
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.0;
 const ZOOM_STEP = 0.1; // finer step for ctrl+scroll
 
 const TipTapEditor = () => {
+  const { isThai } = useEditorI18n();
   const [dynamicUpdate, setDynamicUpdate] = useState(true);
   const [linkClickMode, setLinkClickMode] = useState<"ctrl" | "direct">("ctrl");
   const [sidebarCategory, setSidebarCategory] = useState<
@@ -254,7 +256,9 @@ const TipTapEditor = () => {
     <>
       {conflict && (
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-yellow-100 border border-yellow-300 text-yellow-800 text-xs">
-          <span>⚠️ A newer version exists!</span>
+          <span>
+            {isThai ? "⚠️ มีเวอร์ชันใหม่กว่าอยู่แล้ว!" : "⚠️ A newer version exists!"}
+          </span>
 
           {/* Option 1 — load latest, discard local changes */}
           <button
@@ -263,7 +267,7 @@ const TipTapEditor = () => {
             }}
             className="px-2 py-0.5 rounded bg-yellow-200 hover:bg-yellow-300 font-medium transition"
           >
-            Load latest
+            {isThai ? "โหลดเวอร์ชันล่าสุด" : "Load latest"}
           </button>
 
           {/* Option 2 — override server with local version */}
@@ -271,7 +275,7 @@ const TipTapEditor = () => {
             onClick={forceSave}
             className="px-2 py-0.5 rounded bg-red-100 hover:bg-red-200 text-red-700 font-medium transition"
           >
-            Override with mine
+            {isThai ? "เขียนทับด้วยของฉัน" : "Override with mine"}
           </button>
         </div>
       )}

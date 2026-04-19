@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import api from "@/lib/axios";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useUploadStore } from "@/stores/cloudinary.store";
+import { useEditorI18n } from "./editor.i18n";
 
 /** Picker: all uploaded images in a grid; one click sets the title image and closes. */
 const TitleImageGalleryModal = memo(
@@ -20,6 +21,7 @@ const TitleImageGalleryModal = memo(
     onPick: (url: string) => void;
     currentUrl: string;
   }) => {
+    const { t } = useEditorI18n();
     const history = useUploadStore((s) => s.history);
     const isFetching = useUploadStore((s) => s.isFetching);
     const fetchHistory = useUploadStore((s) => s.fetchHistory);
@@ -43,10 +45,13 @@ const TitleImageGalleryModal = memo(
           <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3">
             <div>
               <span className="text-sm font-semibold text-foreground">
-                Choose from gallery
+                {t("Choose from gallery", "เลือกจากคลังรูปภาพ")}
               </span>
               <p className="text-[11px] text-muted-foreground">
-                Click an image to use it as the title image.
+                {t(
+                  "Click an image to use it as the title image.",
+                  "คลิกรูปภาพเพื่อใช้เป็นรูปปก",
+                )}
               </p>
             </div>
             <Button variant="ghost" size="icon-sm" onClick={onClose}>
@@ -65,9 +70,11 @@ const TitleImageGalleryModal = memo(
               </div>
             ) : history.length === 0 ? (
               <p className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-10 text-center text-sm text-muted-foreground">
-                No images in your gallery yet. Use{" "}
-                <span className="font-medium text-foreground">Upload</span>{" "}
-                above first, then try again.
+                {t("No images in your gallery yet. Use ", "ยังไม่มีรูปภาพในคลังของคุณ ใช้ ")}
+                <span className="font-medium text-foreground">
+                  {t("Upload", "อัปโหลด")}
+                </span>{" "}
+                {t("above first, then try again.", "ก่อน แล้วค่อยลองใหม่")}
               </p>
             ) : (
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
@@ -120,6 +127,15 @@ const ACCESS_TYPES: Array<"public" | "link-only" | "private"> = [
   "private",
 ];
 
+const ACCESS_TYPE_LABELS: Record<
+  (typeof ACCESS_TYPES)[number],
+  { en: string; th: string }
+> = {
+  public: { en: "Public", th: "สาธารณะ" },
+  "link-only": { en: "Link only", th: "เฉพาะลิงก์" },
+  private: { en: "Private", th: "ส่วนตัว" },
+};
+
 function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -147,6 +163,7 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
   const forceSave = useCanvasStore((s) => s.forceSave);
   const upload = useUploadStore((s) => s.upload);
   const isUploading = useUploadStore((s) => s.isUploading);
+  const { t } = useEditorI18n();
 
   useEffect(() => {
     if (!open) return;
@@ -228,7 +245,10 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
   const handleDelete = async () => {
     if (!contentId) return;
     const yes = window.confirm(
-      "Delete this content permanently? This action cannot be undone.",
+      t(
+        "Delete this content permanently? This action cannot be undone.",
+        "ลบเนื้อหานี้ถาวรหรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้",
+      ),
     );
     if (!yes) return;
 
@@ -270,9 +290,14 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
         >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold">Publish settings</h2>
+            <h2 className="text-base font-semibold">
+              {t("Publish settings", "ตั้งค่าการเผยแพร่")}
+            </h2>
             <p className="text-xs text-muted-foreground">
-              Configure visibility, collaborators, and discoverability.
+              {t(
+                "Configure visibility, collaborators, and discoverability.",
+                "ตั้งค่าการมองเห็น ผู้ร่วมงาน และการค้นพบ",
+              )}
             </p>
           </div>
           <Button variant="ghost" size="icon-sm" onClick={onClose}>
@@ -282,16 +307,16 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
 
         <div className="grid gap-5 p-5 md:grid-cols-2">
           <div className="space-y-2 md:col-span-2">
-            <Label>Title</Label>
+            <Label>{t("Title", "ชื่อเรื่อง")}</Label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Lesson title"
+              placeholder={t("Lesson title", "ชื่อบทเรียน")}
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Title image URL</Label>
+            <Label>{t("Title image URL", "ลิงก์รูปปก")}</Label>
             <Button
               type="button"
               variant="outline"
@@ -299,7 +324,7 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
               onClick={() => setGalleryOpen(true)}
             >
               <Images className="size-3.5" />
-              Choose from gallery
+              {t("Choose from gallery", "เลือกจากคลังรูปภาพ")}
             </Button>
             <div className="flex gap-2">
               <Input
@@ -326,7 +351,7 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
                 ) : (
                   <Upload className="size-4" />
                 )}
-                Upload
+                {t("Upload", "อัปโหลด")}
               </Button>
             </div>
             {titleImage && (
@@ -339,7 +364,7 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
           </div>
 
           <div className="space-y-2">
-            <Label>Access type</Label>
+            <Label>{t("Access type", "ประเภทการเข้าถึง")}</Label>
             <div className="flex flex-wrap gap-2">
               {ACCESS_TYPES.map((type) => (
                 <Button
@@ -347,16 +372,15 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
                   variant={accessType === type ? "default" : "outline"}
                   size="sm"
                   onClick={() => setAccessType(type)}
-                  className="capitalize"
                 >
-                  {type}
+                  {t(ACCESS_TYPE_LABELS[type].en, ACCESS_TYPE_LABELS[type].th)}
                 </Button>
               ))}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Collaborators (User ID)</Label>
+            <Label>{t("Collaborators (User ID)", "ผู้ร่วมงาน (User ID)")}</Label>
             <div className="flex gap-2">
               <Input
                 value={collaboratorDraft}
@@ -371,13 +395,13 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
               />
               <Button variant="outline" onClick={addCollaborator}>
                 <Plus className="size-4" />
-                Add
+                {t("Add", "เพิ่ม")}
               </Button>
             </div>
             <div className="space-y-2">
               {collaborators.length === 0 && (
                 <p className="text-xs text-muted-foreground">
-                  No collaborators yet.
+                  {t("No collaborators yet.", "ยังไม่มีผู้ร่วมงาน")}
                 </p>
               )}
               {collaborators.map((id, idx) => (
@@ -399,7 +423,7 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
           </div>
 
           <div className="space-y-2">
-            <Label>Topics</Label>
+            <Label>{t("Topics", "หัวข้อ")}</Label>
             <div className="flex gap-2">
               <Input
                 value={topicDraft}
@@ -410,16 +434,18 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
                     addTopic();
                   }
                 }}
-                placeholder="Math, Biology, ..."
+                placeholder={t("Math, Biology, ...", "คณิต, ชีวะ, ...")}
               />
               <Button variant="outline" onClick={addTopic}>
                 <Plus className="size-4" />
-                Add
+                {t("Add", "เพิ่ม")}
               </Button>
             </div>
             <div className="space-y-2">
               {topics.length === 0 && (
-                <p className="text-xs text-muted-foreground">No topics yet.</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("No topics yet.", "ยังไม่มีหัวข้อ")}
+                </p>
               )}
               {topics.map((topic, idx) => (
                 <div key={`${topic}-${idx}`} className="flex gap-2">
@@ -440,18 +466,21 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
           </div>
 
           <div className="space-y-2 md:col-span-2">
-            <Label>Description</Label>
+            <Label>{t("Description", "คำอธิบาย")}</Label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Write a longer description for this content..."
+              placeholder={t(
+                "Write a longer description for this content...",
+                "เขียนคำอธิบายเนื้อหานี้แบบละเอียด...",
+              )}
               className="min-h-24"
             />
           </div>
 
           <div className="rounded-lg border border-border/70 bg-muted/20 p-3 md:col-span-2">
             <p className="text-xs text-muted-foreground">
-              Share link:{" "}
+              {t("Share link: ", "ลิงก์แชร์: ")}
               {contentId ? `${window.location.origin}/view/${contentId}` : "-"}
             </p>
           </div>
@@ -468,7 +497,7 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
             ) : (
               <Trash2 className="size-4" />
             )}
-            Delete
+            {t("Delete", "ลบ")}
           </Button>
 
           <div className="flex flex-wrap gap-2">
@@ -478,18 +507,20 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
               ) : (
                 <Copy className="size-4" />
               )}
-              {shareCopied ? "Copied" : "Share link"}
+              {shareCopied
+                ? t("Copied", "คัดลอกแล้ว")
+                : t("Share link", "คัดลอกลิงก์")}
             </Button>
             <Button variant="outline" onClick={handleSaveAndClose} disabled={isSaving}>
               {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
-              Save settings
+              {t("Save settings", "บันทึกการตั้งค่า")}
             </Button>
             <Button
               onClick={handlePublishNow}
               disabled={isSaving || !contentId}
             >
               {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
-              Publish now
+              {t("Publish now", "เผยแพร่ตอนนี้")}
             </Button>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { memo, useState } from "react";
 import { createFormulaNode } from "./formulaReducer";
 import type { FormulaAction, PowerPosition } from "./types";
+import { useEditorI18n } from "../editor.i18n";
 
 type FormulaSidebarProps = {
   activeNodeId: string;
@@ -67,6 +68,7 @@ const FormulaSidebar = memo(function FormulaSidebar({
   activeNodeId,
   dispatch,
 }: FormulaSidebarProps) {
+  const { t } = useEditorI18n();
   const insertPowerNode = (position: PowerPosition) => {
     dispatch({
       type: "INSERT_NODE",
@@ -79,7 +81,7 @@ const FormulaSidebar = memo(function FormulaSidebar({
   return (
     <aside className="w-[200px] shrink-0 overflow-y-auto border-r border-slate-200 bg-slate-50 p-2">
       <div className="space-y-2">
-        <SidebarSection title="Powers & indices">
+        <SidebarSection title={t("Powers & indices", "กำลังและดัชนี")}>
           <InsertButton
             label="x²"
             onClick={() => insertPowerNode("top-right")}

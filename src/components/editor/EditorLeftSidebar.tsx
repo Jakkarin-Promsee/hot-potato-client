@@ -33,6 +33,7 @@ import {
   subscribeActiveFormulaBlock,
 } from "./FormulaBlock/formulaToolbarBus";
 import { createFormulaRow } from "./FormulaBlock/formulaReducer";
+import { useEditorI18n } from "./editor.i18n";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -305,6 +306,7 @@ const GalleryModal = memo(({ onClose }: { onClose: () => void }) => (
 // ─── Media Panel ─────────────────────────────────────────────────────────────
 
 const MediaPanel = memo(({ editor }: { editor: Editor }) => {
+  const { t } = useEditorI18n();
   const {
     history,
     fetchHistory,
@@ -363,7 +365,7 @@ const MediaPanel = memo(({ editor }: { editor: Editor }) => {
   return (
     <div className="flex flex-col gap-1">
       {/* ── Upload buttons ─────────────────────────────────────────────── */}
-      <PanelLabel>Upload</PanelLabel>
+      <PanelLabel>{t("Upload", "อัปโหลด")}</PanelLabel>
 
       <div className="px-2 flex flex-col gap-2">
         {/* Upload from device */}
@@ -373,7 +375,9 @@ const MediaPanel = memo(({ editor }: { editor: Editor }) => {
           className="flex items-center justify-center gap-2 w-full rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 hover:border-primary/70 px-3 py-3 text-sm font-medium text-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Upload size={15} strokeWidth={2} />
-          {isUploading ? `Uploading… ${progress}%` : "Upload from device"}
+          {isUploading
+            ? `${t("Uploading…", "กำลังอัปโหลด…")} ${progress}%`
+            : t("Upload from device", "อัปโหลดจากอุปกรณ์")}
         </button>
 
         {/* Upload from URL */}
@@ -386,7 +390,7 @@ const MediaPanel = memo(({ editor }: { editor: Editor }) => {
           }`}
         >
           <Link2 size={15} strokeWidth={2} />
-          Upload from URL
+          {t("Upload from URL", "อัปโหลดจาก URL")}
         </button>
 
         {showUrlBox && (
@@ -407,7 +411,7 @@ const MediaPanel = memo(({ editor }: { editor: Editor }) => {
               disabled={!urlInput.trim() || isUploading}
               className="shrink-0 rounded-md bg-primary px-2.5 py-1.5 text-xs text-primary-foreground disabled:opacity-40 transition-colors hover:bg-primary/90"
             >
-              Save
+              {t("Save", "บันทึก")}
             </button>
           </div>
         )}
@@ -430,16 +434,16 @@ const MediaPanel = memo(({ editor }: { editor: Editor }) => {
           className="flex items-center justify-center gap-2 w-full rounded-lg border border-border bg-background hover:bg-accent px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <ExternalLink size={12} strokeWidth={1.8} />
-          Manage gallery
+          {t("Manage gallery", "จัดการคลังภาพ")}
         </button>
       </div>
 
       {/* ── Category filter pills ─────────────────────────────────────── */}
       <PanelLabel>
-        Filter
+        {t("Filter", "ตัวกรอง")}
         {activeCatId
-          ? " — uploading to this group"
-          : " — uploading uncategorized"}
+          ? t(" — uploading to this group", " — จะอัปโหลดเข้ากลุ่มนี้")
+          : t(" — uploading uncategorized", " — จะอัปโหลดแบบไม่จัดหมวด")}
       </PanelLabel>
       <div className="px-2 flex flex-wrap gap-1 pb-1">
         <button
@@ -450,7 +454,7 @@ const MediaPanel = memo(({ editor }: { editor: Editor }) => {
               : "border-border text-muted-foreground hover:border-muted-foreground"
           }`}
         >
-          All
+          {t("All", "ทั้งหมด")}
         </button>
         {categories.map((cat) => (
           <button
@@ -470,7 +474,9 @@ const MediaPanel = memo(({ editor }: { editor: Editor }) => {
       </div>
 
       {/* ── Image grid ───────────────────────────────────────────────── */}
-      <PanelLabel>Vault ({filtered.length})</PanelLabel>
+      <PanelLabel>
+        {t("Vault", "คลังภาพ")} ({filtered.length})
+      </PanelLabel>
 
       {isFetching ? (
         <div className="grid grid-cols-2 gap-1.5 px-2 pb-2">
@@ -483,7 +489,7 @@ const MediaPanel = memo(({ editor }: { editor: Editor }) => {
         </div>
       ) : filtered.length === 0 ? (
         <p className="px-3 py-6 text-center text-[11px] text-muted-foreground/40">
-          No images yet
+          {t("No images yet", "ยังไม่มีรูปภาพ")}
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-1.5 px-2 pb-2">
@@ -502,7 +508,7 @@ const MediaPanel = memo(({ editor }: { editor: Editor }) => {
               />
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <span className="text-white text-[10px] font-medium">
-                  Insert
+                  {t("Insert", "แทรก")}
                 </span>
               </div>
             </button>
@@ -536,6 +542,7 @@ const MediaPanel = memo(({ editor }: { editor: Editor }) => {
 
 const TextPanel = memo(
   ({ editor, active }: { editor: Editor; active: LeftActiveFormats }) => {
+    const { t } = useEditorI18n();
     const setColor = useCallback(
       (c: string) => editor.chain().focus().setColor(c).run(),
       [editor],
@@ -547,16 +554,16 @@ const TextPanel = memo(
 
     return (
       <div className="flex flex-col gap-0.5">
-        <PanelLabel>Structure</PanelLabel>
+        <PanelLabel>{t("Structure", "โครงสร้าง")}</PanelLabel>
         <ToolBtn
           icon={Type}
-          label="Normal Text"
+          label={t("Normal Text", "ข้อความปกติ")}
           active={active.paragraph}
           onClick={() => editor.chain().focus().setParagraph().run()}
         />
         <ToolBtn
           icon={Heading1}
-          label="Heading 1"
+          label={t("Heading 1", "หัวข้อ 1")}
           active={active.h1}
           onClick={() =>
             editor.chain().focus().toggleHeading({ level: 1 }).run()
@@ -564,7 +571,7 @@ const TextPanel = memo(
         />
         <ToolBtn
           icon={Heading2}
-          label="Heading 2"
+          label={t("Heading 2", "หัวข้อ 2")}
           active={active.h2}
           onClick={() =>
             editor.chain().focus().toggleHeading({ level: 2 }).run()
@@ -572,7 +579,7 @@ const TextPanel = memo(
         />
         <ToolBtn
           icon={Heading3}
-          label="Heading 3"
+          label={t("Heading 3", "หัวข้อ 3")}
           active={active.h3}
           onClick={() =>
             editor.chain().focus().toggleHeading({ level: 3 }).run()
@@ -580,18 +587,18 @@ const TextPanel = memo(
         />
         <ToolBtn
           icon={Quote}
-          label="Blockquote"
+          label={t("Blockquote", "บล็อกอ้างอิง")}
           active={active.blockquote}
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
         />
 
-        <PanelLabel>Alignment</PanelLabel>
+        <PanelLabel>{t("Alignment", "การจัดวาง")}</PanelLabel>
         <div className="flex gap-1.5 px-2 py-1">
           {ALIGN_OPTIONS.map(({ icon: Icon, align }) => (
             <button
               key={align}
               onClick={() => editor.chain().focus().setTextAlign(align).run()}
-              title={`Align ${align}`}
+              title={t(`Align ${align}`, `จัดแนว ${align}`)}
               className={`flex-1 flex items-center justify-center rounded py-2 transition-colors ${
                 active.textAlign === align
                   ? "bg-accent text-foreground"
@@ -603,7 +610,7 @@ const TextPanel = memo(
           ))}
         </div>
 
-        <PanelLabel>Text Color</PanelLabel>
+        <PanelLabel>{t("Text Color", "สีข้อความ")}</PanelLabel>
         <div className="flex flex-wrap gap-2 px-2 py-1">
           {COLORS.map((c) => (
             <button
@@ -623,7 +630,7 @@ const TextPanel = memo(
           ))}
         </div>
 
-        <PanelLabel>Highlight</PanelLabel>
+        <PanelLabel>{t("Highlight", "ไฮไลต์")}</PanelLabel>
         <div className="flex flex-wrap gap-2 px-2 py-1">
           {HIGHLIGHTS.map((c) => (
             <button
@@ -644,32 +651,32 @@ const TextPanel = memo(
         </div>
 
         <div className="mt-3">
-          <PanelLabel>Quick Insert</PanelLabel>
+          <PanelLabel>{t("Quick Insert", "แทรกด่วน")}</PanelLabel>
           <div className="grid grid-cols-1 gap-1.5 px-2 py-1">
             <QuickInsertBtn
               icon={Minus}
-              label="Add line"
+              label={t("Add line", "เพิ่มเส้นคั่น")}
               onClick={() => editor.chain().focus().setHorizontalRule().run()}
             />
             <QuickInsertBtn
               icon={List}
-              label="Add bullet list"
+              label={t("Add bullet list", "เพิ่มรายการหัวข้อย่อย")}
               active={editor.isActive("bulletList")}
               onClick={() => editor.chain().focus().toggleBulletList().run()}
             />
             <QuickInsertBtn
               icon={ListOrdered}
-              label="Add numbered list"
+              label={t("Add numbered list", "เพิ่มรายการลำดับเลข")}
               active={editor.isActive("orderedList")}
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
             />
           </div>
 
-          <PanelLabel>Other Insert</PanelLabel>
+          <PanelLabel>{t("Other Insert", "แทรกอื่น ๆ")}</PanelLabel>
           <div className="grid grid-cols-1 gap-1.5 px-2 py-0.5">
             <QuickInsertBtn
               icon={Table}
-              label="Add table"
+              label={t("Add table", "เพิ่มตาราง")}
               onClick={() =>
                 editor
                   .chain()
@@ -680,13 +687,13 @@ const TextPanel = memo(
             />
             <QuickInsertBtn
               icon={ListTodo}
-              label="Add checklist"
+              label={t("Add checklist", "เพิ่มเช็กลิสต์")}
               active={active.taskList}
               onClick={() => editor.chain().focus().toggleTaskList().run()}
             />
             <QuickInsertBtn
               icon={LayoutDashboard}
-              label="Add canvas board"
+              label={t("Add canvas board", "เพิ่มกระดานแคนวาส")}
               onClick={() =>
                 editor
                   .chain()
@@ -703,6 +710,7 @@ const TextPanel = memo(
 );
 
 const FormularPanel = memo(({ editor }: { editor: Editor }) => {
+  const { t } = useEditorI18n();
   const [activeFormulaBlockId, setActiveFormulaBlockId] = useState<
     string | null
   >(null);
@@ -749,11 +757,11 @@ const FormularPanel = memo(({ editor }: { editor: Editor }) => {
           onClick={() => editor.chain().focus().insertFormulaBlock().run()}
           className="w-full rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
         >
-          Add Formula Block
+          {t("Add Formula Block", "เพิ่มบล็อกสูตร")}
         </button>
       </div>
 
-      <FormulaGroup title="Powers & indices" defaultOpen>
+      <FormulaGroup title={t("Powers & indices", "เลขยกกำลังและดัชนี")} defaultOpen>
         <FormulaBtn
           label="x²"
           onClick={() =>
@@ -780,7 +788,7 @@ const FormularPanel = memo(({ editor }: { editor: Editor }) => {
         />
       </FormulaGroup>
 
-      <FormulaGroup title="Structure" defaultOpen>
+      <FormulaGroup title={t("Structure", "โครงสร้าง")} defaultOpen>
         <FormulaBtn
           label="√"
           onClick={() => sendAction({ type: "insert-structure", kind: "sqrt" })}
@@ -821,7 +829,7 @@ const FormularPanel = memo(({ editor }: { editor: Editor }) => {
         />
       </FormulaGroup>
 
-      <FormulaGroup title="Trig" defaultOpen={false}>
+      <FormulaGroup title={t("Trig", "ตรีโกณ")} defaultOpen={false}>
         {["sin", "cos", "tan", "cot", "sec", "csc"].map((fn) => (
           <FormulaBtn
             key={fn}
@@ -848,7 +856,7 @@ const FormularPanel = memo(({ editor }: { editor: Editor }) => {
         ))}
       </FormulaGroup>
 
-      <FormulaGroup title="Logarithms" defaultOpen={false}>
+      <FormulaGroup title={t("Logarithms", "ลอการิทึม")} defaultOpen={false}>
         <FormulaBtn
           label="log"
           onClick={() => sendAction({ type: "insert-log" })}
@@ -859,7 +867,7 @@ const FormularPanel = memo(({ editor }: { editor: Editor }) => {
         />
       </FormulaGroup>
 
-      <FormulaGroup title="Constants" defaultOpen={false}>
+      <FormulaGroup title={t("Constants", "ค่าคงที่")} defaultOpen={false}>
         {["π", "e", "∞", "φ", "i"].map((s) => (
           <FormulaBtn
             key={s}
@@ -869,7 +877,10 @@ const FormularPanel = memo(({ editor }: { editor: Editor }) => {
         ))}
       </FormulaGroup>
 
-      <FormulaGroup title="Operators & relations" defaultOpen={false}>
+      <FormulaGroup
+        title={t("Operators & relations", "ตัวดำเนินการและความสัมพันธ์")}
+        defaultOpen={false}
+      >
         {[
           "+",
           "−",
@@ -896,7 +907,7 @@ const FormularPanel = memo(({ editor }: { editor: Editor }) => {
         ))}
       </FormulaGroup>
 
-      <FormulaGroup title="Physics symbols" defaultOpen={false}>
+      <FormulaGroup title={t("Physics symbols", "สัญลักษณ์ฟิสิกส์")} defaultOpen={false}>
         <FormulaBtn
           label="∫"
           onClick={() =>
@@ -918,20 +929,20 @@ const FormularPanel = memo(({ editor }: { editor: Editor }) => {
         ))}
       </FormulaGroup>
 
-      <FormulaGroup title="Wrap selected" defaultOpen={false}>
+      <FormulaGroup title={t("Wrap selected", "ครอบข้อความที่เลือก")} defaultOpen={false}>
         <FormulaBtn
           label="/"
-          title="Wrap selected node in fraction"
+          title={t("Wrap selected node in fraction", "ครอบโหนดที่เลือกเป็นเศษส่วน")}
           onClick={() => sendAction({ type: "wrap-fraction" })}
         />
         <FormulaBtn
           label="^"
-          title="Wrap selected node in power"
+          title={t("Wrap selected node in power", "ครอบโหนดที่เลือกเป็นเลขยกกำลัง")}
           onClick={() => sendAction({ type: "wrap-power-top-right" })}
         />
         <FormulaBtn
           label="(x)"
-          title="Wrap selected node in parentheses"
+          title={t("Wrap selected node in parentheses", "ครอบโหนดที่เลือกด้วยวงเล็บ")}
           onClick={() => sendAction({ type: "wrap-paren" })}
         />
       </FormulaGroup>
@@ -939,43 +950,45 @@ const FormularPanel = memo(({ editor }: { editor: Editor }) => {
   );
 });
 
-const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
+const SpecialPanel = memo(({ editor }: { editor: Editor }) => {
+  const { t } = useEditorI18n();
+  return (
   <div className="flex flex-col gap-1.5">
-    <PanelLabel>Choose Block Type</PanelLabel>
+    <PanelLabel>{t("Choose Block Type", "เลือกประเภทบล็อก")}</PanelLabel>
     <div className="grid grid-cols-1 gap-3 px-2 py-0.5">
       <SpecialBlockBtn
-        label="Multiple Choice Question"
+        label={t("Multiple Choice Question", "คำถามแบบเลือกตอบ")}
         preview={
           <div className="space-y-1.5 text-[11px]">
             <p className="line-clamp-1 font-medium text-muted-foreground">
-              The force makes speed...
+              {t("The force makes speed...", "แรงทำให้ความเร็ว...")}
             </p>
             <div className="rounded border border-border bg-background/80 px-2 py-1 text-muted-foreground">
-              ○ increase
+              {t("○ increase", "○ เพิ่มขึ้น")}
             </div>
             <div className="rounded border border-border bg-background/80 px-2 py-1 text-muted-foreground">
-              ○ decrease
+              {t("○ decrease", "○ ลดลง")}
             </div>
           </div>
         }
         onClick={() => editor.chain().focus().insertQuestionChoice().run()}
       />
       <SpecialBlockBtn
-        label="Written Reflection"
+        label={t("Written Reflection", "คำตอบเชิงอธิบาย")}
         preview={
           <div className="space-y-1.5 text-[11px]">
             <p className="line-clamp-1 font-medium text-muted-foreground">
-              Explain why this happens:
+              {t("Explain why this happens:", "อธิบายว่าทำไมสิ่งนี้จึงเกิดขึ้น:")}
             </p>
             <div className="rounded border border-border bg-background/80 px-2 py-1 text-muted-foreground">
-              Your answer...
+              {t("Your answer...", "คำตอบของคุณ...")}
             </div>
           </div>
         }
         onClick={() => editor.chain().focus().insertQuestionWrite().run()}
       />
       <SpecialBlockBtn
-        label="Fill in the Blank (Choice)"
+        label={t("Fill in the Blank (Choice)", "เติมคำในช่องว่าง (ตัวเลือก)")}
         preview={
           <div className="space-y-1.5 text-[11px] text-muted-foreground">
             <p className="line-clamp-1">
@@ -984,10 +997,10 @@ const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
             </p>
             <div className="flex flex-wrap gap-1">
               <span className="rounded border border-border px-1.5 py-0.5">
-                related
+                {t("related", "สัมพันธ์กัน")}
               </span>
               <span className="rounded border border-border px-1.5 py-0.5">
-                random
+                {t("random", "สุ่ม")}
               </span>
             </div>
           </div>
@@ -995,29 +1008,29 @@ const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
         onClick={() => editor.chain().focus().insertQuestionBlankChoice().run()}
       />
       <SpecialBlockBtn
-        label="Fill in the Blank (Write)"
+        label={t("Fill in the Blank (Write)", "เติมคำในช่องว่าง (เขียนตอบ)")}
         preview={
           <div className="space-y-1.5 text-[11px] text-muted-foreground">
             <p className="line-clamp-1">
-              The formula is{" "}
+              {t("The formula is", "สูตรคือ")}{" "}
               <span className="inline-block h-[1.1em] w-14 rounded-sm border-b-2 border-border/80 align-middle" />
             </p>
             <div className="rounded border border-border bg-background/80 px-2 py-1">
-              Type missing word...
+              {t("Type missing word...", "พิมพ์คำที่ขาด...")}
             </div>
           </div>
         }
         onClick={() => editor.chain().focus().insertQuestionBlankWrite().run()}
       />
       <SpecialBlockBtn
-        label="Ask AI Helper"
+        label={t("Ask AI Helper", "ถามผู้ช่วย AI")}
         preview={
           <div className="space-y-1.5 text-[11px]">
             <p className="line-clamp-1 font-medium text-muted-foreground">
-              Ask for a hint:
+              {t("Ask for a hint:", "ขอคำใบ้:")}
             </p>
             <div className="rounded border border-border bg-background/80 px-2 py-1 text-muted-foreground">
-              Why does this answer work?
+              {t("Why does this answer work?", "ทำไมคำตอบนี้ถึงถูกต้อง?")}
             </div>
           </div>
         }
@@ -1025,7 +1038,8 @@ const SpecialPanel = memo(({ editor }: { editor: Editor }) => (
       />
     </div>
   </div>
-));
+  );
+});
 
 // ─── Main sidebar ─────────────────────────────────────────────────────────────
 
@@ -1040,6 +1054,7 @@ const EditorLeftSidebar = ({
   activeCategory: CategoryKey;
   onCategoryChange: (key: CategoryKey) => void;
 }) => {
+  const { t } = useEditorI18n();
   const [active, setActive] = useState<LeftActiveFormats>(DEFAULT_ACTIVE);
 
   useEffect(() => {
@@ -1084,11 +1099,19 @@ const EditorLeftSidebar = ({
     <div className="editor-sidebar-left flex h-full border-r border-border bg-editor-surface">
       {/* Icon rail */}
       <div className="flex w-20 flex-col items-center gap-1.5 border-r border-border/60 px-2 py-3">
-        {CATEGORIES.map(({ key, icon, label }) => (
+        {CATEGORIES.map(({ key, icon }) => (
           <CategoryBtn
             key={key}
             icon={icon}
-            label={label}
+            label={
+              key === "text"
+                ? t("Text", "ข้อความ")
+                : key === "media"
+                  ? t("Media", "สื่อ")
+                  : key === "formular"
+                    ? t("Formula", "สูตร")
+                    : t("Special", "พิเศษ")
+            }
             isActive={activeCategory === key}
             onClick={() => onCategoryChange(key)}
           />
@@ -1098,7 +1121,13 @@ const EditorLeftSidebar = ({
       {/* Tool panel */}
       <div className="flex w-120 flex-col overflow-y-auto p-2.5">
         <p className="mb-2 px-1 text-sm font-semibold text-foreground capitalize">
-          {activeCategory}
+          {activeCategory === "text"
+            ? t("Text", "ข้อความ")
+            : activeCategory === "media"
+              ? t("Media", "สื่อ")
+              : activeCategory === "formular"
+                ? t("Formula", "สูตร")
+                : t("Special", "พิเศษ")}
         </p>
         {renderPanel()}
       </div>
