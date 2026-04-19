@@ -124,7 +124,9 @@ export function getQuestionAgentContextFromEditor(editor: Editor): string {
   return fullContext.slice(fullContext.length - MAX_CONTEXT_CHARS);
 }
 
-export function getQuestionAgentViewportContext(container: HTMLElement): string {
+export function getQuestionAgentViewportContext(
+  container: HTMLElement,
+): string {
   const containerRect = container.getBoundingClientRect();
   const nodes = Array.from(
     container.querySelectorAll(
