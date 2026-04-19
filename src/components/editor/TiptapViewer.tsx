@@ -1,10 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { createEditorExtensions } from "./config/editorExtensions";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useAnswerStore } from "@/stores/content-answer.store";
+import { useAuthStore } from "@/stores/auth.store";
 import api from "@/lib/axios";
-import { Bot, SendHorizontal, X } from "lucide-react";
+import { Bot, Pencil, SendHorizontal, X } from "lucide-react";
 import {
   buildQuestionAgentUserContext,
   getQuestionAgentContextFromEditor,
@@ -18,6 +20,10 @@ const CONTENT_WIDTH = 400;
 const PADDING = 24;
 const MAX_DISPLAY_WIDTH = 500;
 const CARD_PADDING = 40; // px-10 = 40px each side
+
+/** Shared non-display layout for bottom FABs (each button sets inline-flex / responsive display). */
+const fabButtonClassName =
+  "items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow-md transition";
 
 function getInitialZoom() {
   const availableWidth = window.innerWidth - PADDING * 2;
@@ -93,6 +99,7 @@ async function askAi(
 }
 
 function TiptapViewer({ onScrollDirectionChange }: TiptapViewerProps) {
+  const navigate = useNavigate();
   const mainRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(getInitialZoom);
   const [isAiOpen, setIsAiOpen] = useState(false);
@@ -100,7 +107,17 @@ function TiptapViewer({ onScrollDirectionChange }: TiptapViewerProps) {
   const [isAsking, setIsAsking] = useState(false);
   const [isConfirmClear, setIsConfirmClear] = useState(false);
 
-  const { tiptapJson } = useCanvasStore();
+  const { tiptapJson, contentId, ownerId, collaborators } = useCanvasStore();
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+
+  const canEditContent = useMemo(() => {
+    if (!contentId || !userId || !ownerId) return false;
+    const uid = String(userId);
+    const oid = String(ownerId);
+    return (
+      uid === oid || collaborators.some((c) => String(c) === uid)
+    );
+  }, [collaborators, contentId, ownerId, userId]);
   const answers = useAnswerStore((s) => s.answers);
   const setAnswer = useAnswerStore((s) => s.setAnswer);
   const savedLessonAi = answers[LESSON_AI_BLOCK_ID] as
@@ -310,14 +327,26 @@ function TiptapViewer({ onScrollDirectionChange }: TiptapViewerProps) {
         </div>
       </main>
 
-      <button
-        type="button"
-        onClick={openAi}
-        className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-700 shadow-md transition hover:bg-violet-50"
-      >
-        <Bot className="h-4 w-4" />
-        Ask AI
-      </button>
+      <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2">
+        <button
+          type="button"
+          onClick={openAi}
+          className={`inline-flex ${fabButtonClassName} border border-violet-300 bg-white text-violet-700 hover:bg-violet-50`}
+        >
+          <Bot className="h-4 w-4" />
+          Ask AI
+        </button>
+        {canEditContent && (
+          <button
+            type="button"
+            onClick={() => navigate(`/canvas/${contentId}`)}
+            className={`hidden md:inline-flex ${fabButtonClassName} border border-violet-600 bg-violet-600 text-white shadow-md ring-1 ring-violet-500/30 hover:border-violet-700 hover:bg-violet-700 hover:ring-violet-400/40`}
+          >
+            <Pencil className="h-4 w-4 shrink-0 text-white" />
+            Edit
+          </button>
+        )}
+      </div>
 
       {isAiOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-1.5 md:p-3 md:items-center">

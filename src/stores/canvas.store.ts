@@ -1,8 +1,20 @@
 import { create } from "zustand";
 import api from "../lib/axios";
 
+function normalizeMongoId(raw: unknown): string | null {
+  if (raw == null) return null;
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "object" && "_id" in raw) {
+    const inner = (raw as { _id?: unknown })._id;
+    return typeof inner === "string" ? inner : String(inner ?? "");
+  }
+  return String(raw);
+}
+
 interface CanvasState {
   contentId: string | null;
+  /** Content owner user id (from load); used on view page for edit affordance. */
+  ownerId: string | null;
   title: string;
   titleImage: string;
   tiptapJson: string;
@@ -32,6 +44,7 @@ interface CanvasState {
 
 export const useCanvasStore = create<CanvasState>((set, get) => ({
   contentId: null,
+  ownerId: null,
   title: "Untitled",
   titleImage: "",
   tiptapJson: "{}",
@@ -63,6 +76,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
       set({
         contentId: id,
+        ownerId: normalizeMongoId(res.data.owner_id),
         title: res.data.title,
         titleImage: res.data.title_image ?? "",
         tiptapJson: res.data.tiptap_json,
@@ -85,6 +99,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       set({
         isLoading: false,
         contentId: id,
+        ownerId: null,
         tiptapJson: "{}",
         contentLoadError:
           typeof message === "string" && message.length > 0
