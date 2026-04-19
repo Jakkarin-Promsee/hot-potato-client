@@ -1,9 +1,10 @@
 import { useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import TipTapEditor from "@/components/editor/TipTapEditor";
 import { CanvasProvider } from "@/contexts/CanvasContext";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useLearningHistoryStore } from "@/stores/learningHistory.store";
+import { MonitorSmartphone } from "lucide-react";
 
 const TipTapCanvas = () => {
   const { id } = useParams<{ id: string }>();
@@ -64,25 +65,55 @@ const TipTapCanvas = () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [id]);
 
-  if (isLoading)
-    return (
-      <div className="flex min-h-screen flex-col bg-background text-foreground">
-        <div className="flex flex-1 items-center justify-center">
-          <span className="animate-pulse text-sm text-muted-foreground">
-            Loading content...
-          </span>
-        </div>
-      </div>
-    );
-
-  return (
+  const desktopShell = (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <div className="flex-1 min-h-0">
-        <CanvasProvider>
-          <TipTapEditor />
-        </CanvasProvider>
+      <div className="flex min-h-0 flex-1 flex-col">
+        {isLoading ? (
+          <div className="flex min-h-0 flex-1 items-center justify-center">
+            <span className="animate-pulse text-sm text-muted-foreground">
+              Loading content...
+            </span>
+          </div>
+        ) : (
+          <CanvasProvider>
+            <TipTapEditor />
+          </CanvasProvider>
+        )}
       </div>
     </div>
+  );
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-100 flex flex-col items-center justify-center gap-5 bg-background px-6 text-center md:hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="canvas-mobile-gate-title"
+      >
+        <MonitorSmartphone className="h-14 w-14 text-violet-600" aria-hidden />
+        <div className="max-w-sm space-y-3">
+          <h1
+            id="canvas-mobile-gate-title"
+            className="text-lg font-semibold tracking-tight text-foreground"
+          >
+            Editing needs a larger screen
+          </h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            This editor is not available on phones. Please open this page on a
+            computer to create and edit content.
+          </p>
+        </div>
+        <Link
+          to="/explore"
+          className="text-sm font-medium text-violet-700 underline-offset-4 hover:underline"
+        >
+          Back to Explore
+        </Link>
+      </div>
+
+      <div className="hidden md:block">{desktopShell}</div>
+    </>
   );
 };
 
