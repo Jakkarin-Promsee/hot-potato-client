@@ -42,6 +42,35 @@ interface LessonAiAnswer {
 
 const LESSON_AI_BLOCK_ID = "__lesson_ai_assistant__";
 
+/** True when every vertical scroll ancestor from `start` up to `container` is at its top (cannot scroll further up). */
+function isAtTopOfVerticalScrollChain(
+  container: HTMLElement,
+  start: EventTarget | null,
+): boolean {
+  let node: Element | null =
+    start instanceof Element
+      ? start
+      : start instanceof Node
+        ? start.parentElement
+        : null;
+  while (node) {
+    if (node === container) return container.scrollTop <= 1;
+
+    if (node instanceof HTMLElement) {
+      const { overflowY } = window.getComputedStyle(node);
+      const canScrollY =
+        (overflowY === "auto" ||
+          overflowY === "scroll" ||
+          overflowY === "overlay") &&
+        node.scrollHeight > node.clientHeight + 1;
+      if (canScrollY && node.scrollTop > 1) return false;
+    }
+
+    node = node.parentElement;
+  }
+  return container.scrollTop <= 1;
+}
+
 const buildFallbackReply = (question: string) =>
   `I couldn't get an AI response right now. Your question was: "${question}". Please try again.`;
 
@@ -152,6 +181,25 @@ function TiptapViewer({ onScrollDirectionChange }: TiptapViewerProps) {
 
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
+  }, [onScrollDirectionChange]);
+
+  // When scroll position is already at the top, scroll events do not fire for
+  // "scroll up" — but the user may still wheel/trackpad upward to reveal the nav.
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el || !onScrollDirectionChange) return;
+
+    const MIN_DELTA = 6;
+
+    const onWheelRevealNav = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) return;
+      if (e.deltaY > -MIN_DELTA) return;
+      if (!isAtTopOfVerticalScrollChain(el, e.target)) return;
+      onScrollDirectionChange("up");
+    };
+
+    el.addEventListener("wheel", onWheelRevealNav, { passive: true });
+    return () => el.removeEventListener("wheel", onWheelRevealNav);
   }, [onScrollDirectionChange]);
 
   // ── Ctrl +/- keyboard shortcuts ───────────────────────────────────────────

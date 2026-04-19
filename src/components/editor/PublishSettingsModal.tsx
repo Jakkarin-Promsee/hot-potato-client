@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Copy, Loader2, Plus, Trash2, Upload, X } from "lucide-react";
+import { Check, Copy, Images, Loader2, Plus, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,106 @@ import { Textarea } from "@/components/ui/textarea";
 import api from "@/lib/axios";
 import { useCanvasStore } from "@/stores/canvas.store";
 import { useUploadStore } from "@/stores/cloudinary.store";
+
+/** Picker: all uploaded images in a grid; one click sets the title image and closes. */
+const TitleImageGalleryModal = memo(
+  ({
+    onClose,
+    onPick,
+    currentUrl,
+  }: {
+    onClose: () => void;
+    onPick: (url: string) => void;
+    currentUrl: string;
+  }) => {
+    const history = useUploadStore((s) => s.history);
+    const isFetching = useUploadStore((s) => s.isFetching);
+    const fetchHistory = useUploadStore((s) => s.fetchHistory);
+
+    useEffect(() => {
+      void fetchHistory();
+    }, [fetchHistory]);
+
+    return (
+      <div className="fixed inset-0 z-90 flex items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label="Close"
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <div
+          className="relative z-10 flex max-h-[78vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3">
+            <div>
+              <span className="text-sm font-semibold text-foreground">
+                Choose from gallery
+              </span>
+              <p className="text-[11px] text-muted-foreground">
+                Click an image to use it as the title image.
+              </p>
+            </div>
+            <Button variant="ghost" size="icon-sm" onClick={onClose}>
+              <X className="size-4" />
+            </Button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+            {isFetching ? (
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="aspect-square rounded-lg bg-muted animate-pulse"
+                  />
+                ))}
+              </div>
+            ) : history.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-10 text-center text-sm text-muted-foreground">
+                No images in your gallery yet. Use{" "}
+                <span className="font-medium text-foreground">Upload</span>{" "}
+                above first, then try again.
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+                {history.map((img) => {
+                  const selected = currentUrl === img.secure_url;
+                  return (
+                    <button
+                      key={img.public_id}
+                      type="button"
+                      title={img.original_filename}
+                      onClick={() => {
+                        onPick(img.secure_url);
+                        onClose();
+                      }}
+                      className={[
+                        "relative aspect-square overflow-hidden rounded-lg border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        selected
+                          ? "border-primary ring-1 ring-primary/30"
+                          : "border-transparent hover:border-border",
+                      ].join(" ")}
+                    >
+                      <img
+                        src={img.secure_url}
+                        alt=""
+                        className="size-full object-cover"
+                        loading="lazy"
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  },
+);
+
+TitleImageGalleryModal.displayName = "TitleImageGalleryModal";
 
 type PublishSettingsModalProps = {
   open: boolean;
@@ -27,6 +127,7 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
   const [topicDraft, setTopicDraft] = useState("");
   const [shareCopied, setShareCopied] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   const contentId = useCanvasStore((s) => s.contentId);
   const title = useCanvasStore((s) => s.title);
@@ -51,12 +152,19 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
     if (!open) return;
 
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        if (galleryOpen) setGalleryOpen(false);
+        else onClose();
+      }
     };
 
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
-  }, [open, onClose]);
+  }, [open, onClose, galleryOpen]);
+
+  useEffect(() => {
+    if (!open) setGalleryOpen(false);
+  }, [open]);
 
   const addCollaborator = () => {
     const next = collaboratorDraft.trim();
@@ -140,22 +248,26 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
   };
 
   const handlePublishNow = async () => {
+    if (!contentId) return;
     if (accessType === "private") setAccessType("public");
     await forceSave();
+    const id = useCanvasStore.getState().contentId;
     onClose();
+    if (id) navigate(`/view/${id}`);
   };
 
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-80 flex items-center justify-center bg-black/60 p-4"
-      onMouseDown={onClose}
-    >
+    <>
       <div
-        className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-border bg-background shadow-2xl"
-        onMouseDown={(e) => e.stopPropagation()}
+        className="fixed inset-0 z-80 flex items-center justify-center bg-black/60 p-4"
+        onMouseDown={onClose}
       >
+        <div
+          className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-border bg-background shadow-2xl"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
             <h2 className="text-base font-semibold">Publish settings</h2>
@@ -180,11 +292,21 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
 
           <div className="space-y-2">
             <Label>Title image URL</Label>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-center gap-2"
+              onClick={() => setGalleryOpen(true)}
+            >
+              <Images className="size-3.5" />
+              Choose from gallery
+            </Button>
             <div className="flex gap-2">
               <Input
                 value={titleImage}
                 onChange={(e) => setTitleImage(e.target.value)}
                 placeholder="https://..."
+                className="min-w-0 flex-1"
               />
               <input
                 ref={fileInputRef}
@@ -195,6 +317,7 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
               />
               <Button
                 variant="outline"
+                className="shrink-0"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
               >
@@ -361,14 +484,25 @@ function PublishSettingsModal({ open, onClose }: PublishSettingsModalProps) {
               {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
               Save settings
             </Button>
-            <Button onClick={handlePublishNow} disabled={isSaving}>
+            <Button
+              onClick={handlePublishNow}
+              disabled={isSaving || !contentId}
+            >
               {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
               Publish now
             </Button>
           </div>
         </div>
       </div>
-    </div>
+      </div>
+      {galleryOpen && (
+        <TitleImageGalleryModal
+          currentUrl={titleImage}
+          onPick={(url) => setTitleImage(url)}
+          onClose={() => setGalleryOpen(false)}
+        />
+      )}
+    </>
   );
 }
 
