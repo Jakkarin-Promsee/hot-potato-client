@@ -2,6 +2,14 @@ import React, { useEffect, useRef, useState } from "react";
 import { createEditorExtensions } from "./config/editorExtensions";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { useCanvasStore } from "@/stores/canvas.store";
+import { useAnswerStore } from "@/stores/content-answer.store";
+import api from "@/lib/axios";
+import { Bot, SendHorizontal, X } from "lucide-react";
+import {
+  buildQuestionAgentUserContext,
+  getQuestionAgentContextFromEditor,
+  getQuestionAgentViewportContext,
+} from "./extensions/questionAgentContext";
 
 const ZOOM_MIN = 0.1;
 const ZOOM_MAX = 4.0;
@@ -21,11 +29,65 @@ type TiptapViewerProps = {
   onScrollDirectionChange?: (direction: "up" | "down") => void;
 };
 
+interface LessonAiMessage {
+  question: string;
+  answer: string;
+  createdAt: string;
+}
+
+interface LessonAiAnswer {
+  chatHistory: LessonAiMessage[];
+  open?: boolean;
+}
+
+const LESSON_AI_BLOCK_ID = "__lesson_ai_assistant__";
+
+const buildFallbackReply = (question: string) =>
+  `I couldn't get an AI response right now. Your question was: "${question}". Please try again.`;
+
+async function askAi(
+  question: string,
+  context: string,
+  userContext: string,
+): Promise<string> {
+  try {
+    const response = await api.post<{ answer?: string }>("/chat/ask", {
+      prompt: question,
+      context,
+      userContext,
+    });
+    const answer = response.data?.answer?.trim();
+    return answer || buildFallbackReply(question);
+  } catch {
+    return buildFallbackReply(question);
+  }
+}
+
 function TiptapViewer({ onScrollDirectionChange }: TiptapViewerProps) {
   const mainRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(getInitialZoom);
+  const [isAiOpen, setIsAiOpen] = useState(false);
+  const [questionInput, setQuestionInput] = useState("");
+  const [isAsking, setIsAsking] = useState(false);
+  const [isConfirmClear, setIsConfirmClear] = useState(false);
 
   const { tiptapJson } = useCanvasStore();
+  const answers = useAnswerStore((s) => s.answers);
+  const setAnswer = useAnswerStore((s) => s.setAnswer);
+  const savedLessonAi = answers[LESSON_AI_BLOCK_ID] as
+    | LessonAiAnswer
+    | undefined;
+  const [chatHistory, setChatHistory] = useState<LessonAiMessage[]>(
+    savedLessonAi?.chatHistory ?? [],
+  );
+
+  useEffect(() => {
+    if (!savedLessonAi) return;
+    setChatHistory(savedLessonAi.chatHistory ?? []);
+    if (typeof savedLessonAi.open === "boolean") {
+      setIsAiOpen(savedLessonAi.open);
+    }
+  }, [answers[LESSON_AI_BLOCK_ID]]);
 
   const editor = useEditor({
     extensions: createEditorExtensions(false),
@@ -116,6 +178,67 @@ function TiptapViewer({ onScrollDirectionChange }: TiptapViewerProps) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  const handleAsk = async () => {
+    const question = questionInput.trim();
+    if (!question || !editor || isAsking) return;
+
+    setIsAsking(true);
+    try {
+      const fullContext = getQuestionAgentContextFromEditor(editor);
+      const viewportContext = mainRef.current
+        ? getQuestionAgentViewportContext(mainRef.current)
+        : "";
+      const context = viewportContext
+        ? `Current reading position:\n${viewportContext}\n\nFull content:\n${fullContext}`
+        : fullContext;
+      const userContext = buildQuestionAgentUserContext(
+        answers,
+        LESSON_AI_BLOCK_ID,
+        chatHistory,
+      );
+      const answer = await askAi(question, context, userContext);
+      const nextHistory = [
+        ...chatHistory,
+        { question, answer, createdAt: new Date().toISOString() },
+      ];
+      setChatHistory(nextHistory);
+      setQuestionInput("");
+      setAnswer(LESSON_AI_BLOCK_ID, { chatHistory: nextHistory, open: true });
+    } finally {
+      setIsAsking(false);
+    }
+  };
+
+  const closeAi = () => {
+    setIsAiOpen(false);
+    setAnswer(LESSON_AI_BLOCK_ID, { chatHistory, open: false });
+  };
+
+  const openAi = () => {
+    setIsAiOpen(true);
+    setAnswer(LESSON_AI_BLOCK_ID, { chatHistory, open: true });
+  };
+
+  const clearAiHistory = () => {
+    setChatHistory([]);
+    setAnswer(LESSON_AI_BLOCK_ID, { chatHistory: [], open: true });
+    setIsConfirmClear(false);
+  };
+
+  const requestClearAiHistory = () => {
+    if (!isConfirmClear) {
+      setIsConfirmClear(true);
+      return;
+    }
+    clearAiHistory();
+  };
+
+  useEffect(() => {
+    if (!isConfirmClear) return;
+    const timer = setTimeout(() => setIsConfirmClear(false), 3500);
+    return () => clearTimeout(timer);
+  }, [isConfirmClear]);
+
   return (
     <div className="editor-layout editor-layout--viewer">
       <main ref={mainRef} className="editor-main">
@@ -138,6 +261,98 @@ function TiptapViewer({ onScrollDirectionChange }: TiptapViewerProps) {
           </div>
         </div>
       </main>
+
+      <button
+        type="button"
+        onClick={openAi}
+        className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-700 shadow-md transition hover:bg-violet-50"
+      >
+        <Bot className="h-4 w-4" />
+        Ask AI
+      </button>
+
+      {isAiOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-1.5 md:p-3 md:items-center">
+          <div className="flex h-[96dvh] w-full max-w-none flex-col rounded-lg border border-border bg-background shadow-2xl md:h-[80vh] md:max-w-2xl md:rounded-xl">
+            <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+              <Bot className="h-4 w-4 text-violet-600" />
+              <p className="text-sm font-semibold text-foreground">Ask AI</p>
+
+              <button
+                type="button"
+                onClick={requestClearAiHistory}
+                className={[
+                  "ml-auto rounded border px-2 py-1 text-xs font-semibold transition",
+                  isConfirmClear
+                    ? "border-red-300 bg-red-50 text-red-600 hover:bg-red-100"
+                    : "border-border text-muted-foreground hover:bg-accent hover:text-foreground",
+                ].join(" ")}
+              >
+                {isConfirmClear ? "Confirm clear" : "Clear chat"}
+              </button>
+              <button
+                type="button"
+                onClick={closeAi}
+                className="rounded p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                aria-label="Close Ask AI"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 space-y-2 overflow-y-auto px-4 py-3">
+              {chatHistory.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Ask anything while reading. AI will use the section you are
+                  currently on.
+                </p>
+              ) : (
+                chatHistory.map((msg, i) => (
+                  <div key={`${msg.createdAt}-${i}`} className="space-y-1.5">
+                    <div className="flex justify-end">
+                      <p className="max-w-[90%] whitespace-pre-wrap rounded-2xl rounded-br-md border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-900">
+                        {msg.question}
+                      </p>
+                    </div>
+                    <div className="flex justify-start">
+                      <p className="max-w-[90%] whitespace-pre-wrap rounded-2xl rounded-bl-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+                        {msg.answer}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="border-t border-border px-4 py-3">
+              <div className="flex items-start gap-2">
+                <textarea
+                  rows={1}
+                  value={questionInput}
+                  onChange={(e) => setQuestionInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void handleAsk();
+                    }
+                  }}
+                  placeholder="Ask AI about this section..."
+                  className="flex-1 resize-none overflow-hidden rounded-lg border border-gray-200 bg-white px-3 py-2 text-base text-gray-800 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleAsk()}
+                  disabled={isAsking || !questionInput.trim()}
+                  className="flex h-10 items-center gap-1 rounded-lg bg-violet-600 px-3 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <SendHorizontal className="h-3.5 w-3.5" />
+                  Ask
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

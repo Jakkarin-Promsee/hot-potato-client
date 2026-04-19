@@ -112,6 +112,41 @@ export function getQuestionAgentContextAbove(
   return fullContext.slice(fullContext.length - MAX_CONTEXT_CHARS);
 }
 
+export function getQuestionAgentContextFromEditor(editor: Editor): string {
+  const lines: string[] = [];
+  editor.state.doc.content.forEach((node) => {
+    lines.push(...serializeBlock(node));
+  });
+
+  const fullContext = lines.join("\n").trim();
+  if (!fullContext) return "";
+  if (fullContext.length <= MAX_CONTEXT_CHARS) return fullContext;
+  return fullContext.slice(fullContext.length - MAX_CONTEXT_CHARS);
+}
+
+export function getQuestionAgentViewportContext(container: HTMLElement): string {
+  const containerRect = container.getBoundingClientRect();
+  const nodes = Array.from(
+    container.querySelectorAll(
+      "h1, h2, h3, h4, h5, h6, p, li, blockquote, pre, [data-type]",
+    ),
+  ) as HTMLElement[];
+
+  const lines: string[] = [];
+  for (const node of nodes) {
+    const rect = node.getBoundingClientRect();
+    const intersects =
+      rect.bottom >= containerRect.top && rect.top <= containerRect.bottom;
+    if (!intersects) continue;
+    const text = node.textContent?.trim();
+    if (!text) continue;
+    lines.push(text);
+    if (lines.join("\n").length > 2400) break;
+  }
+
+  return lines.join("\n").trim();
+}
+
 function stringifyHistory(
   blockId: string,
   chatHistory: ChatMessageLike[],
