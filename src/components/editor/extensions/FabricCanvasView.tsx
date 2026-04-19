@@ -12,6 +12,7 @@ import { useCanvasContext } from "@/contexts/CanvasContext";
 import { v4 as uuidv4 } from "uuid";
 import { ChevronDown } from "lucide-react";
 import FabricCanvasReadOnly from "../FabricCanvasReadOnly";
+import BlockMoveControls from "./BlockMoveControls";
 
 const FabricCanvasView = ({
   node,
@@ -210,6 +211,12 @@ const FabricCanvasView = ({
           selected ? "" : "border-accent-foreground shadow-md"
         }`}
       >
+        <BlockMoveControls
+          editor={editor}
+          getPos={getPos}
+          className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-md border border-gray-200 bg-white/90 p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+        />
+
         <canvas ref={canvasElRef} className="block w-full" />
 
         {/* Resize Handle */}

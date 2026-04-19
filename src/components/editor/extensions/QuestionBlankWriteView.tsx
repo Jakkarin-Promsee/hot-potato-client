@@ -13,6 +13,7 @@ import {
 import type { QuestionFeedbackMode } from "./questionMode";
 import { Eye, EyeOff, HelpCircle, SquareDashedMousePointer } from "lucide-react";
 import type { QuestionBlankWriteAttrs } from "./QuestionBlankWriteNode";
+import BlockMoveControls from "./BlockMoveControls";
 
 interface BlockAnswer {
   inputs: string[];
@@ -614,6 +615,8 @@ export default function QuestionBlankWriteView({
             </span>
 
             <div className="ml-auto flex items-center gap-1">
+              <BlockMoveControls editor={editor} getPos={getPos} />
+
               <button
                 type="button"
                 onMouseDown={(e) => e.stopPropagation()}

@@ -7,6 +7,7 @@ import FeedbackDiscussionPanel, {
 } from "./FeedbackDiscussionPanel";
 import QuestionFeedbackModeToggle from "./QuestionFeedbackModeToggle";
 import type { QuestionFeedbackMode } from "./questionMode";
+import BlockMoveControls from "./BlockMoveControls";
 import {
   requestFeedbackFollowup,
   requestQuestionFeedback,
@@ -793,6 +794,8 @@ export default function QuestionChoiceView({
             </span>
 
             <div className="ml-auto flex items-center gap-1">
+              <BlockMoveControls editor={editor} getPos={getPos} />
+
               <button
                 type="button"
                 onMouseDown={(e) => e.stopPropagation()}

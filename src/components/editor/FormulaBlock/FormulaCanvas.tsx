@@ -13,6 +13,7 @@ import "katex/dist/katex.min.css";
 import { Eye, EyeOff, SquareDashedMousePointer } from "lucide-react";
 import { createFormulaRow } from "./formulaReducer";
 import { formulaToLatex } from "./formulaToLatex";
+import BlockMoveControls from "../extensions/BlockMoveControls";
 import {
   setActiveFormulaBlock,
   subscribeFormulaToolbarAction,
@@ -291,6 +292,7 @@ export default function FormulaCanvas({
                 : "Formula Block (LaTeX)"}
             </span>
             <div className="ml-auto flex items-center gap-1">
+              <BlockMoveControls editor={editor} getPos={getPos} />
               <button
                 type="button"
                 onMouseDown={(event) => {

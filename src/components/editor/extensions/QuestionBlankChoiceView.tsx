@@ -13,6 +13,7 @@ import {
 import type { QuestionFeedbackMode } from "./questionMode";
 import { Check, Eye, EyeOff, HelpCircle, SquareDashedMousePointer, X } from "lucide-react";
 import type { QuestionBlankChoiceAttrs } from "./QuestionBlankChoiceNode";
+import BlockMoveControls from "./BlockMoveControls";
 
 interface BlockAnswer {
   placedByBlank: Array<number | null>;
@@ -746,6 +747,8 @@ export default function QuestionBlankChoiceView({
             </span>
 
             <div className="ml-auto flex items-center gap-1">
+              <BlockMoveControls editor={editor} getPos={getPos} />
+
               <button
                 type="button"
                 onMouseDown={(e) => e.stopPropagation()}

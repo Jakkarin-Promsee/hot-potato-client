@@ -16,6 +16,7 @@ import {
   buildQuestionAgentUserContext,
   getQuestionAgentContextAbove,
 } from "./questionAgentContext";
+import BlockMoveControls from "./BlockMoveControls";
 
 export interface ChatMessage {
   question: string;
@@ -187,17 +188,20 @@ export default function QuestionAgentView({
               className="w-40 rounded border border-transparent bg-transparent px-1 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 outline-none focus:border-violet-200 focus:bg-white"
             />
 
-            <button
-              type="button"
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                selectNode();
-              }}
-              className="ml-auto flex h-6 w-6 items-center justify-center rounded text-gray-300 transition hover:bg-violet-100 hover:text-violet-500"
-              aria-label="Select block"
-            >
-              <SquareDashedMousePointer className="h-3.5 w-3.5" />
-            </button>
+            <div className="ml-auto flex items-center gap-1">
+              <BlockMoveControls editor={editor} getPos={getPos} />
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  selectNode();
+                }}
+                className="flex h-6 w-6 items-center justify-center rounded text-gray-300 transition hover:bg-violet-100 hover:text-violet-500"
+                aria-label="Select block"
+              >
+                <SquareDashedMousePointer className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         )}
 

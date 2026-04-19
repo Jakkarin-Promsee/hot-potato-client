@@ -17,6 +17,7 @@ import {
   requestFeedbackFollowup,
   requestWriteEvaluation,
 } from "./questionFeedbackApi";
+import BlockMoveControls from "./BlockMoveControls";
 
 export interface QuestionWriteAttrs {
   id: string;
@@ -391,6 +392,8 @@ export default function QuestionWriteView({
             </span>
 
             <div className="ml-auto flex items-center gap-1">
+              <BlockMoveControls editor={editor} getPos={getPos} />
+
               <button
                 type="button"
                 onMouseDown={(e) => e.stopPropagation()}
