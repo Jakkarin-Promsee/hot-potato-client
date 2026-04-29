@@ -1,6 +1,6 @@
 import { useAuthStore } from "@/stores/auth.store";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const Login = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -10,6 +10,14 @@ const Login = () => {
 
   const { login, register, isLoading, error } = useAuthStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const reason = searchParams.get("reason");
+    if (reason) {
+      useAuthStore.setState({ error: reason });
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

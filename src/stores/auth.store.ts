@@ -16,6 +16,7 @@ interface AuthState {
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
+  recheckToken: () => Promise<void>;
   logout: () => void;
 }
 
@@ -41,6 +42,21 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
         const res = await api.post("/auth/register", { name, email, password });
         set({ user: res.data.user, token: res.data.token, isLoading: false });
+      },
+
+      recheckToken: async () => {
+        const token = useAuthStore.getState().token;
+        if (!token) return;
+
+        try {
+          const res = await api.get("/auth/recheck", {
+            // Let store decide redirect behavior after token clear.
+            skipAuthRedirect: true,
+          } as any);
+          set({ user: res.data.user, token: res.data.token ?? token, error: null });
+        } catch {
+          set({ user: null, token: null });
+        }
       },
 
       logout: () => {

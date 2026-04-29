@@ -24,6 +24,7 @@ import { useAuthStore } from "@/stores/auth.store";
 const publicNavItems = [
   { to: "/guide", icon: BookOpen, label: "Guide" },
   { to: "/explore", icon: Compass, label: "Explore" },
+  { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
 const authOnlyNavItems = [

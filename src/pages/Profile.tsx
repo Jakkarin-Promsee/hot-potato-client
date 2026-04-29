@@ -13,9 +13,11 @@ import {
 } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useThemeStore } from "@/stores/theme.store";
+import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
   const { theme } = useThemeStore();
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -141,6 +143,15 @@ export default function Profile() {
             </Select>
           </div>
         </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={() => navigate("/change-password")}
+        >
+          Change password
+        </Button>
 
         <Button className="w-full gap-2">
           <Save className="h-4 w-4" /> Save changes
